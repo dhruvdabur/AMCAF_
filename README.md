@@ -1,246 +1,171 @@
-<!-- TEMPLATE_NOTICE_START -->
-<div align="center">
+# AMC-AF: Autonomous Vehicle Control in 2D and CARLA
 
-# e-Yantra Project Template
+This repository develops and demonstrates autonomous vehicle control in two
+simulation environments:
 
-**Standardized project template for e-Yantra interns — IIT Bombay**
+| Simulator | Purpose | Main entry point |
+| --- | --- | --- |
+| **2D MPC traffic simulator** | Fast controller development and visualization of path tracking with traffic and obstacle constraints | `simulators/2d_mpc/mpc_path_tracking.py` |
+| **3D CARLA simulator** | Run a controlled vehicle in a rendered road environment with optional traffic | `simulators/carla_3d/custom_controller_runner.py` |
 
-[![e-Yantra](https://img.shields.io/badge/e--Yantra-IIT%20Bombay-orange)](https://www.e-yantra.org)
+The runnable simulator programs are kept in `simulators/`. Reusable vehicle,
+course, obstacle, and controller implementations are kept separately in
+`src/av_control_guide/src/components/`.
 
-</div>
+## Repository Structure
 
-> [!IMPORTANT]
-> **Mentors — run `python setup.py` before sharing this repo with interns.**
->
-> The script asks a few questions (project name, category, intern names, your name) and then automatically:
-> - Creates the right folder structure for your project type (Hardware / ROS 2 / Software / FPGA)
-> - Fills in and cleans up this README with your project's details
-> - Generates a `.gitignore` and `LICENSE` file
-> - For ROS 2 projects: scaffolds a starter package with `package.xml`, `CMakeLists.txt`, and a launch file
-> - For Software/Web projects: creates a `.env.example`
->
-> ```
-> python setup.py
-> ```
->
-> After it finishes, commit everything and share the repo URL with your intern(s).
-> Follow [`docs/wiki-guide.md`](docs/wiki-guide.md) to set up the project Wiki.
+```text
+amcaf/
+|-- simulators/
+|   |-- 2d_mpc/
+|   |   |-- mpc_path_tracking.py          # 2D city traffic MPC simulation
+|   |   `-- mpc_path_tracking.gif         # Example output
+|   `-- carla_3d/
+|       `-- custom_controller_runner.py   # CARLA client/controller runner
+|-- src/
+|   `-- av_control_guide/
+|       |-- src/components/               # Shared algorithms and models
+|       |-- src/simulations/              # Additional reference examples
+|       `-- test/                         # Algorithm tests
+|-- third_party/
+|   `-- CARLA_0.9.15/                     # Local CARLA runtime, not committed
+|-- requirements.txt
+`-- README.md
+```
 
----
-<!-- TEMPLATE_NOTICE_END -->
+`third_party/CARLA_0.9.15/` is a local installation of the CARLA simulator.
+It contains large downloaded engine assets and binaries, so it is ignored by
+Git. The project-owned CARLA controller is tracked in `simulators/carla_3d/`.
 
-<div align="center">
+## Requirements
 
-# {{PROJECT_NAME}}
+- Ubuntu 22.04 or a compatible Linux distribution
+- Python 3.10 or later for the Python simulations
+- A desktop environment for the Matplotlib 2D window
+- Vulkan-capable graphics drivers for CARLA
+- CARLA `0.9.15` for the 3D workflow
 
-{{SHORT_DESCRIPTION}}
-
-[![Category](https://img.shields.io/badge/Category-{{PROJECT_TYPE_BADGE}}-blue)](#)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![e-Yantra](https://img.shields.io/badge/e--Yantra-IIT%20Bombay-orange)](https://www.e-yantra.org)
-
-</div>
-
----
-
-## Table of Contents
-
-- [About](#about)
-- [Prerequisites](#prerequisites)
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-- [Usage](#usage)
-- [Team](#team)
-- [License](#license)
-
----
-
-## About
-
-{{SHORT_DESCRIPTION}}
-
-**Project Type:** {{PROJECT_TYPE}}  
-**Mentor:** {{MENTOR_NAME}}
-
-<!-- [HARDWARE_ONLY_START] -->
-### Hardware Overview
-
-> _Describe the hardware platform, microcontroller/processor, key sensors, and actuators used in this project._
-<!-- [HARDWARE_ONLY_END] -->
-
-<!-- [ROS_ONLY_START] -->
-### Robot Platform
-
-> _Describe the robot, its drive configuration (differential drive, quadrotor, etc.), and the autonomous task it performs._
-<!-- [ROS_ONLY_END] -->
-
-<!-- [SOFTWARE_ONLY_START] -->
-### System Overview
-
-> _Describe the application, its architecture (frontend/backend/API), and the problem it solves._
-<!-- [SOFTWARE_ONLY_END] -->
-
-<!-- [FPGA_ONLY_START] -->
-### FPGA / Design Overview
-
-> _Describe the FPGA board, the HDL language used (Verilog/VHDL/SystemVerilog), and the digital system being implemented._
-<!-- [FPGA_ONLY_END] -->
-
----
-
-## Prerequisites
-
-<!-- [HARDWARE_ONLY_START] -->
-- A C/C++ toolchain for your target platform (e.g., `arm-none-eabi-gcc`, Arduino IDE, PlatformIO)
-- Programmer or debugger (e.g., ST-Link, J-Link, USB-to-UART adapter)
-- Python 3.8+ (for utility scripts and tests)
-- List any specific hardware: boards, sensors, modules, power supply specs
-<!-- [HARDWARE_ONLY_END] -->
-
-<!-- [ROS_ONLY_START] -->
-- Ubuntu 22.04 (for ROS 2 Humble) or Ubuntu 24.04 (for ROS 2 Jazzy)
-- [ROS 2 Installation](https://docs.ros.org/en/humble/Installation.html)
-- `colcon` — `sudo apt install python3-colcon-common-extensions`
-- `rosdep` — `sudo apt install python3-rosdep`
-- (Optional) Gazebo Fortress / Harmonic for simulation
-<!-- [ROS_ONLY_END] -->
-
-<!-- [SOFTWARE_ONLY_START] -->
-- Python 3.10+ (for backend)
-- Node.js 18+ and npm (for frontend, if applicable)
-- Docker (optional, for containerized development)
-- PostgreSQL / MongoDB / other DB as required by your project
-<!-- [SOFTWARE_ONLY_END] -->
-
-<!-- [FPGA_ONLY_START] -->
-- Xilinx Vivado Design Suite (for Xilinx/AMD FPGAs) **or** Intel Quartus Prime (for Intel/Altera FPGAs)
-- Simulation tool: ModelSim / Questa (commercial) **or** Icarus Verilog / Verilator (open source)
-- GTKWave for viewing waveforms — `sudo apt install gtkwave`
-- Python 3.8+ (for automation scripts)
-- Target FPGA board (e.g., Basys 3, DE10-Nano, Arty A7)
-<!-- [FPGA_ONLY_END] -->
-
----
-
-## Getting Started
+Set up the Python dependencies from the repository root:
 
 ```bash
-git clone <your-repo-url>
-cd {{REPO_NAME}}
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -r requirements.txt
 ```
 
-<!-- [HARDWARE_ONLY_START] -->
+For the CARLA workflow, the Python interpreter also needs a CARLA Python API
+package compatible with the installed CARLA version. Confirm it with:
+
 ```bash
-# Install toolchain dependencies — update with your specific steps
-# e.g., for PlatformIO:
-pip install platformio
-
-# Build firmware
-make build
-# or: pio run
-
-# Flash to target device
-make flash
-# or: pio run --target upload
+python3 -c "import carla; print(carla.__file__)"
 ```
-<!-- [HARDWARE_ONLY_END] -->
 
-<!-- [ROS_ONLY_START] -->
+## Run The 2D Simulator
+
+The 2D simulator presents a city-road scene with an ego vehicle, moving
+traffic, intersections, and MPC obstacle constraints.
+
+From the repository root:
+
 ```bash
-# Source ROS 2 (add to ~/.bashrc to avoid doing this every session)
-source /opt/ros/humble/setup.bash   # change to 'jazzy' if using Jazzy
-
-# Install ROS package dependencies
-sudo rosdep init        # only needed once on a fresh machine
-rosdep update
-rosdep install --from-paths src --ignore-src -r -y
-
-# Build the workspace
-colcon build --symlink-install
-
-# Source the workspace
-source install/setup.bash
-
-# Launch
-ros2 launch <package_name> <launch_file>.launch.py
+python3 simulators/2d_mpc/mpc_path_tracking.py
 ```
-<!-- [ROS_ONLY_END] -->
 
-<!-- [SOFTWARE_ONLY_START] -->
+The simulation opens an interactive Matplotlib window. The executable scenario
+is in `simulators/2d_mpc/mpc_path_tracking.py`; its reusable MPC, vehicle, and
+course logic comes from `src/av_control_guide/src/components/`.
+
+![2D MPC traffic simulation](simulators/2d_mpc/mpc_path_tracking.gif)
+
+## Run The 3D CARLA Simulator
+
+### 1. Install CARLA Locally
+
+Download or extract the CARLA `0.9.15` Linux distribution into this location:
+
+```text
+third_party/CARLA_0.9.15/
+```
+
+The directory should contain `CarlaUE4.sh` and `CarlaUE4/`.
+
+### 2. Start The CARLA Server
+
+In terminal 1, from the repository root:
+
 ```bash
-# Copy and configure environment variables
-cp .env.example .env
-# Edit .env with your local settings
-
-# Backend
-cd backend
-pip install -r requirements.txt
-python main.py
-
-# Frontend (if applicable)
-cd ../frontend
-npm install
-npm run dev
+cd third_party/CARLA_0.9.15
+./CarlaUE4.sh -quality-level=Low
 ```
-<!-- [SOFTWARE_ONLY_END] -->
 
-<!-- [FPGA_ONLY_START] -->
+CARLA `0.9.15` uses Vulkan on desktop platforms. Do not launch it with
+`-opengl`; that option produces the OpenGL warning and CARLA switches to
+Vulkan.
+
+On a hybrid laptop, CARLA can be sent to the NVIDIA GPU with:
+
 ```bash
-# Simulate using Icarus Verilog (open source)
-iverilog -o sim/out tb/<testbench>.v rtl/<module>.v
-vvp sim/out
-gtkwave sim/<dump>.vcd    # view waveforms in GTKWave
-
-# Synthesis and implementation — Vivado (GUI)
-# 1. Open Vivado → Create Project → add rtl/ sources and constraints/
-# 2. Run Synthesis → Implementation → Generate Bitstream
-
-# Synthesis and implementation — Vivado (Tcl, if scripts/synth.tcl is provided)
-vivado -mode tcl -source scripts/synth.tcl
-
-# Program the FPGA
-# Open Vivado Hardware Manager → Connect → Program Device → select .bit file
-```
-<!-- [FPGA_ONLY_END] -->
-
----
-
-## Project Structure
-
-```
-{{PROJECT_STRUCTURE}}
+cd third_party/CARLA_0.9.15
+__NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only ./CarlaUE4.sh -quality-level=Low
 ```
 
-> See [`docs/`](docs/) for detailed documentation on each component.
+### 3. Start The Controller Client
 
----
+In terminal 2, from the repository root:
 
-## Usage
+```bash
+python3 simulators/carla_3d/custom_controller_runner.py --road-only
+```
 
-> _Replace this section with specific usage instructions, example commands, screenshots, or a demo GIF._
->
-> Example:
-> ```bash
-> ros2 run my_package my_node --param value
-> ```
+Useful variants:
 
----
+```bash
+# Use the shared MPC controller rather than the default example controller.
+python3 simulators/carla_3d/custom_controller_runner.py --road-only --controller mpc
 
-## Team
+# Keep normal town map layers instead of generating the minimal road mesh.
+python3 simulators/carla_3d/custom_controller_runner.py --road-only --road-only-mode layers
 
-| Name | Role |
-|------|------|
-{{INTERN_TABLE}}
-| {{MENTOR_NAME}} | Mentor |
+# Run without background traffic.
+python3 simulators/carla_3d/custom_controller_runner.py --road-only --traffic-vehicles 0
+```
 
----
+To implement a new CARLA controller, edit `CustomRoadController.update()` in
+`simulators/carla_3d/custom_controller_runner.py`. It receives vehicle state
+and returns steering angle in radians and acceleration in metres per second
+squared.
 
-## License
+## Shared Components
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+Both workflows are intentionally organized around reusable implementation
+modules:
 
----
+| Location | Contents |
+| --- | --- |
+| `src/av_control_guide/src/components/control/` | MPC and other control algorithms |
+| `src/av_control_guide/src/components/vehicle/` | Vehicle model and specification |
+| `src/av_control_guide/src/components/course/` | Reference-course generation |
+| `src/av_control_guide/src/components/obstacle/` | Traffic/obstacle representation |
+| `src/av_control_guide/src/components/visualization/` | Metrics and display helpers |
 
-<div align="center">
-  Made with ❤️ at <a href="https://www.e-yantra.org">e-Yantra, IIT Bombay</a>
-</div>
+Additional educational simulation examples from the underlying control guide
+remain in `src/av_control_guide/src/simulations/`; the two primary project
+demonstrations are exposed at the top level in `simulators/`.
+
+## Troubleshooting
+
+- **`ModuleNotFoundError: carla`:** install a CARLA Python API package matching
+  CARLA `0.9.15` and the Python interpreter used to start the runner.
+- **CARLA displays an OpenGL warning:** remove `-opengl` from the
+  `CarlaUE4.sh` command; use the Vulkan command above.
+- **CARLA client cannot connect:** start `CarlaUE4.sh` first and leave it
+  running while launching `custom_controller_runner.py`.
+- **The 2D script reports missing packages:** activate `.venv` and reinstall
+  `requirements.txt`.
+
+## Attribution
+
+The reusable Python algorithm examples are based on Shisato Yano's
+AutonomousVehicleControlBeginnersGuide. Project integration and simulator
+scenarios are maintained by Dhruv Dabur and Nishu Gupta.
