@@ -1,0 +1,28 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ROS 2 / colcon
+build/
+install/
+log/
+
+# Gazebo
+.gazebo/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ROS bag files
+*.db3
+*.mcap
