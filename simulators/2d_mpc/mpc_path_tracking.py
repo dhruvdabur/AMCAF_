@@ -7,8 +7,9 @@ crosswalks, traffic lights, buildings, and an ego vehicle tracking the right
 lane while considering nearby traffic as nonlinear MPC safety constraints.
 """
 
-import sys
+import argparse
 import math
+import sys
 import warnings
 from pathlib import Path
 
@@ -64,6 +65,45 @@ MAIN_ROAD_WIDTH_M = 4.0 * LANE_WIDTH_M + 4.0
 SECONDARY_ROAD_WIDTH_M = 4.0 * LANE_WIDTH_M + 3.0
 LANE_CHANGE_PROB_PER_SEC = 0.08
 LANE_CHANGE_RATE_MPS = 1.3
+DEFAULT_CONTROL_TOPIC = "/mpc/ackermann_command"
+
+
+class ROSCommandPublisher:
+    """Publish MPC controls only when real-vehicle output is requested."""
+
+    def __init__(self, topic):
+        try:
+            import rclpy
+            from rc_msgs.msg import AckermannCommand
+        except ImportError as exc:
+            raise RuntimeError(
+                "ROS control output needs sourced ROS 2 and built rc_msgs"
+            ) from exc
+
+        self._rclpy = rclpy
+        self._message_type = AckermannCommand
+        self._owns_context = not rclpy.ok()
+        if self._owns_context:
+            rclpy.init(args=[])
+        self._node = rclpy.create_node("mpc_control_publisher")
+        self._publisher = self._node.create_publisher(
+            AckermannCommand, topic, 10
+        )
+        print(f"Publishing MPC control commands on {topic}.")
+
+    def publish(self, controller):
+        """Publish the control generated for the current simulation step."""
+        command = self._message_type()
+        command.steering_angle_rad = controller.get_target_steer_rad()
+        command.acceleration_mps2 = controller.get_target_accel_mps2()
+        command.target_speed_mps = controller.get_reference_speed_mps()
+        self._publisher.publish(command)
+
+    def close(self):
+        """Destroy ROS resources created for optional control output."""
+        self._node.destroy_node()
+        if self._owns_context:
+            self._rclpy.try_shutdown()
 
 
 class LaneCourse:
@@ -271,6 +311,10 @@ class TrafficMPCController(MPCController1):
         self._last_state = [state.get_x_m(), state.get_y_m(), state.get_yaw_rad(), state.get_speed_mps()]
         self._update_obstacle_diagnostics(state)
         super().update(state, time_s)
+
+    def get_reference_speed_mps(self):
+        """Return the non-reversing route speed requested by the MPC."""
+        return max(0.0, float(self._current_ref[3, 0]))
 
     def set_obstacles(self, obstacles):
         self.obstacles = obstacles
@@ -676,7 +720,7 @@ def build_city_scene(gui=None):
 
 
 class CityTrafficSimulationGUI:
-    def __init__(self, x_lim, y_lim, time_params):
+    def __init__(self, x_lim, y_lim, time_params, command_publisher=None):
         self.x_lim = x_lim
         self.y_lim = y_lim
         self.time_params = time_params
@@ -690,6 +734,7 @@ class CityTrafficSimulationGUI:
         self.follow_vehicle = True
         self.playback_speed = 1
         self.traffic_count = DEFAULT_TRAFFIC_COUNT
+        self.command_publisher = command_publisher
 
         self.figure = plt.figure(figsize=(10, 8))
         self.axes = self.figure.add_subplot(111)
@@ -799,6 +844,8 @@ class CityTrafficSimulationGUI:
             for obj in self.objects:
                 if hasattr(obj, "update"):
                     obj.update(dt)
+            if self.command_publisher:
+                self.command_publisher.publish(self.controller)
             self.sim_time_s += dt
             self.frame_index += self.playback_speed
         self._draw_frame()
@@ -815,12 +862,43 @@ class CityTrafficSimulationGUI:
         plt.show()
 
 
+def parse_args():
+    """Read optional ROS command publication settings."""
+    parser = argparse.ArgumentParser(
+        description="Run the city traffic MPC simulation."
+    )
+    parser.add_argument(
+        "--publish-control",
+        action="store_true",
+        help="Publish MPC steer/acceleration output for hardware actuation.",
+    )
+    parser.add_argument(
+        "--control-topic",
+        default=DEFAULT_CONTROL_TOPIC,
+        help="ROS topic used with --publish-control.",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     x_lim = MinMax(-15, TRACK_SCALE * 300 + 15)
     y_lim = MinMax(TRACK_SCALE * -102, TRACK_SCALE * 92)
-    app = CityTrafficSimulationGUI(x_lim, y_lim, TimeParameters(span_sec=90))
+    command_publisher = (
+        ROSCommandPublisher(args.control_topic) if args.publish_control else None
+    )
+    app = CityTrafficSimulationGUI(
+        x_lim,
+        y_lim,
+        TimeParameters(span_sec=90),
+        command_publisher=command_publisher,
+    )
 
-    app.draw()
+    try:
+        app.draw()
+    finally:
+        if command_publisher:
+            command_publisher.close()
 
 
 if __name__ == "__main__":

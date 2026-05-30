@@ -26,6 +26,8 @@ setup(
             'throttle_test = crsf_ros2.throttle_test:main',
             'throttle_topic_test = crsf_ros2.throttle_topic_test:main',
             'teleop_test = crsf_ros2.teleop_test:main',
+            'mpc_actuator = crsf_ros2.mpc_actuator:main',
+            'aruco_track_follower = crsf_ros2.aruco_track_follower:main',
         ],
     },
 )

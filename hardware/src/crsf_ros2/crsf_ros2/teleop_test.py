@@ -19,13 +19,14 @@ from rclpy.node import Node
 COMMAND_TOPIC = '/drone/rc_command'
 ARMING_SERVICE = '/drone/cmd/arming'
 NEUTRAL_VALUE = 1500
+STEERING_NEUTRAL_VALUE = 1500
 MAX_FORWARD_THROTTLE = 1600
 MAX_REVERSE_THROTTLE = 1400
 MAX_LEFT_ROLL = 1700
 MAX_RIGHT_ROLL = 1300
-THROTTLE_STEP = 5
-ROLL_STEP = 25
-UPDATE_RATE_HZ = 50.0
+THROTTLE_STEP = 1
+ROLL_STEP = 20
+UPDATE_RATE_HZ = 100.0
 SETTLE_DURATION = 0.5
 
 
@@ -38,14 +39,14 @@ class TeleopTest(Node):
         self.command_pub = self.create_publisher(RCMessage, COMMAND_TOPIC, 10)
         self.arming_client = self.create_client(CommandBool, ARMING_SERVICE)
         self.throttle = NEUTRAL_VALUE
-        self.roll = NEUTRAL_VALUE
+        self.roll = STEERING_NEUTRAL_VALUE
 
     def publish_command(self):
-        """Publish the current bounded throttle and roll values."""
+        """Publish bounded drive on pitch while holding throttle neutral."""
         command = RCMessage()
-        command.rc_throttle = self.throttle
+        command.rc_throttle = NEUTRAL_VALUE
         command.rc_roll = self.roll
-        command.rc_pitch = NEUTRAL_VALUE
+        command.rc_pitch = self.throttle
         command.rc_yaw = NEUTRAL_VALUE
         self.command_pub.publish(command)
 
@@ -61,7 +62,7 @@ class TeleopTest(Node):
     def set_neutral(self):
         """Center steering and command zero throttle."""
         self.throttle = NEUTRAL_VALUE
-        self.roll = NEUTRAL_VALUE
+        self.roll = STEERING_NEUTRAL_VALUE
 
     def set_armed(self, armed):
         """Request the running CRSF node's configured arming state."""
@@ -90,7 +91,7 @@ class TeleopTest(Node):
         elif key == 'd':
             self.roll = max(self.roll - ROLL_STEP, MAX_RIGHT_ROLL)
         elif key == 'c':
-            self.roll = NEUTRAL_VALUE
+            self.roll = STEERING_NEUTRAL_VALUE
         elif key == ' ':
             self.set_neutral()
         elif key in ('q', '\x03'):
@@ -149,8 +150,8 @@ def print_controls():
         f'{MAX_FORWARD_THROTTLE}=max forward)'
     )
     print(
-        'A/D: steering left/right +/-25 '
-        f'({MAX_RIGHT_ROLL}=max right, {NEUTRAL_VALUE}=center, '
+        f'A/D: steering left/right +/-{ROLL_STEP} '
+        f'({MAX_RIGHT_ROLL}=max right, {STEERING_NEUTRAL_VALUE}=center, '
         f'{MAX_LEFT_ROLL}=max left)'
     )
     print('C: center steering    SPACE: stop and center    Q: stop and quit')

@@ -1,0 +1,23 @@
+{
+  "samples": 21,
+  "duration_s": 1.204504598001222,
+  "laps_completed": 0,
+  "mean_abs_cte_px": 58.387349991571334,
+  "rmse_cte_px": 58.47937591963981,
+  "max_abs_cte_px": 64.996826171875,
+  "mean_abs_heading_error_deg": 22.380951626666803,
+  "mean_abs_speed_error_pps": 38.0,
+  "steering_effort_pwm_s": 158.62251285318416,
+  "throttle_effort_pwm_s": 108.40541382010997,
+  "min_obstacle_clearance_px": 55.003173828125,
+  "collision_samples": 0,
+  "cbf_interventions": 0,
+  "marker_lost_events": 0,
+  "controller_mode": "pid",
+  "track_shape": "oval",
+  "drive_channel": "pitch",
+  "target_track_speed_pps": 38.0,
+  "forward_pwm": 1590,
+  "min_forward_pwm": 1590,
+  "max_forward_pwm": 1700
+}

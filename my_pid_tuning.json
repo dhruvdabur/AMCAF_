@@ -1,0 +1,22 @@
+{
+  "steering_kp_px": 5.0,
+  "steering_ki_px": 0.056,
+  "steering_kd_px": 0.25,
+  "heading_kp": 120.0,
+  "forward_pwm": 1590,
+  "target_track_speed_pps": 38.0,
+  "velocity_kp_pwm": 0.8,
+  "cbf_stop_error_px": 120,
+  "lap_limit_enabled": true,
+  "target_laps": 1,
+  "controller_mode": "pid",
+  "track_shape": "oval",
+  "min_forward_pwm": 1590,
+  "max_forward_pwm": 1700,
+  "velocity_ki_pwm": 0.0,
+  "velocity_kd_pwm": 0.05,
+  "cbf_slow_error_px": 55.0,
+  "cbf_stop_heading_rad": 1.2,
+  "cbf_edge_margin_px": 45.0,
+  "completion_reason": "running"
+}

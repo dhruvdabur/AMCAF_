@@ -91,3 +91,42 @@ Change ramp timing or the serial connection when needed:
 ```
 ros2 run crsf_ros2 throttle_test --confirm-propulsion-safe --target-pwm 1510 --ramp-duration 5 --hold-duration 0.2 --port /dev/ttyUSB1
 ```
+
+<h2>Ackermann MPC actuator bridge</h2>
+
+The `mpc_actuator` command accepts the 2D simulator's
+`/mpc/ackermann_command` messages (`rc_msgs/msg/AckermannCommand`) and maps
+steering angle, requested route speed, and braking acceleration to
+`/drone/rc_command`. It follows the `teleop_test` safety flow: neutral output
+before arming, bounded PWM endpoints, neutral output during shutdown, and
+automatic neutral/disarm on stale input.
+
+The simulator calculates these commands from simulated state. This connection
+checks the physical actuators under restraint; it is not closed-loop autonomous
+driving without real localization and obstacle input.
+
+After building and sourcing this workspace, run `crsf_ros`, then launch the
+simulator from the main repository in another sourced terminal:
+
+```bash
+python3 simulators/2d_mpc/mpc_path_tracking.py --publish-control
+```
+
+Inspect the default calibration without actuating:
+
+```bash
+ros2 run crsf_ros2 mpc_actuator --dry-run
+```
+
+Only with the driven wheels secured, enable physical output:
+
+```bash
+ros2 run crsf_ros2 mpc_actuator --confirm-propulsion-safe
+```
+
+The default forward-speed mapping is `0 km/h -> 1500` and `40 km/h -> 1700`.
+Change it with `--max-speed-kph` and `--forward-pwm`. This is an open-loop PWM
+calibration: it does not prove the real bot is travelling at `40 km/h` until
+that speed is measured under controlled testing. Calibrate steering and
+braking as well, for example with `--left-pwm`, `--right-pwm`, and
+`--reverse-pwm`.

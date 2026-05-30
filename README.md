@@ -78,6 +78,53 @@ course logic comes from `src/av_control_guide/src/components/`.
 
 ![2D MPC traffic simulation](simulators/2d_mpc/mpc_path_tracking.gif)
 
+### Publish MPC Commands To Hardware
+
+The 2D simulator can optionally publish its MPC output as
+`rc_msgs/msg/AckermannCommand` on `/mpc/ackermann_command`. The guarded
+hardware bridge in `crsf_ros2` maps steering angle, route speed, and braking
+acceleration to bounded RC PWM output on `/drone/rc_command`.
+
+This mode drives hardware using the simulator's simulated ego pose and
+simulated obstacles. It is suitable for restrained actuator integration tests,
+not autonomous road operation; real closed-loop driving needs measured vehicle
+state and obstacle inputs connected to the controller.
+
+Build and source the hardware ROS workspace:
+
+```bash
+cd hardware
+colcon build --packages-select rc_msgs crsf_msgs crsf_ros2
+source install/setup.bash
+```
+
+Start the CRSF node in one sourced terminal:
+
+```bash
+ros2 run crsf_ros2 crsf_ros
+```
+
+Start the simulator command publisher in another sourced terminal:
+
+```bash
+python3 simulators/2d_mpc/mpc_path_tracking.py --publish-control
+```
+
+With driven wheels securely restrained, inspect the PWM mapping and then run
+the guarded actuator bridge:
+
+```bash
+ros2 run crsf_ros2 mpc_actuator --dry-run
+ros2 run crsf_ros2 mpc_actuator --confirm-propulsion-safe
+```
+
+`mpc_actuator` stops, centers steering, and requests disarming when command
+messages become stale. By default its speed mapping is `0 km/h -> 1500` and
+`40 km/h -> 1700`; use `--max-speed-kph` and `--forward-pwm` to change that
+calibration. PWM is open-loop output, so confirm the actual physical speed
+under controlled testing before driving. Steering and braking endpoints such
+as `--left-pwm`, `--right-pwm`, and `--reverse-pwm` also require calibration.
+
 ## Run The 3D CARLA Simulator
 
 ### 1. Install CARLA Locally
