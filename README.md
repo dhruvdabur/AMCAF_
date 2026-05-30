@@ -147,7 +147,7 @@ Run with metrics saved to a timestamped file:
 ros2 run crsf_ros2 aruco_track_follower \
   --confirm-propulsion-safe \
   --preview \
-  --metrics-file aruco_track_follower_metrics.json
+  --metrics-file metrics/aruco_track_follower_metrics.json
 ```
 
 Run a full tuned PID + velocity + CBF experiment:
@@ -162,7 +162,7 @@ ros2 run crsf_ros2 aruco_track_follower \
   --tuning-file PID_r1_ellipse.json \
   --enable-lap-limit \
   --target-laps 1 \
-  --metrics-file aruco_track_follower_metrics.json
+  --metrics-file metrics/aruco_track_follower_metrics.json
 ```
 
 Record the run with rosbag:

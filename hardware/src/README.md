@@ -116,7 +116,7 @@ ros2 run crsf_ros2 aruco_track_follower \
   --controller-mode pid_velocity_cbf \
   --enable-lap-limit \
   --target-laps 1 \
-  --metrics-file aruco_track_follower_metrics.json
+  --metrics-file metrics/aruco_track_follower_metrics.json
 ```
 
 ## Ackermann MPC Actuator Bridge

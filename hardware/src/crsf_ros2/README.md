@@ -38,7 +38,7 @@ ros2 run crsf_ros2 aruco_track_follower \
   --confirm-propulsion-safe \
   --preview \
   --controller-mode pid_velocity_cbf \
-  --metrics-file aruco_track_follower_metrics.json
+  --metrics-file metrics/aruco_track_follower_metrics.json
 ```
 
 Press `s` in the tuning window to save PID settings. Press `q` to stop, send
@@ -100,7 +100,7 @@ ros2 run crsf_ros2 aruco_track_follower \
   --target-laps 1 \
   --load-tuning \
   --tuning-file my_pid_tuning.json \
-  --metrics-file aruco_track_follower_metrics.json
+  --metrics-file metrics/aruco_track_follower_metrics.json
 ```
 
 Record the important topics during a run:
