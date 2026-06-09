@@ -7,6 +7,7 @@ from .cbf_qp import PointObstacle
 from .cbf_qp import VehicleState
 from .modes import CONTROLLER_MODES
 from .modes import PID
+from .modes import PID_CBF
 from .modes import PID_VELOCITY
 from .modes import PID_VELOCITY_CBF
 from .modes import PID_VELOCITY_CBF_QP
@@ -21,6 +22,7 @@ __all__ = [
     'CBFQPConfig',
     'CBFQPSafetyFilter',
     'PID',
+    'PID_CBF',
     'PIDController',
     'PIDVelocityCBFController',
     'PID_VELOCITY',
