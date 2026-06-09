@@ -80,6 +80,39 @@ Run ArUco follower without actuating:
 ros2 run crsf_ros2 aruco_track_follower --dry-run --preview
 ```
 
+Run the two-lane S-curve road with virtual static obstacles:
+
+```bash
+ros2 run crsf_ros2 aruco_track_follower \
+  --dry-run \
+  --preview \
+  --track-shape s_curve_road \
+  --controller-mode pid_velocity_cbf
+```
+
+Tune the road geometry from the command line:
+
+```bash
+ros2 run crsf_ros2 aruco_track_follower \
+  --dry-run \
+  --preview \
+  --track-shape s_curve_road \
+  --road-lane-width-px 95 \
+  --road-amplitude-x 0.18 \
+  --road-length-y 0.82 \
+  --obstacle-margin-px 42
+```
+
+Override the default virtual obstacles with JSON:
+
+```bash
+ros2 run crsf_ros2 aruco_track_follower \
+  --dry-run \
+  --preview \
+  --track-shape s_curve_road \
+  --static-obstacles '[{"lane": 0, "progress": 0.25}, {"lane": 1, "progress": 0.55}]'
+```
+
 Run controller variants:
 
 ```bash

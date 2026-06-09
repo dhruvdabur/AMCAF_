@@ -5,11 +5,20 @@ ROS 2 camera and RC command interfaces as the main `crsf_ros2` follower, but
 are kept separate so hil-specific track layouts can change without disturbing
 the general ArUco follower.
 
-## Files
+## Package Layout
 
-| File | What it does |
+| Path | What it does |
 | --- | --- |
-| `straght_static.py` | ArUco marker follower for a plain straight landscape road. It draws two straight lane centerlines over `/image_raw`, tracks marker ID `0`, and can optionally avoid JSON-defined static obstacles. By default it runs on a clear road with no obstacles. |
+| `straght_static.py` | Legacy straight-road ArUco follower entry point. |
+| `ellipse_static.py` | Compatibility launcher for the closed-ellipse follower. The implementation is split across the packages below. |
+| `nodes/` | ROS 2 node classes and executable `main()` functions. |
+| `config/` | CLI arguments, defaults, validation, and startup config printing. |
+| `road/` | Image-space road geometry, obstacle polygons, free-space intervals, and clearances. |
+| `metrics/` | Per-run tracking, safety, lap, and effort metrics. |
+| `ui/` | OpenCV preview drawing helpers. |
+| `runtime/` | ROS runtime helpers such as QoS profiles. |
+| `common/` | Small shared math helpers. |
+| `controllers/` | PID, velocity CBF, and QP-CBF controller primitives. |
 
 `straght_static.py` is the renamed hil copy of the earlier
 `hil/aruco_track_follower.py`.
@@ -32,19 +41,19 @@ ROS 2 images on `/image_raw`.
 
 ## Direct Python Launch
 
-Direct Python is useful while editing because it does not require rebuilding the
-ROS package:
+Module launch is useful while editing because it can run from source without
+installing console-script wrappers:
 
 ```bash
-python3 hardware/src/crsf_ros2/crsf_ros2/hil/straght_static.py \
+cd hardware/src/crsf_ros2
+python3 -m crsf_ros2.hil.ellipse_static \
   --dry-run \
   --preview
 ```
 
-`--dry-run` keeps the node from publishing RC commands or arming anything.
-`--preview` opens the OpenCV debug window with the straight-road overlay. The
-PID/CBF tuning panel opens by default; pass `--no-pid-panel` only when you want
-to hide it.
+`--dry-run` keeps the node from publishing RC commands or arming anything, and
+`--preview` opens the OpenCV debug window. Use module launch instead of running
+`ellipse_static.py` as a raw path because the HIL packages use relative imports.
 
 ## ROS 2 Launch
 
@@ -65,6 +74,18 @@ ros2 run crsf_ros2 straght_static \
   --preview \
   --no-pid-panel
 ```
+
+Launch the ellipse-road follower the same way:
+
+```bash
+ros2 run crsf_ros2 ellipse_static \
+  --dry-run \
+  --preview \
+  --no-pid-panel
+```
+
+The ROS executable name is unchanged even though the implementation now lives in
+`hil/nodes/ellipse_static_node.py`.
 
 ## Static Obstacles
 
@@ -96,8 +117,10 @@ Each obstacle can set:
 | `--marker-id 0` | ArUco marker ID to track. |
 | `--marker-dict DICT_4X4_50` | ArUco dictionary used by the marker. |
 | `--track-center-y 0.55` | Vertical placement of the straight road in the image. |
+| `--track-radius-x 0.20` | Horizontal ellipse radius as a fraction of image width for `ellipse_static.py`. |
+| `--track-radius-y 0.24` | Vertical ellipse radius as a fraction of image height for `ellipse_static.py`. |
 | `--road-length-y 0.82` | Fraction of image width used by the straight road. The name is inherited from the S-road code. |
-| `--road-lane-width-px 150` | Lane spacing and road boundary width in pixels. |
+| `--road-lane-width-px 150` | Lane spacing for straight-road modes; road half-width for `ellipse_static.py`. |
 | `--controller-mode pid_velocity_cbf` | Enables velocity control and safety slowdown around lane/error/obstacle limits. |
 | `--cbf-h-px 42` | CBF obstacle barrier distance in pixels. Larger values keep more lidar clearance from obstacles and walls. Also available as `CBF h px` in the tuning panel. |
 | `--cbf-alpha 1.0` | CBF aggressiveness. Lower values slow earlier; higher values allow more speed closer to limits. Also available as `CBF alpha x100` in the tuning panel. |

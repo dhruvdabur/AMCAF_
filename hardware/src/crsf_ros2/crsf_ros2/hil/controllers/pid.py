@@ -234,7 +234,8 @@ class PIDVelocityCBFController:
         cbf_alpha,
         now=None,
     ):
-        """Apply derivative-based CBF throttle filtering.
+        """
+        Apply derivative-based CBF throttle filtering.
 
         Each barrier uses h >= 0 as its safe set. The filter estimates h_dot
         from recent samples and enforces h_dot + alpha*h >= 0 by reducing the

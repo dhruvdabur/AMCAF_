@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import serial
 
 from .ros2_crsf import BAUDRATE, RosCsrf, SERIAL_PORT
-from .submodules.crsf import CRSF_TRANSMITTER, channelsCrsfToChannelsPacket
+from .submodules.crsf import channelsCrsfToChannelsPacket, CRSF_TRANSMITTER
 
 
 DEFAULT_CENTER = 1500

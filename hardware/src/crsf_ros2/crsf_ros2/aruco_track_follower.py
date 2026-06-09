@@ -4,21 +4,20 @@
 import argparse
 import json
 import math
-import time
 from pathlib import Path
+import time
 
 import cv2
-import numpy as np
 from cv_bridge import CvBridge
+import numpy as np
 from rc_msgs.msg import RCMessage
 from rc_msgs.srv import CommandBool
-from sensor_msgs.msg import Image
-
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import HistoryPolicy
 from rclpy.qos import QoSProfile
 from rclpy.qos import ReliabilityPolicy
+from sensor_msgs.msg import Image
 
 
 IMAGE_TOPIC = '/image_raw'
@@ -253,11 +252,24 @@ def parse_args(args=None):
     parser.add_argument('--track-radius-y', type=float, default=0.24)
     parser.add_argument(
         '--track-shape',
-        choices=('oval', 'figure8', 'chicane', 'hairpin'),
+        choices=('oval', 'figure8', 'chicane', 'hairpin', 's_curve_road'),
         default='oval',
         help='Virtual image-space track shape.',
     )
     parser.add_argument('--lookahead-points', type=int, default=10)
+    parser.add_argument('--road-lane-width-px', type=float, default=95.0)
+    parser.add_argument('--road-amplitude-x', type=float, default=0.18)
+    parser.add_argument('--road-length-y', type=float, default=0.82)
+    parser.add_argument(
+        '--static-obstacles',
+        default='',
+        help=(
+            'JSON list of static road obstacles. Each item may set lane, '
+            'progress, length_px, and width_px. Empty uses defaults.'
+        ),
+    )
+    parser.add_argument('--obstacle-margin-px', type=float, default=42.0)
+    parser.add_argument('--lane-switch-lookahead-points', type=int, default=42)
     parser.add_argument(
         '--process-width',
         type=int,
@@ -390,6 +402,9 @@ class ArucoTrackFollower(Node):
         self.aruco_parameters = self.make_detector_parameters()
         self.detector = self.make_detector()
         self.track_points = None
+        self.lane_tracks = None
+        self.road_boundaries = None
+        self.static_obstacles = []
         self.last_image_size = None
         self.last_command_time = None
         self.last_detection_time = None
@@ -424,6 +439,10 @@ class ArucoTrackFollower(Node):
         self.velocity_delta_pwm = 0.0
         self.cbf_scale = 1.0
         self.cbf_active = False
+        self.selected_lane_index = 0
+        self.previous_lane_index = None
+        self.lane_switch_count = 0
+        self.nearest_static_clearance_px = float('inf')
         self.metrics = FollowerMetrics()
         self.metrics_saved = False
         self.metrics_file_path = unique_metrics_path(config.metrics_file)
@@ -471,15 +490,7 @@ class ArucoTrackFollower(Node):
         height, width = frame.shape[:2]
         if self.last_image_size != (width, height):
             self.last_image_size = (width, height)
-            self.track_points = make_oval_track(
-                width,
-                height,
-                self.config.track_center_x,
-                self.config.track_center_y,
-                self.config.track_radius_x,
-                self.config.track_radius_y,
-                self.config.track_shape,
-            )
+            self.build_track_scene(width, height)
 
         detection = self.detect_marker(frame)
         if detection is None:
@@ -537,6 +548,37 @@ class ArucoTrackFollower(Node):
 
         if self.config.preview:
             self.show_preview(frame, corners, center, target, tangent)
+
+    def build_track_scene(self, width, height):
+        """Create the virtual track or road scene for the current image size."""
+        if self.config.track_shape == 's_curve_road':
+            scene = make_s_curve_road_scene(width, height, self.config)
+            self.lane_tracks = scene['lanes']
+            self.road_boundaries = scene['boundaries']
+            self.static_obstacles = scene['obstacles']
+            self.selected_lane_index = min(
+                self.selected_lane_index,
+                len(self.lane_tracks) - 1,
+            )
+            self.track_points = self.lane_tracks[self.selected_lane_index]
+            return
+
+        self.lane_tracks = None
+        self.road_boundaries = None
+        self.static_obstacles = []
+        self.track_points = make_oval_track(
+            width,
+            height,
+            self.config.track_center_x,
+            self.config.track_center_y,
+            self.config.track_radius_x,
+            self.config.track_radius_y,
+            self.config.track_shape,
+        )
+
+    def road_scene_enabled(self):
+        """Return whether the current track uses two-lane road planning."""
+        return self.config.track_shape == 's_curve_road'
 
     def detect_marker(self, frame):
         """Return marker center, heading, and corners for the configured ID."""
@@ -605,16 +647,28 @@ class ArucoTrackFollower(Node):
 
     def track_error(self, center, heading):
         """Find a lookahead target and signed image-space steering error."""
+        if self.road_scene_enabled():
+            self.track_points = self.select_road_lane(center)
         distances = np.linalg.norm(self.track_points - center, axis=1)
         nearest_index = int(np.argmin(distances))
-        target_index = (
-            nearest_index + self.config.lookahead_points
-        ) % len(self.track_points)
+        if self.road_scene_enabled():
+            target_index = min(
+                nearest_index + self.config.lookahead_points,
+                len(self.track_points) - 1,
+            )
+        else:
+            target_index = (
+                nearest_index + self.config.lookahead_points
+            ) % len(self.track_points)
         target = self.track_points[target_index]
-        next_target = self.track_points[(target_index + 1) % len(self.track_points)]
-        previous_target = self.track_points[
-            (target_index - 1) % len(self.track_points)
-        ]
+        if self.road_scene_enabled():
+            next_index = min(target_index + 1, len(self.track_points) - 1)
+            previous_index = max(target_index - 1, 0)
+        else:
+            next_index = (target_index + 1) % len(self.track_points)
+            previous_index = (target_index - 1) % len(self.track_points)
+        next_target = self.track_points[next_index]
+        previous_target = self.track_points[previous_index]
         tangent = next_target - previous_target
         tangent_norm = np.linalg.norm(tangent)
         if tangent_norm > 0.0:
@@ -625,6 +679,55 @@ class ArucoTrackFollower(Node):
         )
         error = float(np.dot(target - center, vehicle_right))
         return target, tangent, error, nearest_index
+
+    def select_road_lane(self, center):
+        """Pick the lowest-cost lane through the S-curve obstacle field."""
+        if not self.lane_tracks:
+            return self.track_points
+
+        costs = []
+        for lane_index, lane_points in enumerate(self.lane_tracks):
+            distances = np.linalg.norm(lane_points - center, axis=1)
+            nearest_index = int(np.argmin(distances))
+            end_index = min(
+                nearest_index + self.config.lane_switch_lookahead_points,
+                len(lane_points) - 1,
+            )
+            lookahead = lane_points[nearest_index:end_index + 1]
+            if len(lookahead) == 0:
+                lookahead = lane_points[nearest_index:nearest_index + 1]
+
+            obstacle_cost = 0.0
+            for point in lookahead:
+                clearance = self.static_obstacle_clearance_px(point)
+                if clearance < 0.0:
+                    obstacle_cost += 100000.0
+                elif clearance < self.config.obstacle_margin_px:
+                    obstacle_cost += (
+                        self.config.obstacle_margin_px - clearance
+                    ) ** 2
+
+            switch_cost = 0.0
+            if self.previous_lane_index is not None:
+                switch_cost = (
+                    2500.0
+                    if lane_index != self.previous_lane_index
+                    else 0.0
+                )
+            position_cost = float(np.min(distances)) * 0.5
+            costs.append(
+                (obstacle_cost + switch_cost + position_cost, lane_index)
+            )
+
+        _cost, selected_lane = min(costs, key=lambda item: item[0])
+        if (
+            self.previous_lane_index is not None
+            and selected_lane != self.previous_lane_index
+        ):
+            self.lane_switch_count += 1
+        self.previous_lane_index = selected_lane
+        self.selected_lane_index = selected_lane
+        return self.lane_tracks[selected_lane]
 
     def steering_to_pwm(self, lateral_error_px, heading_error_rad, now):
         """Convert image-space path error into bounded steering PWM."""
@@ -692,34 +795,62 @@ class ArucoTrackFollower(Node):
         dt = now - self.last_progress_time
         if dt <= 0.0:
             return
-        point_count = len(self.track_points)
-        forward_delta = (nearest_index - self.last_progress_index) % point_count
-        reverse_delta = forward_delta - point_count
-        if abs(forward_delta) < abs(reverse_delta):
-            delta = forward_delta
+        if self.road_scene_enabled():
+            delta = nearest_index - self.last_progress_index
         else:
-            delta = reverse_delta
+            point_count = len(self.track_points)
+            forward_delta = (
+                nearest_index - self.last_progress_index
+            ) % point_count
+            reverse_delta = forward_delta - point_count
+            if abs(forward_delta) < abs(reverse_delta):
+                delta = forward_delta
+            else:
+                delta = reverse_delta
         self.track_speed_pps = delta / dt
         self.last_progress_index = nearest_index
         self.last_progress_time = now
 
     def cbf_safety_scale(self, center, lateral_error_px, heading_error_rad):
         """Scale throttle down as image-space safety limits are approached."""
-        if self.safety_clearance_px(center, lateral_error_px, heading_error_rad) < 0.0:
+        safety_clearance = self.safety_clearance_px(
+            center,
+            lateral_error_px,
+            heading_error_rad,
+        )
+        if safety_clearance < 0.0:
             return 0.0
         error_abs = abs(lateral_error_px)
         width, height = self.last_image_size
-        edge_distance = min(center[0], center[1], width - center[0], height - center[1])
+        edge_distance = min(
+            center[0],
+            center[1],
+            width - center[0],
+            height - center[1],
+        )
 
         if error_abs <= self.config.cbf_slow_error_px:
             error_scale = 1.0
         else:
             span = self.cbf_stop_error_px - self.config.cbf_slow_error_px
-            error_scale = 1.0 - (error_abs - self.config.cbf_slow_error_px) / span
+            error_scale = (
+                1.0
+                - (error_abs - self.config.cbf_slow_error_px) / span
+            )
 
-        heading_scale = 1.0 - abs(heading_error_rad) / self.config.cbf_stop_heading_rad
+        heading_scale = (
+            1.0
+            - abs(heading_error_rad) / self.config.cbf_stop_heading_rad
+        )
         edge_scale = edge_distance / (2.0 * self.config.cbf_edge_margin_px)
-        return bounded(min(error_scale, heading_scale, edge_scale), 0.0, 1.0)
+        obstacle_scale = 1.0
+        if self.road_scene_enabled():
+            obstacle_scale = safety_clearance / self.config.obstacle_margin_px
+        return bounded(
+            min(error_scale, heading_scale, edge_scale, obstacle_scale),
+            0.0,
+            1.0,
+        )
 
     def target_lap_reached(self):
         """Return whether the configured lap limit has been completed."""
@@ -730,15 +861,39 @@ class ArucoTrackFollower(Node):
         )
 
     def safety_clearance_px(self, center, lateral_error_px, heading_error_rad):
-        """Return image-space safety clearance, analogous to obstacle clearance."""
+        """Return image-space safety clearance."""
         width, height = self.last_image_size
-        edge_distance = min(center[0], center[1], width - center[0], height - center[1])
+        edge_distance = min(
+            center[0],
+            center[1],
+            width - center[0],
+            height - center[1],
+        )
         edge_clearance = edge_distance - self.config.cbf_edge_margin_px
         error_clearance = self.cbf_stop_error_px - abs(lateral_error_px)
         heading_px = (
             self.config.cbf_stop_heading_rad - abs(heading_error_rad)
         ) * self.cbf_stop_error_px / self.config.cbf_stop_heading_rad
-        return min(edge_clearance, error_clearance, heading_px)
+        static_clearance = float('inf')
+        if self.road_scene_enabled():
+            static_clearance = self.static_obstacle_clearance_px(center)
+            self.nearest_static_clearance_px = static_clearance
+        return min(
+            edge_clearance,
+            error_clearance,
+            heading_px,
+            static_clearance,
+        )
+
+    def static_obstacle_clearance_px(self, point):
+        """Return clearance from a point to the nearest virtual road obstacle."""
+        if not self.static_obstacles:
+            return float('inf')
+        clearances = [
+            obstacle_clearance_px(point, obstacle)
+            for obstacle in self.static_obstacles
+        ]
+        return min(clearances) - self.config.obstacle_margin_px
 
     def stop_immediately(self):
         """Neutralize command state and publish a stop as soon as marker is lost."""
@@ -940,6 +1095,13 @@ class ArucoTrackFollower(Node):
                 'cbf_edge_margin_px': self.config.cbf_edge_margin_px,
                 'lap_limit_enabled': self.lap_limit_enabled,
                 'target_laps': self.target_laps,
+                'road_lane_width_px': self.config.road_lane_width_px,
+                'road_amplitude_x': self.config.road_amplitude_x,
+                'road_length_y': self.config.road_length_y,
+                'obstacle_margin_px': self.config.obstacle_margin_px,
+                'lane_switch_lookahead_points': (
+                    self.config.lane_switch_lookahead_points
+                ),
                 'completion_reason': self.completion_reason,
             }
         )
@@ -984,6 +1146,18 @@ class ArucoTrackFollower(Node):
                 'cbf_edge_margin_px': self.config.cbf_edge_margin_px,
                 'lap_limit_enabled': self.lap_limit_enabled,
                 'target_laps': self.target_laps,
+                'selected_lane_index': self.selected_lane_index,
+                'lane_switch_count': self.lane_switch_count,
+                'nearest_static_clearance_px_last': (
+                    self.nearest_static_clearance_px
+                ),
+                'road_lane_width_px': self.config.road_lane_width_px,
+                'road_amplitude_x': self.config.road_amplitude_x,
+                'road_length_y': self.config.road_length_y,
+                'obstacle_margin_px': self.config.obstacle_margin_px,
+                'lane_switch_lookahead_points': (
+                    self.config.lane_switch_lookahead_points
+                ),
             }
         )
         self.metrics_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1148,13 +1322,15 @@ class ArucoTrackFollower(Node):
     def show_preview(self, frame, corners, center, target, tangent):
         """Display the virtual track and current ArUco tracking state."""
         preview = frame.copy()
+        if self.road_scene_enabled():
+            self.draw_road_scene(preview)
         if self.track_points is not None:
             cv2.polylines(
                 preview,
                 [self.track_points.astype(np.int32)],
-                True,
+                not self.road_scene_enabled(),
                 (0, 255, 255),
-                2,
+                3 if self.road_scene_enabled() else 2,
                 cv2.LINE_AA,
             )
         if corners is not None:
@@ -1202,9 +1378,53 @@ class ArucoTrackFollower(Node):
             self.metrics.summary(),
             self.lap_limit_enabled,
             self.target_laps,
+            self.selected_lane_index if self.road_scene_enabled() else None,
+            self.lane_switch_count,
+            self.nearest_static_clearance_px,
         )
         preview = resize_for_preview(preview, self.config.preview_width)
         cv2.imshow('Aruco Track Follower', preview)
+
+    def draw_road_scene(self, preview):
+        """Draw the two-lane S-curve road and static obstacle field."""
+        if self.road_boundaries:
+            for boundary in self.road_boundaries:
+                cv2.polylines(
+                    preview,
+                    [boundary.astype(np.int32)],
+                    False,
+                    (180, 180, 180),
+                    2,
+                    cv2.LINE_AA,
+                )
+        if self.lane_tracks:
+            for lane_index, lane_points in enumerate(self.lane_tracks):
+                if lane_index == self.selected_lane_index:
+                    color = (90, 220, 90)
+                else:
+                    color = (80, 120, 255)
+                cv2.polylines(
+                    preview,
+                    [lane_points.astype(np.int32)],
+                    False,
+                    color,
+                    2,
+                    cv2.LINE_AA,
+                )
+        for obstacle in self.static_obstacles:
+            cv2.fillConvexPoly(
+                preview,
+                obstacle['polygon'].astype(np.int32),
+                (40, 40, 220),
+            )
+            cv2.polylines(
+                preview,
+                [obstacle['polygon'].astype(np.int32)],
+                True,
+                (255, 255, 255),
+                1,
+                cv2.LINE_AA,
+            )
 
     def publish_neutral_for(self, duration):
         """Continuously publish neutral output for a fixed duration."""
@@ -1258,7 +1478,8 @@ def make_oval_track(width, height, center_x, center_y, radius_x, radius_y, shape
         radius_scale = 0.65 + 0.35 * np.cos(angles)
         points = np.column_stack(
             (
-                center_x * width + np.cos(angles) * radius_x * width * radius_scale,
+                center_x * width
+                + np.cos(angles) * radius_x * width * radius_scale,
                 center_y * height + np.sin(angles) * radius_y * height,
             )
         )
@@ -1272,6 +1493,131 @@ def make_oval_track(width, height, center_x, center_y, radius_x, radius_y, shape
     return points.astype(np.float32)
 
 
+def make_s_curve_road_scene(width, height, config):
+    """Create two S-curve lane centerlines and static road obstacles."""
+    point_count = 260
+    progress = np.linspace(0.0, 1.0, point_count)
+    road_length_x = bounded(config.road_length_y, 0.25, 0.96) * width
+    start_x = config.track_center_x * width - road_length_x * 0.5
+    end_x = config.track_center_x * width + road_length_x * 0.5
+    x_values = np.linspace(start_x, end_x, point_count)
+    y_center = config.track_center_y * height
+    amplitude = config.road_amplitude_x * height
+    y_values = y_center + amplitude * np.sin(2.0 * math.pi * progress)
+    base = np.column_stack((x_values, y_values)).astype(np.float32)
+    tangents, normals = path_tangents_normals(base)
+
+    lane_half_offset = config.road_lane_width_px * 0.5
+    lanes = [
+        (base - normals * lane_half_offset).astype(np.float32),
+        (base + normals * lane_half_offset).astype(np.float32),
+    ]
+    boundaries = [
+        (base - normals * config.road_lane_width_px).astype(np.float32),
+        (base + normals * config.road_lane_width_px).astype(np.float32),
+    ]
+    obstacle_specs = parse_static_obstacle_specs(config.static_obstacles)
+    obstacles = [
+        make_static_obstacle(spec, lanes, tangents, normals, config)
+        for spec in obstacle_specs
+    ]
+    return {
+        'lanes': lanes,
+        'boundaries': boundaries,
+        'obstacles': obstacles,
+    }
+
+
+def parse_static_obstacle_specs(raw_payload):
+    """Return static obstacle specs from CLI JSON or defaults."""
+    if not raw_payload:
+        return [
+            {
+                'lane': 0,
+                'progress': 0.24,
+                'length_px': 95.0,
+                'width_px': 58.0,
+            },
+            {
+                'lane': 1,
+                'progress': 0.52,
+                'length_px': 105.0,
+                'width_px': 58.0,
+            },
+            {
+                'lane': 0,
+                'progress': 0.75,
+                'length_px': 95.0,
+                'width_px': 58.0,
+            },
+        ]
+    payload = json.loads(raw_payload)
+    if not isinstance(payload, list):
+        raise ValueError('--static-obstacles must be a JSON list')
+    for item in payload:
+        if not isinstance(item, dict):
+            raise ValueError('each static obstacle must be a JSON object')
+    return payload
+
+
+def path_tangents_normals(points):
+    """Return unit tangent and normal vectors for a polyline."""
+    previous_points = np.vstack((points[0], points[:-1]))
+    next_points = np.vstack((points[1:], points[-1]))
+    tangents = next_points - previous_points
+    norms = np.linalg.norm(tangents, axis=1)
+    norms[norms <= 1e-6] = 1.0
+    tangents = tangents / norms[:, None]
+    normals = np.column_stack((-tangents[:, 1], tangents[:, 0]))
+    return tangents.astype(np.float32), normals.astype(np.float32)
+
+
+def make_static_obstacle(spec, lanes, tangents, normals, config):
+    """Create an oriented rectangular obstacle on a lane centerline."""
+    lane_index = int(spec.get('lane', 0))
+    lane_index = int(bounded(lane_index, 0, len(lanes) - 1))
+    progress = bounded(float(spec.get('progress', 0.5)), 0.0, 1.0)
+    point_index = int(round(progress * (len(lanes[lane_index]) - 1)))
+    length_px = float(spec.get('length_px', config.road_lane_width_px))
+    width_px = float(spec.get('width_px', config.road_lane_width_px * 0.58))
+    center = lanes[lane_index][point_index]
+    tangent = tangents[point_index]
+    normal = normals[point_index]
+    half_length = max(1.0, length_px * 0.5)
+    half_width = max(1.0, width_px * 0.5)
+    polygon = np.array(
+        [
+            center + tangent * half_length + normal * half_width,
+            center - tangent * half_length + normal * half_width,
+            center - tangent * half_length - normal * half_width,
+            center + tangent * half_length - normal * half_width,
+        ],
+        dtype=np.float32,
+    )
+    return {
+        'center': center,
+        'tangent': tangent,
+        'normal': normal,
+        'half_length': half_length,
+        'half_width': half_width,
+        'polygon': polygon,
+        'lane': lane_index,
+        'progress': progress,
+    }
+
+
+def obstacle_clearance_px(point, obstacle):
+    """Return signed point clearance to an oriented rectangular obstacle."""
+    delta = point - obstacle['center']
+    local_x = float(np.dot(delta, obstacle['tangent']))
+    local_y = float(np.dot(delta, obstacle['normal']))
+    dx = abs(local_x) - obstacle['half_length']
+    dy = abs(local_y) - obstacle['half_width']
+    outside = math.hypot(max(dx, 0.0), max(dy, 0.0))
+    inside = min(max(dx, dy), 0.0)
+    return outside + inside
+
+
 def make_sensor_qos():
     """Create low-latency QoS that keeps only the newest image."""
     return QoSProfile(
@@ -1282,7 +1628,7 @@ def make_sensor_qos():
 
 
 def noop(_value):
-    """OpenCV trackbar callback placeholder."""
+    """Opencv trackbar callback placeholder."""
     return None
 
 
@@ -1315,6 +1661,9 @@ def put_status(
     metrics,
     lap_limit_enabled,
     target_laps,
+    selected_lane_index=None,
+    lane_switch_count=0,
+    nearest_static_clearance_px=float('inf'),
 ):
     """Draw controller status text onto a preview frame."""
     lines = [
@@ -1349,6 +1698,16 @@ def put_status(
             f'target={target_laps}'
         ),
     ]
+    if selected_lane_index is not None:
+        clearance = nearest_static_clearance_px
+        if np.isfinite(clearance):
+            clearance_text = f'{clearance:.1f}px'
+        else:
+            clearance_text = 'inf'
+        lines.append(
+            f'lane={selected_lane_index} switches={lane_switch_count} '
+            f'static_clear={clearance_text}'
+        )
     for index, line in enumerate(lines):
         origin = (12, 30 + index * 28)
         cv2.putText(
@@ -1403,6 +1762,21 @@ def validate_config(config):
         raise SystemExit('command timeout must be positive')
     if config.lookahead_points < 1:
         raise SystemExit('lookahead-points must be at least 1')
+    if config.road_lane_width_px <= 0.0:
+        raise SystemExit('road-lane-width-px must be positive')
+    if config.road_amplitude_x < 0.0:
+        raise SystemExit('road-amplitude-x must be non-negative')
+    if not 0.0 < config.road_length_y <= 1.0:
+        raise SystemExit('road-length-y must be between 0 and 1')
+    if config.obstacle_margin_px <= 0.0:
+        raise SystemExit('obstacle-margin-px must be positive')
+    if config.lane_switch_lookahead_points < 1:
+        raise SystemExit('lane-switch-lookahead-points must be at least 1')
+    if config.static_obstacles:
+        try:
+            parse_static_obstacle_specs(config.static_obstacles)
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise SystemExit(f'invalid static-obstacles JSON: {exc}') from exc
 
 
 def print_config(config):
@@ -1415,6 +1789,14 @@ def print_config(config):
         f'controller={config.controller_mode} track={config.track_shape} '
         f'target_speed={config.target_track_speed_pps:.1f} pps'
     )
+    if config.track_shape == 's_curve_road':
+        print(
+            'road: '
+            f'lane_width={config.road_lane_width_px:.1f}px '
+            f'amplitude={config.road_amplitude_x:.2f} '
+            f'length={config.road_length_y:.2f} '
+            f'obstacle_margin={config.obstacle_margin_px:.1f}px'
+        )
     print(
         'steering PWM: '
         f'left={config.left_pwm} center={config.center_steering_pwm} '

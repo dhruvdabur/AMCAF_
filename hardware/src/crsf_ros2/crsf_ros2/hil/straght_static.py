@@ -4,21 +4,25 @@
 import argparse
 import json
 import math
-import time
 from pathlib import Path
+import sys
+import time
 
 import cv2
-import numpy as np
 from cv_bridge import CvBridge
+import numpy as np
 from rc_msgs.msg import RCMessage
 from rc_msgs.srv import CommandBool
-from sensor_msgs.msg import Image
-
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import HistoryPolicy
 from rclpy.qos import QoSProfile
 from rclpy.qos import ReliabilityPolicy
+from sensor_msgs.msg import Image
+
+SOURCE_ROOT = Path(__file__).resolve().parents[2]
+if str(SOURCE_ROOT) not in sys.path:
+    sys.path.insert(0, str(SOURCE_ROOT))
 
 try:
     from crsf_ros2.hil.controllers import CONTROLLER_MODES
@@ -1759,7 +1763,7 @@ def make_sensor_qos():
 
 
 def noop(_value):
-    """OpenCV trackbar callback placeholder."""
+    """Opencv trackbar callback placeholder."""
     return None
 
 
