@@ -6,7 +6,7 @@ import time
 
 import serial
 
-from .submodules.crsf import CRSF_TRANSMITTER, channelsCrsfToChannelsPacket
+from .submodules.crsf import channelsCrsfToChannelsPacket, CRSF_TRANSMITTER
 
 
 DEFAULT_PORT = '/dev/ttyUSB0'

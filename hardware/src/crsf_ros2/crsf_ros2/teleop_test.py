@@ -2,12 +2,12 @@
 """Drive a guarded CRSF bench test from a terminal using WASD keys."""
 
 import argparse
+from contextlib import contextmanager
 import select
 import sys
 import termios
 import time
 import tty
-from contextlib import contextmanager
 
 from rc_msgs.msg import RCMessage
 from rc_msgs.srv import CommandBool
