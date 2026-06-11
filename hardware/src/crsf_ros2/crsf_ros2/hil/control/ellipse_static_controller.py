@@ -10,10 +10,13 @@ from ..common import bounded
 from ..common import wrap_angle
 from ..controllers import CBFQPConfig
 from ..controllers import CBFQPSafetyFilter
+from ..controllers import EllipseCBFQPConfig
+from ..controllers import EllipseCBFQPSafetyFilter
 from ..controllers import PID_CBF
 from ..controllers import PID_VELOCITY
 from ..controllers import PID_VELOCITY_CBF
 from ..controllers import PID_VELOCITY_CBF_QP
+from ..controllers import PID_VELOCITY_CBF_QP_ELLIPSE
 from ..controllers import PIDController
 from ..controllers import PIDVelocityCBFController
 from ..controllers import PointObstacle
@@ -68,6 +71,7 @@ class EllipseStaticController:
         self.last_command_time = None
         self.last_detection_time = None
         self.last_marker_heading = 0.0
+        self.aruco_marker_size_px = None
         self.throttle = config.neutral_throttle_pwm
         self.roll = config.center_steering_pwm
         self.last_marker_seen = False
@@ -79,15 +83,15 @@ class EllipseStaticController:
             config.steering_kd_px,
             config.integral_limit_px_s,
         )
-        self.velocity_pid = PIDController(
-            config.velocity_kp_pwm,
-            config.velocity_ki_pwm,
-            config.velocity_kd_pwm,
-            config.velocity_integral_limit,
-        )
+        self.heading_kp = config.heading_kp
         self.virtual_lidar = VirtualLidar()
-        self.pid_velocity_cbf = PIDVelocityCBFController(
-            self.velocity_pid,
+        self.velocity_controller = PIDVelocityCBFController(
+            PIDController(
+                config.velocity_kp_pwm,
+                config.velocity_ki_pwm,
+                config.velocity_kd_pwm,
+                config.velocity_integral_limit,
+            ),
             self.virtual_lidar,
         )
         self.cbf_qp_filter = CBFQPSafetyFilter(
@@ -104,8 +108,23 @@ class EllipseStaticController:
                 solver=config.qp_solver,
             )
         )
-        self.heading_kp = config.heading_kp
+        self.cbf_qp_ellipse_filter = EllipseCBFQPSafetyFilter(
+            EllipseCBFQPConfig(
+                a_ell=config.cbf_a_ell,
+                b_ell=config.cbf_b_ell,
+                wheelbase=config.qp_wheelbase_px,
+                gamma1=config.cbf_gamma1,
+                gamma2=config.cbf_gamma2,
+                gamma3=config.cbf_gamma3,
+                min_accel=config.qp_min_accel,
+                max_accel=config.qp_max_accel,
+                min_delta=config.qp_min_delta,
+                max_delta=config.qp_max_delta,
+                solver=config.qp_solver,
+            )
+        )
         self.target_track_speed_pps = config.target_track_speed_pps
+        self.effective_target_track_speed_pps = config.target_track_speed_pps
         self.cbf_stop_error_px = config.cbf_stop_error_px
         self.last_progress_index = None
         self.last_progress_time = None
@@ -117,6 +136,10 @@ class EllipseStaticController:
         self.cbf_qp_accel = 0.0
         self.cbf_qp_delta = 0.0
         self.cbf_qp_status = 'unused'
+        self.cbf_qp_h = 0.0
+        self.cbf_qp_lhs_a = 0.0
+        self.cbf_qp_lhs_delta = 0.0
+        self.cbf_qp_rhs = 0.0
         self.latest_lidar_points = []
         self.nearest_static_clearance_px = float('inf')
         self.metrics = FollowerMetrics()
@@ -124,6 +147,29 @@ class EllipseStaticController:
         self.metrics_file_path = unique_metrics_path(config.metrics_file)
         self.lap_limit_enabled = config.enable_lap_limit
         self.target_laps = max(0, config.target_laps)
+
+    def set_aruco_marker_size_px(self, marker_size_px):
+        """Update marker pixel scale from the detected 10 cm ArUco marker."""
+        if marker_size_px is None or marker_size_px <= 1e-6:
+            return
+        self.aruco_marker_size_px = float(marker_size_px)
+
+    def cbf_ellipse_axes_px(self):
+        """Return CBF ellipse semi-axes in image pixels."""
+        if self.aruco_marker_size_px is None:
+            return float(self.config.cbf_a_ell), float(self.config.cbf_b_ell)
+        return (
+            float(self.config.cbf_a_ell) * self.aruco_marker_size_px,
+            float(self.config.cbf_b_ell) * self.aruco_marker_size_px,
+        )
+
+    def cbf_ellipse_axes_cm(self):
+        """Return CBF ellipse semi-axes in centimeters."""
+        marker_cm = float(self.config.aruco_marker_size_cm)
+        return (
+            float(self.config.cbf_a_ell) * marker_cm,
+            float(self.config.cbf_b_ell) * marker_cm,
+        )
 
     def process_detection(self, center, heading, image_size=None, now=None):
         """Update controller state from one marker/pose detection."""
@@ -152,8 +198,7 @@ class EllipseStaticController:
             nearest_index,
             now,
         )
-        speed_error = self.target_track_speed_pps - self.track_speed_pps
-        self.speed_error_pps = speed_error
+        speed_error = self.speed_error_pps
         safety_clearance = self.safety_clearance_px(
             center,
             error,
@@ -201,7 +246,7 @@ class EllipseStaticController:
         self.last_detection_time = None
         self.last_marker_seen = False
         self.pid.reset()
-        self.pid_velocity_cbf.reset()
+        self.velocity_controller.reset()
         self.last_progress_index = None
         self.last_progress_time = None
         self.track_speed_pps = 0.0
@@ -224,7 +269,7 @@ class EllipseStaticController:
         self.roll = self.config.center_steering_pwm
         self.last_command_time = None
         self.pid.reset()
-        self.pid_velocity_cbf.reset()
+        self.velocity_controller.reset()
         self.latest_lidar_points = []
         self.cbf_qp_accel = 0.0
         self.cbf_qp_delta = 0.0
@@ -247,9 +292,12 @@ class EllipseStaticController:
                 'steering_ki_px': self.config.steering_ki_px,
                 'steering_kd_px': self.config.steering_kd_px,
                 'heading_kp': self.heading_kp,
+                'aruco_parallax_factor': self.config.aruco_parallax_factor,
                 'forward_pwm': self.config.forward_pwm,
                 'target_track_speed_pps': self.target_track_speed_pps,
                 'velocity_kp_pwm': self.config.velocity_kp_pwm,
+                'velocity_ki_pwm': self.config.velocity_ki_pwm,
+                'velocity_kd_pwm': self.config.velocity_kd_pwm,
                 'cbf_r_safe': self.config.cbf_r_safe,
                 'cbf_gamma1': self.config.cbf_gamma1,
                 'cbf_gamma2': self.config.cbf_gamma2,
@@ -261,8 +309,12 @@ class EllipseStaticController:
             {
                 'controller_mode': self.config.controller_mode,
                 'track_shape': self.config.track_shape,
+                'aruco_parallax_factor': self.config.aruco_parallax_factor,
+                'heading_kp': self.heading_kp,
                 'min_forward_pwm': self.config.min_forward_pwm,
                 'max_forward_pwm': self.config.max_forward_pwm,
+                'target_track_speed_pps': self.target_track_speed_pps,
+                'velocity_kp_pwm': self.config.velocity_kp_pwm,
                 'velocity_ki_pwm': self.config.velocity_ki_pwm,
                 'velocity_kd_pwm': self.config.velocity_kd_pwm,
                 'cbf_r_safe': self.config.cbf_r_safe,
@@ -282,6 +334,19 @@ class EllipseStaticController:
         """Refresh the QP filter config after CLI/tuning changes."""
         self.cbf_qp_filter.config = CBFQPConfig(
             r_safe=self.config.cbf_r_safe,
+            wheelbase=self.config.qp_wheelbase_px,
+            gamma1=self.config.cbf_gamma1,
+            gamma2=self.config.cbf_gamma2,
+            gamma3=self.config.cbf_gamma3,
+            min_accel=self.config.qp_min_accel,
+            max_accel=self.config.qp_max_accel,
+            min_delta=self.config.qp_min_delta,
+            max_delta=self.config.qp_max_delta,
+            solver=self.config.qp_solver,
+        )
+        self.cbf_qp_ellipse_filter.config = EllipseCBFQPConfig(
+            a_ell=self.config.cbf_a_ell,
+            b_ell=self.config.cbf_b_ell,
             wheelbase=self.config.qp_wheelbase_px,
             gamma1=self.config.cbf_gamma1,
             gamma2=self.config.cbf_gamma2,
@@ -415,17 +480,13 @@ class EllipseStaticController:
     ):
         """Return drive PWM for the selected controller mode."""
         self.update_track_speed(nearest_index, now)
-        throttle = self.config.forward_pwm
-        self.speed_error_pps = self.target_track_speed_pps - self.track_speed_pps
+        self.effective_target_track_speed_pps = self.target_track_speed_pps
+        self.speed_error_pps = 0.0
         self.velocity_delta_pwm = 0.0
 
-        if self.config.controller_mode in (
-            PID_VELOCITY,
-            PID_VELOCITY_CBF,
-            PID_VELOCITY_CBF_QP,
-        ):
+        if self.config.controller_mode == PID_VELOCITY:
             throttle, speed_delta, speed_error = (
-                self.pid_velocity_cbf.velocity_throttle(
+                self.velocity_controller.velocity_throttle(
                     self.target_track_speed_pps,
                     self.track_speed_pps,
                     self.config.forward_pwm,
@@ -434,59 +495,189 @@ class EllipseStaticController:
                     now,
                 )
             )
-            self.speed_error_pps = speed_error
             self.velocity_delta_pwm = speed_delta
-
-        if self.config.controller_mode == PID_VELOCITY:
+            self.speed_error_pps = speed_error
             self.cbf_scale = 1.0
             self.cbf_active = False
             self.cbf_qp_status = 'unused'
             return round(throttle)
 
-        if self.config.controller_mode in (PID_CBF, PID_VELOCITY_CBF):
-            result = self.pid_velocity_cbf.apply_cbf(
-                throttle,
-                self.config.neutral_throttle_pwm,
+        if self.config.controller_mode == PID_VELOCITY_CBF:
+            return self.pid_velocity_cbf_throttle(
                 center,
-                self.last_marker_heading,
                 lateral_error_px,
                 heading_error_rad,
-                self.last_image_size,
-                self.static_obstacles,
-                self.config.cbf_slow_error_px,
-                self.cbf_stop_error_px,
-                self.config.cbf_stop_heading_rad,
-                self.config.cbf_edge_margin_px,
-                self.config.obstacle_margin_px,
-                self.config.cbf_h_px,
-                self.config.cbf_alpha,
                 now,
             )
-            self.cbf_scale = result.scale
-            self.cbf_active = result.active
-            self.nearest_static_clearance_px = result.lidar_clearance_px
-            self.latest_safety_clearances = {
-                'edge': result.edge_clearance_px,
-                'lateral': result.error_clearance_px,
-                'heading': result.heading_clearance_px,
-                'obstacle': result.lidar_clearance_px,
-                'min': result.safety_clearance_px,
-            }
-            self.latest_lidar_points = self.virtual_lidar.latest_points
-            self.cbf_qp_status = 'unused'
-            return round(result.throttle_pwm)
 
-        if self.config.controller_mode != PID_VELOCITY_CBF_QP:
-            self.cbf_scale = 1.0
-            self.cbf_active = False
-            self.cbf_qp_status = 'unused'
-            return self.config.forward_pwm
+        if self.config.controller_mode == PID_CBF:
+            return self.pid_cbf_throttle(
+                center,
+                lateral_error_px,
+                heading_error_rad,
+                now,
+            )
 
-        throttle, roll = self.apply_cbf_qp(center, throttle, self.roll)
-        self.roll = round(roll)
-        self.cbf_qp_status = self.cbf_qp_filter.last_status or 'unknown'
+        if self.config.controller_mode in (
+            PID_VELOCITY_CBF_QP,
+            PID_VELOCITY_CBF_QP_ELLIPSE,
+        ):
+            target_speed = self.target_track_speed_pps
+            if self.config.controller_mode in (
+                PID_VELOCITY_CBF_QP,
+                PID_VELOCITY_CBF_QP_ELLIPSE,
+            ):
+                target_speed *= self.cbf_velocity_scale(
+                    center,
+                    lateral_error_px,
+                    heading_error_rad,
+                    now,
+                )
+                self.effective_target_track_speed_pps = target_speed
+            nominal_throttle, speed_delta, speed_error = (
+                self.velocity_controller.velocity_throttle(
+                    target_speed,
+                    self.track_speed_pps,
+                    self.config.forward_pwm,
+                    self.config.min_forward_pwm,
+                    self.config.max_forward_pwm,
+                    now,
+                )
+            )
+            self.velocity_delta_pwm = speed_delta
+            self.speed_error_pps = speed_error
+            cbf_scale_before_qp = self.cbf_scale
+            throttle, roll = self.apply_cbf_qp(
+                center,
+                nominal_throttle,
+                self.roll,
+            )
+            self.cbf_scale = min(cbf_scale_before_qp, self.cbf_scale)
+            self.cbf_active = self.cbf_active or self.cbf_scale < 0.999
+            self.roll = round(roll)
+            return round(throttle)
 
-        return round(throttle)
+        self.cbf_scale = 1.0
+        self.cbf_active = False
+        self.cbf_qp_status = 'unused'
+        return self.config.forward_pwm
+
+    def pid_cbf_throttle(
+        self,
+        center,
+        lateral_error_px,
+        heading_error_rad,
+        now,
+    ):
+        """Run fixed forward throttle with derivative-CBF scaling."""
+        self.speed_error_pps = self.target_track_speed_pps - self.track_speed_pps
+        result = self.velocity_controller.apply_cbf(
+            self.config.forward_pwm,
+            self.config.neutral_throttle_pwm,
+            center,
+            self.last_marker_heading,
+            lateral_error_px,
+            heading_error_rad,
+            self.last_image_size,
+            self.static_obstacles,
+            self.config.cbf_slow_error_px,
+            self.cbf_stop_error_px,
+            self.config.cbf_stop_heading_rad,
+            self.config.cbf_edge_margin_px,
+            self.config.obstacle_margin_px,
+            self.config.cbf_h_px,
+            self.config.cbf_alpha,
+            now,
+        )
+        self.cbf_scale = result.scale
+        self.cbf_active = result.active
+        self.cbf_qp_status = 'unused'
+        self.nearest_static_clearance_px = result.lidar_clearance_px
+        self.latest_lidar_points = (
+            self.velocity_controller.virtual_lidar.latest_points
+        )
+        return round(result.throttle_pwm)
+
+    def pid_velocity_cbf_throttle(
+        self,
+        center,
+        lateral_error_px,
+        heading_error_rad,
+        now,
+    ):
+        """Run velocity PID with derivative-CBF throttle scaling."""
+        throttle, speed_delta, speed_error = (
+            self.velocity_controller.velocity_throttle(
+                self.target_track_speed_pps,
+                self.track_speed_pps,
+                self.config.forward_pwm,
+                self.config.min_forward_pwm,
+                self.config.max_forward_pwm,
+                now,
+            )
+        )
+        self.velocity_delta_pwm = speed_delta
+        self.speed_error_pps = speed_error
+        result = self.velocity_controller.apply_cbf(
+            throttle,
+            self.config.neutral_throttle_pwm,
+            center,
+            self.last_marker_heading,
+            lateral_error_px,
+            heading_error_rad,
+            self.last_image_size,
+            self.static_obstacles,
+            self.config.cbf_slow_error_px,
+            self.cbf_stop_error_px,
+            self.config.cbf_stop_heading_rad,
+            self.config.cbf_edge_margin_px,
+            self.config.obstacle_margin_px,
+            self.config.cbf_h_px,
+            self.config.cbf_alpha,
+            now,
+        )
+        self.cbf_scale = result.scale
+        self.cbf_active = result.active
+        self.cbf_qp_status = 'unused'
+        self.nearest_static_clearance_px = result.lidar_clearance_px
+        self.latest_lidar_points = (
+            self.velocity_controller.virtual_lidar.latest_points
+        )
+        return round(result.throttle_pwm)
+
+    def cbf_velocity_scale(
+        self,
+        center,
+        lateral_error_px,
+        heading_error_rad,
+        now,
+    ):
+        """Return a derivative-CBF scale for the target velocity."""
+        result = self.velocity_controller.apply_cbf(
+            self.config.max_forward_pwm,
+            self.config.neutral_throttle_pwm,
+            center,
+            self.last_marker_heading,
+            lateral_error_px,
+            heading_error_rad,
+            self.last_image_size,
+            self.static_obstacles,
+            self.config.cbf_slow_error_px,
+            self.cbf_stop_error_px,
+            self.config.cbf_stop_heading_rad,
+            self.config.cbf_edge_margin_px,
+            self.config.obstacle_margin_px,
+            self.config.cbf_h_px,
+            self.config.cbf_alpha,
+            now,
+        )
+        self.cbf_scale = result.scale
+        self.cbf_active = result.active
+        self.nearest_static_clearance_px = result.lidar_clearance_px
+        self.latest_lidar_points = (
+            self.velocity_controller.virtual_lidar.latest_points
+        )
+        return result.scale
 
     def apply_cbf_qp(self, center, throttle_pwm, roll_pwm):
         """Filter nominal throttle and steering through cbf_qp.py."""
@@ -506,12 +697,35 @@ class EllipseStaticController:
         accel_ref = self.throttle_pwm_to_qp_accel(throttle_pwm)
         delta_ref = self.roll_pwm_to_qp_delta(roll_pwm)
         try:
-            accel, delta = self.cbf_qp_filter.solve(
-                car,
-                obstacles,
-                accel_ref,
-                delta_ref,
-            )
+            if self.config.controller_mode == PID_VELOCITY_CBF_QP_ELLIPSE:
+                a_ell_px, b_ell_px = self.cbf_ellipse_axes_px()
+                self.cbf_qp_ellipse_filter.config.a_ell = a_ell_px
+                self.cbf_qp_ellipse_filter.config.b_ell = b_ell_px
+                accel, delta = self.cbf_qp_ellipse_filter.solve(
+                    car,
+                    obstacles,
+                    accel_ref,
+                    delta_ref,
+                )
+                self.cbf_qp_status = (
+                    self.cbf_qp_ellipse_filter.last_status or 'unknown'
+                )
+                self.cbf_qp_h = self.cbf_qp_ellipse_filter.last_h
+                self.cbf_qp_lhs_a = self.cbf_qp_ellipse_filter.last_lhs_a_coeff
+                self.cbf_qp_lhs_delta = self.cbf_qp_ellipse_filter.last_lhs_delta_coeff
+                self.cbf_qp_rhs = self.cbf_qp_ellipse_filter.last_rhs
+            else:
+                accel, delta = self.cbf_qp_filter.solve(
+                    car,
+                    obstacles,
+                    accel_ref,
+                    delta_ref,
+                )
+                self.cbf_qp_status = self.cbf_qp_filter.last_status or 'unknown'
+                self.cbf_qp_h = 0.0
+                self.cbf_qp_lhs_a = 0.0
+                self.cbf_qp_lhs_delta = 0.0
+                self.cbf_qp_rhs = 0.0
         except RuntimeError as exc:
             self.cbf_qp_status = 'unavailable'
             raise RuntimeError(
@@ -523,10 +737,11 @@ class EllipseStaticController:
         safe_roll = self.qp_delta_to_roll_pwm(delta)
         self.cbf_qp_accel = accel
         self.cbf_qp_delta = delta
-        self.cbf_qp_status = self.cbf_qp_filter.last_status or 'unknown'
+        front_scale = self.front_obstacle_velocity_scale(center)
+        safe_throttle = self.apply_throttle_scale(safe_throttle, front_scale)
         throttle_changed = abs(safe_throttle - throttle_pwm) > 1.0
         steering_changed = abs(safe_roll - roll_pwm) > 1.0
-        self.cbf_active = throttle_changed or steering_changed
+        self.cbf_active = throttle_changed or steering_changed or front_scale < 0.999
         if throttle_pwm > self.config.neutral_throttle_pwm:
             self.cbf_scale = bounded(
                 (safe_throttle - self.config.neutral_throttle_pwm)
@@ -538,6 +753,39 @@ class EllipseStaticController:
             self.cbf_scale = 1.0
         self.nearest_static_clearance_px = self.qp_obstacle_clearance_px(center)
         return safe_throttle, safe_roll
+
+    def front_obstacle_velocity_scale(self, center):
+        """Return a forward-obstacle throttle scale for detected obstacles."""
+        if not self.static_obstacles:
+            return 1.0
+        a_ell_px, b_ell_px = self.cbf_ellipse_axes_px()
+        forward = np.array(
+            [math.cos(self.last_marker_heading), math.sin(self.last_marker_heading)],
+            dtype=np.float32,
+        )
+        right = np.array(
+            [-math.sin(self.last_marker_heading), math.cos(self.last_marker_heading)],
+            dtype=np.float32,
+        )
+        scale = 1.0
+        for obstacle in self.static_obstacles:
+            delta = obstacle['center'] - center
+            ahead = float(np.dot(delta, forward)) - obstacle['half_length']
+            lateral = abs(float(np.dot(delta, right)))
+            lateral_limit = b_ell_px + obstacle['half_width']
+            if ahead <= 0.0 or lateral > lateral_limit:
+                continue
+            slow_distance = max(1.0, a_ell_px)
+            scale = min(scale, bounded(ahead / slow_distance, 0.0, 1.0))
+        return scale
+
+    def apply_throttle_scale(self, throttle_pwm, scale):
+        """Scale forward throttle around neutral without commanding reverse."""
+        if throttle_pwm <= self.config.neutral_throttle_pwm:
+            return throttle_pwm
+        return self.config.neutral_throttle_pwm + (
+            throttle_pwm - self.config.neutral_throttle_pwm
+        ) * bounded(scale, 0.0, 1.0)
 
     def throttle_pwm_to_qp_accel(self, throttle_pwm):
         """Map drive PWM into the QP acceleration interval."""
@@ -719,11 +967,27 @@ class EllipseStaticController:
         self.config.steering_kp_px = values['steering_kp_px']
         self.config.steering_ki_px = values['steering_ki_px']
         self.config.steering_kd_px = values['steering_kd_px']
-        self.heading_kp = values['heading_kp']
+        self.heading_kp = values.get('heading_kp', self.heading_kp)
         self.config.forward_pwm = values['forward_pwm']
-        self.target_track_speed_pps = values['target_track_speed_pps']
-        self.config.velocity_kp_pwm = values['velocity_kp_pwm']
-        self.config.cbf_r_safe = values['cbf_r_safe']
+        self.target_track_speed_pps = values.get(
+            'target_track_speed_pps',
+            self.target_track_speed_pps,
+        )
+        self.config.velocity_kp_pwm = values.get(
+            'velocity_kp_pwm',
+            self.config.velocity_kp_pwm,
+        )
+        self.config.velocity_ki_pwm = values.get(
+            'velocity_ki_pwm',
+            self.config.velocity_ki_pwm,
+        )
+        self.config.velocity_kd_pwm = values.get(
+            'velocity_kd_pwm',
+            self.config.velocity_kd_pwm,
+        )
+        self.config.cbf_r_safe = values.get('cbf_r_safe', self.config.cbf_r_safe)
+        self.config.cbf_a_ell = values.get('cbf_a_ell', self.config.cbf_a_ell)
+        self.config.cbf_b_ell = values.get('cbf_b_ell', self.config.cbf_b_ell)
         self.config.cbf_gamma1 = values['cbf_gamma1']
         self.config.cbf_gamma2 = values['cbf_gamma2']
         self.config.cbf_gamma3 = values['cbf_gamma3']
@@ -739,7 +1003,7 @@ class EllipseStaticController:
             self.config.steering_kd_px,
             self.config.integral_limit_px_s,
         )
-        self.pid_velocity_cbf.update_velocity_gains(
+        self.velocity_controller.update_velocity_gains(
             self.config.velocity_kp_pwm,
             self.config.velocity_ki_pwm,
             self.config.velocity_kd_pwm,

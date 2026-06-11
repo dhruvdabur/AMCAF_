@@ -5,12 +5,15 @@ from .cbf_qp import CBFQPConfig
 from .cbf_qp import CBFQPSafetyFilter
 from .cbf_qp import PointObstacle
 from .cbf_qp import VehicleState
+from .cbf_qp_ellipse import EllipseCBFQPConfig
+from .cbf_qp_ellipse import EllipseCBFQPSafetyFilter
 from .modes import CONTROLLER_MODES
 from .modes import PID
 from .modes import PID_CBF
 from .modes import PID_VELOCITY
 from .modes import PID_VELOCITY_CBF
 from .modes import PID_VELOCITY_CBF_QP
+from .modes import PID_VELOCITY_CBF_QP_ELLIPSE
 from .pid import BarrierState
 from .pid import PIDController
 from .pid import PIDVelocityCBFController
@@ -21,6 +24,8 @@ __all__ = [
     'BarrierState',
     'CBFQPConfig',
     'CBFQPSafetyFilter',
+    'EllipseCBFQPConfig',
+    'EllipseCBFQPSafetyFilter',
     'PID',
     'PID_CBF',
     'PIDController',
@@ -28,6 +33,7 @@ __all__ = [
     'PID_VELOCITY',
     'PID_VELOCITY_CBF',
     'PID_VELOCITY_CBF_QP',
+    'PID_VELOCITY_CBF_QP_ELLIPSE',
     'PointObstacle',
     'VehicleState',
     'VirtualLidar',

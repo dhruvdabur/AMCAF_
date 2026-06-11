@@ -1,19 +1,19 @@
-"""Tuning panel and tuning-file support for ellipse_static."""
+"""Tuning panel and tuning-file support for straight_static."""
 
 import json
 
 import cv2
 
 from ..common import bounded
-from ..config.ellipse_static import CBF_GAMMA_SCALE
-from ..config.ellipse_static import CBF_R_SAFE_SCALE
-from ..config.ellipse_static import HEADING_SCALE
-from ..config.ellipse_static import PID_SCALE
-from ..config.ellipse_static import PID_WINDOW
+from ..config.straight_static import CBF_GAMMA_SCALE
+from ..config.straight_static import CBF_R_SAFE_SCALE
+from ..config.straight_static import HEADING_SCALE
+from ..config.straight_static import PID_SCALE
+from ..config.straight_static import PID_WINDOW
 from ..ui import noop
 
 
-class EllipseStaticTuning:
+class StraightStaticTuning:
     """Own OpenCV tuning widgets and tuning-file load/save."""
 
     def __init__(self, config, controller, logger=None, enabled=True):

@@ -1,4 +1,4 @@
-"""ROS node for the closed-ellipse ArUco hil follower."""
+"""ROS node for the straight-road ArUco hil follower."""
 
 import json
 import math
@@ -14,16 +14,17 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float64
 
-from ..config.ellipse_static import ARMING_SERVICE
-from ..config.ellipse_static import NEUTRAL_VALUE
-from ..config.ellipse_static import parse_args
-from ..config.ellipse_static import print_config
-from ..config.ellipse_static import SETTLE_DURATION
-from ..config.ellipse_static import UPDATE_RATE_HZ
-from ..config.ellipse_static import validate_config
-from ..control import EllipseStaticController
+from ..config.straight_static import ARMING_SERVICE
+from ..config.straight_static import NEUTRAL_VALUE
+from ..config.straight_static import parse_args
+from ..config.straight_static import print_config
+from ..config.straight_static import SETTLE_DURATION
+from ..config.straight_static import UPDATE_RATE_HZ
+from ..config.straight_static import validate_config
+from ..control import StraightStaticController
+from ..road import make_laneless_static_obstacle
 from ..runtime import make_sensor_qos
-from ..tuning import EllipseStaticTuning
+from ..tuning import StraightStaticTuning
 from ..ui import draw_label
 from ..ui import draw_vector
 from ..ui import put_status
@@ -33,7 +34,7 @@ PREVIEW_WINDOW = 'Aruco Track Follower'
 
 
 class ArucoTrackFollower(Node):
-    """ROS transport wrapper around the reusable ellipse follower controller."""
+    """ROS transport wrapper around the reusable straight follower controller."""
 
     def __init__(self, config):
         super().__init__('aruco_track_follower')
@@ -55,9 +56,9 @@ class ArucoTrackFollower(Node):
         self.aruco_dictionary = self.load_aruco_dictionary(config.marker_dict)
         self.aruco_parameters = self.make_detector_parameters()
         self.detector = self.make_detector()
-        self.controller = EllipseStaticController(config)
+        self.controller = StraightStaticController(config)
         self.telemetry_publishers = self.create_tuning_telemetry_publishers()
-        self.tuning = EllipseStaticTuning(
+        self.tuning = StraightStaticTuning(
             config,
             self.controller,
             self.get_logger(),
@@ -68,11 +69,18 @@ class ArucoTrackFollower(Node):
         self.output_enabled = False
         self.armed = False
         self.last_debug_print_time = 0.0
+        self.virtual_vehicle_state = None
+        self.virtual_last_time = None
+        self.random_static_obstacles = []
+        self.detected_random_obstacles = []
         if config.load_tuning:
             self.tuning.load_tuning_file()
             self.controller.refresh_cbf_qp_config()
         if self.tuning.enabled:
             self.tuning.create_pid_panel()
+        if config.virtual_vehicle_test:
+            self.reset_virtual_vehicle()
+            self.create_timer(1.0 / UPDATE_RATE_HZ, self.virtual_vehicle_tick)
         self.create_timer(1.0 / UPDATE_RATE_HZ, self.publish_command)
 
     def create_tuning_telemetry_publishers(self):
@@ -95,6 +103,12 @@ class ArucoTrackFollower(Node):
             'cbf_scale',
             'cbf_active',
             'nearest_static_clearance_px',
+            'cbf_qp_accel',
+            'cbf_qp_delta',
+            'cbf_qp_h',
+            'cbf_qp_lhs_a',
+            'cbf_qp_lhs_delta',
+            'cbf_qp_rhs',
         )
         return {
             name: self.create_publisher(Float64, f'{prefix}/{name}', 10)
@@ -138,6 +152,8 @@ class ArucoTrackFollower(Node):
 
     def image_callback(self, image_msg):
         """Process one camera frame and update the latest RC command."""
+        if self.config.virtual_vehicle_test:
+            return
         if self.message_is_stale(image_msg):
             return
         frame = self.bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8')
@@ -195,6 +211,12 @@ class ArucoTrackFollower(Node):
             'cbf_scale': float(self.cbf_scale),
             'cbf_active': 1.0 if self.cbf_active else 0.0,
             'nearest_static_clearance_px': float(self.nearest_static_clearance_px),
+            'cbf_qp_accel': float(self.cbf_qp_accel),
+            'cbf_qp_delta': float(self.cbf_qp_delta),
+            'cbf_qp_h': float(self.cbf_qp_h),
+            'cbf_qp_lhs_a': float(self.cbf_qp_lhs_a),
+            'cbf_qp_lhs_delta': float(self.cbf_qp_lhs_delta),
+            'cbf_qp_rhs': float(self.cbf_qp_rhs),
         }
         if result is not None:
             values.update(
@@ -371,6 +393,8 @@ class ArucoTrackFollower(Node):
                 'speed_error_pps_last': self.speed_error_pps,
                 'velocity_delta_pwm_last': self.velocity_delta_pwm,
                 'target_track_speed_pps': self.target_track_speed_pps,
+                'gap_lookahead_points': self.config.gap_lookahead_points,
+                'setpoint_ahead_points': self.config.setpoint_ahead_points,
                 'forward_pwm': self.config.forward_pwm,
                 'min_forward_pwm': self.config.min_forward_pwm,
                 'max_forward_pwm': self.config.max_forward_pwm,
@@ -393,6 +417,10 @@ class ArucoTrackFollower(Node):
                 'cbf_qp_accel_last': self.cbf_qp_accel,
                 'cbf_qp_delta_last': self.cbf_qp_delta,
                 'cbf_qp_status_last': self.cbf_qp_status,
+                'cbf_qp_h_last': self.cbf_qp_h,
+                'cbf_qp_lhs_a_last': self.cbf_qp_lhs_a,
+                'cbf_qp_lhs_delta_last': self.cbf_qp_lhs_delta,
+                'cbf_qp_rhs_last': self.cbf_qp_rhs,
                 'lap_limit_enabled': self.lap_limit_enabled,
                 'target_laps': self.target_laps,
                 'nearest_static_clearance_px_last': (
@@ -468,7 +496,7 @@ class ArucoTrackFollower(Node):
             return
         self.config.debug_snapshot_dir.mkdir(parents=True, exist_ok=True)
         timestamp = time.strftime('%Y%m%d_%H%M%S')
-        path = self.config.debug_snapshot_dir / f'ellipse_debug_{timestamp}.png'
+        path = self.config.debug_snapshot_dir / f'straight_debug_{timestamp}.png'
         cv2.imwrite(str(path), self.latest_preview_frame)
         self.get_logger().info(f'saved preview snapshot to {path}')
 
@@ -515,6 +543,156 @@ class ArucoTrackFollower(Node):
             math.cos(heading_error_rad + math.pi),
         )
 
+    def reset_virtual_vehicle(self):
+        """Drop a synthetic vehicle onto the straight road test scene."""
+        width = self.config.virtual_width
+        height = self.config.virtual_height
+        self.controller.build_track_scene(width, height)
+        if self.config.random_static_obstacles:
+            self.random_static_obstacles = self.make_random_static_obstacles()
+            self.detected_random_obstacles = []
+            self.controller.static_obstacles = []
+        point_count = len(self.track_points)
+        start_index = int(
+            round(self.config.virtual_start_progress * (point_count - 1))
+        )
+        start_index = max(0, min(start_index, point_count - 1))
+        center = self.track_points[start_index].astype(np.float32)
+        normal = self.road_normals[start_index]
+        center = center + normal * self.config.virtual_start_lateral_offset_px
+        self.virtual_vehicle_state = {
+            'x': float(center[0]),
+            'y': float(center[1]),
+            'heading': math.radians(self.config.virtual_start_heading_deg),
+            'speed': max(0.0, self.config.virtual_start_speed_pps),
+        }
+        self.virtual_last_time = time.monotonic()
+        self.controller.mark_marker_lost()
+
+    def virtual_vehicle_tick(self):
+        """Run one controller/simulation step for the synthetic vehicle."""
+        if self.virtual_vehicle_state is None:
+            self.reset_virtual_vehicle()
+        now = time.monotonic()
+        dt = min(0.1, max(1e-3, now - self.virtual_last_time))
+        self.virtual_last_time = now
+
+        self.tuning.update_pid_from_panel()
+        state = self.virtual_vehicle_state
+        center = np.array([state['x'], state['y']], dtype=np.float32)
+        if self.config.random_static_obstacles:
+            self.update_detected_random_obstacles(center)
+        result = self.controller.process_detection(
+            center,
+            state['heading'],
+            image_size=(self.config.virtual_width, self.config.virtual_height),
+            now=now,
+        )
+        self.publish_tuning_telemetry(result, marker_seen=True)
+        self.advance_virtual_vehicle(dt)
+        if self.config.preview:
+            frame = self.make_virtual_frame()
+            self.show_preview(frame, None, center, result.target, result.tangent)
+        if self.config.virtual_stop_at_end and self.virtual_reached_road_end():
+            self.request_stop('virtual vehicle reached road end')
+
+    def advance_virtual_vehicle(self, dt):
+        """Advance the synthetic vehicle using controller output."""
+        state = self.virtual_vehicle_state
+        throttle_span = max(
+            1.0,
+            self.config.max_forward_pwm - self.config.neutral_throttle_pwm,
+        )
+        throttle_ratio = (
+            self.throttle - self.config.neutral_throttle_pwm
+        ) / throttle_span
+        target_speed = max(
+            0.0,
+            throttle_ratio * self.config.target_track_speed_pps,
+        )
+        speed_error = target_speed - state['speed']
+        accel = speed_error * self.config.virtual_speed_response
+        accel = max(
+            -self.config.virtual_max_brake_pps2,
+            min(self.config.virtual_max_accel_pps2, accel),
+        )
+        state['speed'] = max(0.0, state['speed'] + accel * dt)
+        delta = self.controller.roll_pwm_to_qp_delta(self.roll)
+        heading_rate = state['speed'] / max(1.0, self.config.qp_wheelbase_px) * delta
+        state['heading'] = math.atan2(
+            math.sin(state['heading'] + heading_rate * dt),
+            math.cos(state['heading'] + heading_rate * dt),
+        )
+        state['x'] += math.cos(state['heading']) * state['speed'] * dt
+        state['y'] += math.sin(state['heading']) * state['speed'] * dt
+
+    def virtual_reached_road_end(self):
+        """Return whether the virtual vehicle has reached the end of the road."""
+        if self.latest_nearest_index is None or self.track_points is None:
+            return False
+        return self.latest_nearest_index >= len(self.track_points) - 3
+
+    def make_virtual_frame(self):
+        """Create a plain synthetic camera frame for controller testing."""
+        frame = np.full(
+            (self.config.virtual_height, self.config.virtual_width, 3),
+            245,
+            dtype=np.uint8,
+        )
+        return frame
+
+    def make_random_static_obstacles(self):
+        """Create hidden random obstacles in the virtual road scene."""
+        rng = np.random.default_rng(self.config.random_obstacle_seed)
+        obstacles = []
+        for index in range(self.config.random_obstacle_count):
+            progress = float(
+                rng.uniform(
+                    self.config.random_obstacle_min_progress,
+                    self.config.random_obstacle_max_progress,
+                )
+            )
+            lateral_fraction = float(rng.uniform(-0.58, 0.58))
+            length_px = float(rng.uniform(70.0, 125.0))
+            width_px = float(rng.uniform(45.0, 76.0))
+            spec = {
+                'progress': progress,
+                'length_px': length_px,
+                'width_px': width_px,
+                'offset': lateral_fraction,
+            }
+            obstacle = make_laneless_static_obstacle(
+                spec,
+                self.track_points,
+                self.road_tangents,
+                self.road_normals,
+                self.config,
+            )
+            obstacle['random_index'] = index
+            obstacle['detected'] = False
+            obstacles.append(obstacle)
+        return obstacles
+
+    def update_detected_random_obstacles(self, center):
+        """Reveal random obstacles only when the virtual sensor can see them."""
+        detected = []
+        heading = self.virtual_vehicle_state['heading']
+        forward = np.array([math.cos(heading), math.sin(heading)], dtype=np.float32)
+        for obstacle in self.random_static_obstacles:
+            delta = obstacle['center'] - center
+            ahead = float(np.dot(delta, forward))
+            distance = float(np.linalg.norm(delta))
+            visible = (
+                ahead > -obstacle['half_length']
+                and distance <= self.config.random_obstacle_detection_range_px
+            )
+            if visible:
+                obstacle['detected'] = True
+            if obstacle.get('detected'):
+                detected.append(obstacle)
+        self.detected_random_obstacles = detected
+        self.controller.static_obstacles = detected
+
     def show_preview(self, frame, corners, center, target, tangent):
         """Display the virtual track and current ArUco tracking state."""
         preview = frame.copy()
@@ -530,10 +708,42 @@ class ArucoTrackFollower(Node):
                 cv2.LINE_AA,
             )
         if center is not None:
-            cv2.circle(preview, tuple(center.astype(int)), 5, (255, 0, 0), -1)
-            self.draw_lidar_feedback(preview, center)
+            cv2.circle(preview, tuple(center.astype(int)), 6, (255, 0, 0), -1)
+            draw_label(
+                preview,
+                tuple(center.astype(int) + np.array([10, 20])),
+                'VEHICLE',
+                (255, 0, 0),
+                scale=0.5,
+            )
+        if self.config.virtual_vehicle_test:
+            self.draw_virtual_vehicle(preview)
         if target is not None:
-            cv2.circle(preview, tuple(target.astype(int)), 7, (0, 0, 255), -1)
+            cv2.circle(preview, tuple(target.astype(int)), 8, (0, 0, 255), -1)
+            draw_label(
+                preview,
+                tuple(target.astype(int) + np.array([12, -12])),
+                'SETPOINT',
+                (0, 0, 255),
+                scale=0.6,
+            )
+        if center is not None and target is not None:
+            cv2.line(
+                preview,
+                tuple(center.astype(int)),
+                tuple(target.astype(int)),
+                (0, 220, 255),
+                2,
+                cv2.LINE_AA,
+            )
+            midpoint = ((center + target) * 0.5).astype(int)
+            draw_label(
+                preview,
+                tuple(midpoint + np.array([10, 0])),
+                f'ERR: {self.latest_lateral_error_px:.1f}px',
+                (0, 220, 255),
+                scale=0.5,
+            )
         if self.config.debug_visuals:
             self.draw_debug_visuals(preview, center, target, tangent)
         put_status(
@@ -577,6 +787,44 @@ class ArucoTrackFollower(Node):
         target_height = int(round(height * target_width / max(1, width)))
         cv2.resizeWindow(PREVIEW_WINDOW, target_width, target_height)
 
+    def draw_virtual_vehicle(self, preview):
+        """Draw the synthetic vehicle body and heading vector."""
+        if self.virtual_vehicle_state is None:
+            return
+        state = self.virtual_vehicle_state
+        center = np.array([state['x'], state['y']], dtype=np.float32)
+        heading = state['heading']
+        forward = np.array([math.cos(heading), math.sin(heading)], dtype=np.float32)
+        right = np.array([-math.sin(heading), math.cos(heading)], dtype=np.float32)
+        half_length = 34.0
+        half_width = 18.0
+        polygon = np.array(
+            [
+                center + forward * half_length + right * half_width,
+                center - forward * half_length + right * half_width,
+                center - forward * half_length - right * half_width,
+                center + forward * half_length - right * half_width,
+            ],
+            dtype=np.int32,
+        )
+        cv2.fillConvexPoly(preview, polygon, (35, 155, 255))
+        cv2.polylines(preview, [polygon], True, (20, 20, 20), 2, cv2.LINE_AA)
+        nose = center + forward * (half_length + 18.0)
+        cv2.line(
+            preview,
+            tuple(center.astype(int)),
+            tuple(nose.astype(int)),
+            (0, 90, 255),
+            3,
+            cv2.LINE_AA,
+        )
+        draw_label(
+            preview,
+            tuple((center + np.array([12.0, -24.0])).astype(int)),
+            f'virtual {state["speed"]:.1f}pps',
+            (0, 90, 255),
+        )
+
     def draw_road_scene(self, preview):
         """Draw the road scene and static obstacle field."""
         if self.road_boundaries:
@@ -589,59 +837,43 @@ class ArucoTrackFollower(Node):
                     2,
                     cv2.LINE_AA,
                 )
-        for obstacle in self.static_obstacles:
+        obstacles = self.random_static_obstacles or self.static_obstacles
+        for obstacle in obstacles:
+            if self.config.random_static_obstacles and not obstacle.get('detected'):
+                fill_color = (165, 165, 165)
+                edge_color = (110, 110, 110)
+            else:
+                fill_color = (40, 40, 220)
+                edge_color = (255, 255, 255)
             cv2.fillConvexPoly(
                 preview,
                 obstacle['polygon'].astype(np.int32),
-                (40, 40, 220),
+                fill_color,
             )
             cv2.polylines(
                 preview,
                 [obstacle['polygon'].astype(np.int32)],
                 True,
-                (255, 255, 255),
+                edge_color,
                 1,
                 cv2.LINE_AA,
-            )
-        if self.latest_free_space_target is not None:
-            cv2.circle(
-                preview,
-                tuple(self.latest_free_space_target.astype(int)),
-                6,
-                (255, 255, 0),
-                -1,
             )
 
     def draw_debug_visuals(self, preview, center, target, tangent):
         """Draw dense geometry and CBF debug overlays."""
         self.draw_progress_debug(preview)
-        self.draw_marker_trail(preview)
-        if center is not None:
-            self.draw_heading_debug(preview, center)
-        if center is not None and target is not None:
-            cv2.line(
-                preview,
-                tuple(center.astype(int)),
-                tuple(target.astype(int)),
-                (0, 180, 255),
-                2,
-                cv2.LINE_AA,
-            )
-            midpoint = ((center + target) * 0.5).astype(int)
-            draw_label(
-                preview,
-                tuple(midpoint),
-                f'cte={self.latest_lateral_error_px:.1f}px',
-                (0, 180, 255),
-            )
         if target is not None and tangent is not None:
             draw_vector(preview, target, tangent, 70.0, (0, 255, 255), 'target')
+        self.draw_obstacle_debug(preview, center)
         self.draw_cbf_ellipse_debug(preview)
+        self.draw_controller_debug_panel(preview)
+        if self.config.virtual_vehicle_test:
+            self.draw_virtual_motion_debug(preview)
         self.draw_free_space_interval(preview)
         self.draw_safety_bars(preview)
 
     def draw_progress_debug(self, preview):
-        """Annotate nearest and lookahead points on the track."""
+        """Annotate nearest point on the track."""
         if self.track_points is None:
             return
         if self.latest_nearest_index is not None:
@@ -652,22 +884,6 @@ class ArucoTrackFollower(Node):
                 tuple(nearest.astype(int) + np.array([8, -8])),
                 f'n={self.latest_nearest_index}',
                 (255, 255, 255),
-            )
-        if self.latest_target_index is not None:
-            target_center = self.track_points[self.latest_target_index]
-            cv2.circle(
-                preview,
-                tuple(target_center.astype(int)),
-                5,
-                (0, 255, 255),
-                1,
-                cv2.LINE_AA,
-            )
-            draw_label(
-                preview,
-                tuple(target_center.astype(int) + np.array([8, 14])),
-                f'la={self.config.lookahead_points}',
-                (0, 255, 255),
             )
 
     def draw_marker_trail(self, preview):
@@ -709,8 +925,196 @@ class ArucoTrackFollower(Node):
             (0, 255, 0),
         )
 
+    def draw_velocity_debug(self, preview, center):
+        """Draw measured and CBF-shaped target velocity vectors."""
+        forward = np.array(
+            [math.cos(self.last_marker_heading), math.sin(self.last_marker_heading)],
+            dtype=np.float32,
+        )
+        right = np.array(
+            [-math.sin(self.last_marker_heading), math.cos(self.last_marker_heading)],
+            dtype=np.float32,
+        )
+        actual_speed = float(self.track_speed_pps)
+        target_speed = float(self.target_track_speed_pps)
+        effective_speed = float(self.effective_target_track_speed_pps)
+        speed_scale = 1.6
+        actual_length = max(-130.0, min(130.0, actual_speed * speed_scale))
+        target_length = max(0.0, min(130.0, effective_speed * speed_scale))
+        raw_target_length = max(0.0, min(130.0, target_speed * speed_scale))
+
+        actual_origin = center - right * 18.0
+        target_origin = center + right * 18.0
+        raw_origin = center + right * 34.0
+        actual_color = (255, 100, 20) if actual_speed >= 0.0 else (80, 80, 255)
+        draw_vector(
+            preview,
+            actual_origin,
+            forward if actual_speed >= 0.0 else -forward,
+            abs(actual_length),
+            actual_color,
+            f'v {actual_speed:.1f}',
+        )
+        draw_vector(
+            preview,
+            target_origin,
+            forward,
+            target_length,
+            (0, 255, 255),
+            f'v_ref {effective_speed:.1f}',
+        )
+        if abs(raw_target_length - target_length) > 2.0:
+            draw_vector(
+                preview,
+                raw_origin,
+                forward,
+                raw_target_length,
+                (160, 160, 160),
+                f'raw {target_speed:.1f}',
+            )
+
+    def draw_safety_radius_debug(self, preview, center):
+        """Draw vehicle-centered safety and forward slow-down regions."""
+        cbf_radius = max(1, int(round(self.config.cbf_h_px)))
+        color = (0, 220, 0) if self.cbf_scale > 0.75 else (0, 140, 255)
+        if self.cbf_scale < 0.25:
+            color = (0, 0, 255)
+        cv2.circle(
+            preview,
+            tuple(center.astype(int)),
+            cbf_radius,
+            color,
+            2,
+            cv2.LINE_AA,
+        )
+        draw_label(
+            preview,
+            tuple(center.astype(int) + np.array([cbf_radius + 8, -8])),
+            f'cbf_h {self.config.cbf_h_px:.0f}px',
+            color,
+            scale=0.42,
+        )
+
+        forward = np.array(
+            [math.cos(self.last_marker_heading), math.sin(self.last_marker_heading)],
+            dtype=np.float32,
+        )
+        right = np.array(
+            [-math.sin(self.last_marker_heading), math.cos(self.last_marker_heading)],
+            dtype=np.float32,
+        )
+        a_ell_px, b_ell_px = self.controller.cbf_ellipse_axes_px()
+        slow_length = max(1.0, float(a_ell_px))
+        slow_half_width = max(1.0, float(b_ell_px))
+        box_center = center + forward * slow_length * 0.5
+        polygon = self.oriented_box_polygon(
+            box_center,
+            forward,
+            right,
+            slow_length * 0.5,
+            slow_half_width,
+        )
+        cv2.polylines(
+            preview,
+            [polygon.astype(np.int32)],
+            True,
+            (80, 220, 255),
+            1,
+            cv2.LINE_AA,
+        )
+        draw_label(
+            preview,
+            tuple((box_center + right * (slow_half_width + 8.0)).astype(int)),
+            'slow zone',
+            (80, 220, 255),
+            scale=0.42,
+        )
+
+    def draw_free_space_interval(self, preview):
+        """Draw the selected lateral free interval at the lookahead point."""
+        if (
+            self.latest_target_index is None
+            or self.latest_free_space_interval is None
+            or self.road_normals is None
+        ):
+            return
+        path_index = self.latest_target_index
+        center = self.track_points[path_index]
+        normal = self.road_normals[path_index]
+        lower, upper = self.latest_free_space_interval
+        start = center + normal * lower
+        end = center + normal * upper
+        cv2.line(
+            preview,
+            tuple(start.astype(int)),
+            tuple(end.astype(int)),
+            (255, 255, 0),
+            4,
+            cv2.LINE_AA,
+        )
+        draw_label(
+            preview,
+            tuple(((start + end) * 0.5).astype(int) + np.array([8, -10])),
+            f'free={upper - lower:.0f}px',
+            (255, 255, 0),
+        )
+
+    def draw_obstacle_debug(self, preview, center):
+        """Annotate static obstacles with progress and clearance."""
+        obstacles = self.random_static_obstacles or self.static_obstacles
+        if not obstacles:
+            return
+        for index, obstacle in enumerate(obstacles):
+            obstacle_center = obstacle['center']
+            detected = obstacle.get('detected', True)
+            color = (80, 80, 255) if detected else (120, 120, 120)
+            cv2.circle(preview, tuple(obstacle_center.astype(int)), 4, color, -1)
+            prefix = 'seen' if detected else 'hidden'
+            label = f'{prefix}{index} p={obstacle.get("progress", 0.0):.2f}'
+            if center is not None and detected:
+                clearance = self.controller.static_obstacle_clearance_px(center)
+                label += f' clr={clearance:.0f}'
+                self.draw_inflated_obstacle_zone(preview, obstacle, detected)
+            draw_label(
+                preview,
+                tuple(obstacle_center.astype(int) + np.array([8, -8])),
+                label,
+                color,
+                scale=0.45,
+            )
+
+    def draw_inflated_obstacle_zone(self, preview, obstacle, detected=True):
+        """Draw the pixel-space obstacle zone used by CBF/lidar clearance."""
+        margin = max(self.config.obstacle_margin_px, self.config.cbf_h_px)
+        polygon = self.oriented_box_polygon(
+            obstacle['center'],
+            obstacle['tangent'],
+            obstacle['normal'],
+            obstacle['half_length'] + margin,
+            obstacle['half_width'] + margin,
+        )
+        color = (0, 120, 255) if detected else (130, 130, 130)
+        cv2.polylines(
+            preview,
+            [polygon.astype(np.int32)],
+            True,
+            color,
+            2,
+            cv2.LINE_AA,
+        )
+        edge_mid = obstacle['center'] + obstacle['normal'] * (
+            obstacle['half_width'] + margin
+        )
+        draw_label(
+            preview,
+            tuple(edge_mid.astype(int) + np.array([6, -6])),
+            f'safe {margin:.0f}px',
+            color,
+            scale=0.42,
+        )
+
     def draw_cbf_ellipse_debug(self, preview):
-        """Draw the marker-scaled QP CBF ellipse around each obstacle."""
+        """Draw the active QP CBF envelope around each obstacle center."""
         if not self.static_obstacles:
             return
         color = (0, 165, 255) if self.cbf_active else (120, 170, 220)
@@ -734,6 +1138,15 @@ class ArucoTrackFollower(Node):
                 2,
                 cv2.LINE_AA,
             )
+            if 'qp' in self.config.controller_mode and self.config.cbf_r_safe > 0:
+                cv2.circle(
+                    preview,
+                    tuple(obstacle['center'].astype(int)),
+                    max(1, int(round(self.config.cbf_r_safe))),
+                    (255, 180, 80),
+                    1,
+                    cv2.LINE_AA,
+                )
             label_origin = obstacle['center'] + np.array(
                 [a_ell_px + 8.0, b_ell_px + 12.0],
                 dtype=np.float32,
@@ -746,33 +1159,150 @@ class ArucoTrackFollower(Node):
                 scale=0.42,
             )
 
-    def draw_free_space_interval(self, preview):
-        """Draw the selected lateral free interval at the lookahead point."""
-        if (
-            self.latest_target_index is None
-            or self.latest_free_space_interval is None
-            or self.road_normals is None
-        ):
-            return
-        center = self.track_points[self.latest_target_index]
-        normal = self.road_normals[self.latest_target_index]
-        lower, upper = self.latest_free_space_interval
-        start = center + normal * lower
-        end = center + normal * upper
-        cv2.line(
+    @staticmethod
+    def oriented_box_polygon(center, tangent, normal, half_length, half_width):
+        """Return an oriented rectangle polygon for debug overlays."""
+        return np.array(
+            [
+                center + tangent * half_length + normal * half_width,
+                center - tangent * half_length + normal * half_width,
+                center - tangent * half_length - normal * half_width,
+                center + tangent * half_length - normal * half_width,
+            ],
+            dtype=np.float32,
+        )
+
+    def draw_controller_debug_panel(self, preview):
+        """Draw compact velocity and QP command diagnostics."""
+        height, width = preview.shape[:2]
+        panel_width = 350
+        panel_height = 176
+        x = max(12, width - panel_width - 12)
+        y = 12
+        overlay = preview.copy()
+        cv2.rectangle(
+            overlay,
+            (x, y),
+            (x + panel_width, y + panel_height),
+            (25, 25, 25),
+            -1,
+        )
+        cv2.addWeighted(overlay, 0.55, preview, 0.45, 0.0, preview)
+        cv2.rectangle(
             preview,
-            tuple(start.astype(int)),
-            tuple(end.astype(int)),
-            (255, 255, 0),
-            4,
+            (x, y),
+            (x + panel_width, y + panel_height),
+            (210, 210, 210),
+            1,
             cv2.LINE_AA,
         )
-        draw_label(
+        lines = [
+            f'vel {self.track_speed_pps:.1f}/'
+            f'{self.effective_target_track_speed_pps:.1f} pps',
+            f'raw_ref {self.target_track_speed_pps:.1f} '
+            f'vel_scale {self.velocity_debug_scale():.2f}',
+            f'vel_err {self.speed_error_pps:.1f} delta_pwm {self.velocity_delta_pwm:.1f}',
+            f'qp accel {self.cbf_qp_accel:.2f} delta {self.cbf_qp_delta:.2f}',
+            f'cbf_scale {self.cbf_scale:.2f} active {int(self.cbf_active)}',
+            f'qp h {self.cbf_qp_h:.3f} rhs {self.cbf_qp_rhs:.3f}',
+        ]
+        for index, line in enumerate(lines):
+            draw_label(
+                preview,
+                (x + 10, y + 24 + index * 24),
+                line,
+                (255, 255, 255),
+                scale=0.5,
+            )
+        self.draw_horizontal_meter(
             preview,
-            tuple(((start + end) * 0.5).astype(int) + np.array([8, -10])),
-            f'free={upper - lower:.0f}px',
-            (255, 255, 0),
+            x + 10,
+            y + panel_height - 18,
+            panel_width - 20,
+            self.cbf_scale,
+            (0, 220, 0) if self.cbf_scale > 0.5 else (0, 140, 255),
         )
+
+    def draw_qp_velocity_debug(self, preview, center):
+        """Draw the QP acceleration result as a short velocity tendency arrow."""
+        if center is None or self.cbf_qp_status == 'unused':
+            return
+        forward = np.array(
+            [math.cos(self.last_marker_heading), math.sin(self.last_marker_heading)],
+            dtype=np.float32,
+        )
+        accel = float(self.cbf_qp_accel)
+        if abs(accel) < 1e-6:
+            return
+        length = max(18.0, min(95.0, abs(accel) * 90.0))
+        color = (0, 230, 0) if accel > 0.0 else (0, 0, 255)
+        draw_vector(
+            preview,
+            center + np.array([0.0, 42.0], dtype=np.float32),
+            forward if accel > 0.0 else -forward,
+            length,
+            color,
+            f'qp_a {accel:.2f}',
+        )
+
+    def velocity_debug_scale(self):
+        """Return effective target speed divided by the requested target speed."""
+        target = float(self.target_track_speed_pps)
+        if abs(target) <= 1e-6:
+            return 0.0
+        return max(0.0, min(float(self.effective_target_track_speed_pps) / target, 1.0))
+
+    def draw_virtual_motion_debug(self, preview):
+        """Draw virtual vehicle velocity and predicted short-horizon pose."""
+        if self.virtual_vehicle_state is None:
+            return
+        state = self.virtual_vehicle_state
+        center = np.array([state['x'], state['y']], dtype=np.float32)
+        heading = state['heading']
+        speed = state['speed']
+        forward = np.array([math.cos(heading), math.sin(heading)], dtype=np.float32)
+        velocity_tip = center + forward * max(20.0, min(120.0, speed * 1.5))
+        cv2.arrowedLine(
+            preview,
+            tuple(center.astype(int)),
+            tuple(velocity_tip.astype(int)),
+            (255, 80, 20),
+            2,
+            cv2.LINE_AA,
+            tipLength=0.25,
+        )
+        horizon = 1.0
+        delta = self.controller.roll_pwm_to_qp_delta(self.roll)
+        predicted_heading = heading
+        predicted_center = center.copy()
+        for _step in range(10):
+            dt = horizon / 10.0
+            predicted_heading += speed / max(1.0, self.config.qp_wheelbase_px) * delta * dt
+            predicted_center += np.array(
+                [math.cos(predicted_heading), math.sin(predicted_heading)],
+                dtype=np.float32,
+            ) * speed * dt
+            cv2.circle(
+                preview,
+                tuple(predicted_center.astype(int)),
+                2,
+                (255, 80, 20),
+                -1,
+            )
+
+    @staticmethod
+    def draw_horizontal_meter(preview, x, y, width, ratio, color):
+        """Draw a bounded 0..1 meter used by debug panels."""
+        bounded_ratio = max(0.0, min(float(ratio), 1.0))
+        cv2.rectangle(preview, (x, y), (x + width, y + 8), (70, 70, 70), -1)
+        cv2.rectangle(
+            preview,
+            (x, y),
+            (x + int(round(width * bounded_ratio)), y + 8),
+            color,
+            -1,
+        )
+        cv2.rectangle(preview, (x, y), (x + width, y + 8), (230, 230, 230), 1)
 
     def draw_safety_bars(self, preview):
         """Draw compact CBF clearance bars in the lower-left corner."""
@@ -865,7 +1395,10 @@ def main(args=None):
     node = ArucoTrackFollower(config)
     try:
         if config.dry_run:
-            print('Dry run: detecting marker without publishing RC output.')
+            if config.virtual_vehicle_test:
+                print('Dry run: running virtual vehicle controller test.')
+            else:
+                print('Dry run: detecting marker without publishing RC output.')
             while rclpy.ok() and not node.stop_requested:
                 rclpy.spin_once(node, timeout_sec=0.05)
             return

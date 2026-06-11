@@ -10,6 +10,7 @@
   <depend>rc_msgs</depend>
   <depend>crsf_msgs</depend>
   <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
   <depend>cv_bridge</depend>
   <exec_depend>rclpy</exec_depend>
   

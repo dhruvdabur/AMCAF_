@@ -10,6 +10,7 @@ the general ArUco follower.
 | Path | What it does |
 | --- | --- |
 | `straght_static.py` | Legacy straight-road ArUco follower entry point. |
+| `straight_static.py` | Compatibility launcher for the organized straight-road follower. |
 | `ellipse_static.py` | Compatibility launcher for the closed-ellipse follower. The implementation is split across the packages below. |
 | `nodes/` | ROS 2 node classes and executable `main()` functions. |
 | `config/` | CLI arguments, defaults, validation, and startup config printing. |
@@ -69,7 +70,7 @@ source install/setup.bash
 Then launch the hil straight-road follower:
 
 ```bash
-ros2 run crsf_ros2 straght_static \
+ros2 run crsf_ros2 straight_static \
   --dry-run \
   --preview \
   --no-pid-panel
@@ -84,44 +85,85 @@ ros2 run crsf_ros2 ellipse_static \
   --no-pid-panel
 ```
 
-The ROS executable name is unchanged even though the implementation now lives in
-`hil/nodes/ellipse_static_node.py`.
+The legacy misspelled executable `straght_static` is still present, but new runs
+should use `straight_static`.
+
+## Virtual Controller Test
+
+Use `--virtual-vehicle-test` to test the straight-road controller without a
+camera frame or ArUco marker. The node drops a synthetic image-space vehicle at
+the start of the road, feeds that pose into the same controller, advances the
+vehicle with a simple kinematic model, and shows the usual preview/metrics:
+
+```bash
+ros2 run crsf_ros2 straight_static \
+  --dry-run \
+  --preview \
+  --no-pid-panel \
+  --controller-mode pid_velocity_cbf_qp_ellipse \
+  --virtual-vehicle-test
+```
+
+Useful virtual-test knobs are `--virtual-start-lateral-offset-px`,
+`--virtual-start-heading-deg`, `--virtual-start-speed-pps`,
+`--virtual-max-accel-pps2`, `--virtual-max-brake-pps2`, and
+`--virtual-stop-at-end`.
+
+For a surprise-obstacle test where the controller does not receive a prior
+obstacle map, use:
+
+```bash
+ros2 run crsf_ros2 straight_random_static_test
+```
+
+This launches `straight_static` with randomized hidden obstacles. They are drawn
+gray while unknown and turn red once the virtual sensor reveals them to the
+controller. Override the scenario with options such as
+`--random-obstacle-count`, `--random-obstacle-seed`, and
+`--random-obstacle-detection-range-px`.
 
 ## Static Obstacles
 
-The straight-road hil follower always treats the start and end of the road as
-walls. Add more virtual static obstacles with JSON when you want to test
-avoidance behavior inside the road:
+The straight and ellipse followers share the same laneless static-obstacle
+format. Add virtual obstacles with JSON when you want to test avoidance behavior
+inside the road:
 
 ```bash
-ros2 run crsf_ros2 straght_static \
+ros2 run crsf_ros2 straight_static \
   --dry-run \
   --preview \
-  --controller-mode pid_velocity_cbf \
-  --static-obstacles '[{"lane": 0, "progress": 0.45}, {"lane": 1, "progress": 0.70}]'
+  --controller-mode pid_velocity_cbf_qp \
+  --static-obstacles '[{"progress": 0.35, "offset": -0.45}, {"progress": 0.70, "offset": 0.45}]'
 ```
 
 Each obstacle can set:
 
 | Field | Meaning |
 | --- | --- |
-| `lane` | Lane index, `0` or `1`. |
 | `progress` | Position along the road from `0.0` at the left edge to `1.0` at the right edge. |
 | `length_px` | Obstacle length along the road direction. |
-| `width_px` | Obstacle width across the lane. |
+| `width_px` | Obstacle width across the road. |
+| `offset` | Lateral offset as a fraction of road half-width. |
+| `lateral_offset_px` | Lateral offset in pixels. |
 
 ## Useful Options
 
 | Option | Purpose |
 | --- | --- |
+| `--telemetry-prefix /aruco_track_follower/tuning` | Publishes live `std_msgs/Float64` tuning topics for PlotJuggler, including lateral error, heading error, roll, throttle, speed, and marker_seen. |
+| `--no-telemetry` | Disables live tuning telemetry topics. |
 | `--marker-id 0` | ArUco marker ID to track. |
 | `--marker-dict DICT_4X4_50` | ArUco dictionary used by the marker. |
+| `--aruco-parallax-factor 0.0` | Shifts the detected marker control point along the configured front edge by a fraction of marker size. Try small values such as `0.2` or `-0.2` when an angled camera makes the marker center look offset. |
 | `--track-center-y 0.55` | Vertical placement of the straight road in the image. |
 | `--track-radius-x 0.20` | Horizontal ellipse radius as a fraction of image width for `ellipse_static.py`. |
 | `--track-radius-y 0.24` | Vertical ellipse radius as a fraction of image height for `ellipse_static.py`. |
-| `--road-length-y 0.82` | Fraction of image width used by the straight road. The name is inherited from the S-road code. |
-| `--road-lane-width-px 150` | Lane spacing for straight-road modes; road half-width for `ellipse_static.py`. |
-| `--controller-mode pid_velocity_cbf` | Enables velocity control and safety slowdown around lane/error/obstacle limits. |
+| `--road-length-x 0.82` | Fraction of image width used by `straight_static.py`. |
+| `--road-half-width-px 150` | Half-width of the virtual laneless road. |
+| `--add-road-end-walls` | Adds static obstacle walls at the start and end of `straight_static.py`. |
+| `--virtual-vehicle-test` | Runs the straight-road controller against a synthetic vehicle instead of camera detections. |
+| `--random-static-obstacles` | Spawns virtual obstacles that are hidden from the controller until detected. |
+| `--controller-mode pid_velocity_cbf_qp` | Enables QP-CBF filtering around static obstacles. |
 | `--cbf-h-px 42` | CBF obstacle barrier distance in pixels. Larger values keep more lidar clearance from obstacles and walls. Also available as `CBF h px` in the tuning panel. |
 | `--cbf-alpha 1.0` | CBF aggressiveness. Lower values slow earlier; higher values allow more speed closer to limits. Also available as `CBF alpha x100` in the tuning panel. |
 | `--metrics-file path.json` | Saves timestamped run metrics on exit. |
@@ -133,10 +175,30 @@ bridge is running:
 
 ```bash
 ros2 run crsf_ros2 crsf_ros
-ros2 run crsf_ros2 straght_static \
+ros2 run crsf_ros2 straight_static \
   --confirm-propulsion-safe \
   --preview \
-  --controller-mode pid_velocity_cbf
+  --controller-mode pid_velocity_cbf_qp
 ```
 
 The node refuses to send RC output unless `--confirm-propulsion-safe` is passed.
+
+## PlotJuggler Tuning
+
+Launch the follower with telemetry enabled, which is the default:
+
+```bash
+ros2 run crsf_ros2 ellipse_static \
+  --dry-run \
+  --preview
+```
+
+Then open PlotJuggler and subscribe to:
+
+```text
+/aruco_track_follower/tuning/*
+```
+
+Useful plots while tuning are `lateral_error_px`, `heading_error_rad`,
+`roll_pwm`, `throttle_pwm`, `track_speed_pps`, `marker_seen`, and
+`safety_clearance_px`.

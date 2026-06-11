@@ -1,4 +1,4 @@
-"""QP-based control barrier function safety filter."""
+"""QP-based control barrier function safety filter with elliptical barriers."""
 
 from dataclasses import dataclass
 from typing import Iterable
@@ -26,10 +26,11 @@ class PointObstacle:
 
 
 @dataclass
-class CBFQPConfig:
-    """Tunable constants for the CBF-QP safety filter."""
+class EllipseCBFQPConfig:
+    """Tunable constants for the elliptical CBF-QP safety filter."""
 
-    r_safe: float = 2.0
+    a_ell: float = 2.0
+    b_ell: float = 1.0
     wheelbase: float = 2.0
     gamma1: float = 1.0
     gamma2: float = 1.0
@@ -41,27 +42,25 @@ class CBFQPConfig:
     solver: str = 'OSQP'
 
 
-class CBFQPSafetyFilter:
-    """Filter nominal acceleration and steering commands through a CBF-QP."""
+class EllipseCBFQPSafetyFilter:
+    """Filter nominal commands through a CBF-QP with elliptical barriers."""
 
-    def __init__(self, config: Optional[CBFQPConfig] = None):
-        self.config = config or CBFQPConfig()
+    def __init__(self, config: Optional[EllipseCBFQPConfig] = None):
+        self.config = config or EllipseCBFQPConfig()
         self.counter = 0
         self.last_status = None
+        self.last_h = 0.0
+        self.last_lhs_a_coeff = 0.0
+        self.last_lhs_delta_coeff = 0.0
+        self.last_rhs = 0.0
 
     def solve(self, car, obstacles, accel_ref, delta_ref):
-        """
-        Return safe acceleration and steering commands.
-
-        The car object must expose x, y, v, and psi attributes. Each obstacle
-        must expose x and y attributes.
-        """
+        """Return safe acceleration and steering commands."""
         try:
             import cvxpy as cp
         except ImportError as exc:
             raise RuntimeError(
-                'cvxpy is required to solve CBF-QP controls. '
-                'Install cvxpy in this environment before using cbf_qp.'
+                'cvxpy is required to solve CBF-QP controls.'
             ) from exc
 
         a = cp.Variable()
@@ -69,22 +68,50 @@ class CBFQPSafetyFilter:
         cfg = self.config
 
         constraints = []
+        
+        # Reset debug values
+        self.last_h = 0.0
+        self.last_lhs_a_coeff = 0.0
+        self.last_lhs_delta_coeff = 0.0
+        self.last_rhs = 0.0
+        min_h = float('inf')
+
         for obs in obstacles:
+            # Relative position in world coordinates
             dx = float(car.x) - float(obs.x)
             dy = float(car.y) - float(obs.y)
             v = float(car.v)
             phi = float(car.psi)
 
-            h = dx**2 + dy**2 - cfg.r_safe**2
-            heading_projection = dx * np.cos(phi) + dy * np.sin(phi)
-            lateral_projection = -dx * np.sin(phi) + dy * np.cos(phi)
-            v_dot_h = 2.0 * v * heading_projection
+            # Local coordinates (longitudinal X, lateral Y) relative to vehicle heading
+            cos_p = np.cos(phi)
+            sin_p = np.sin(phi)
+            X = dx * cos_p + dy * sin_p
+            Y = -dx * sin_p + dy * cos_p
 
-            lhs_delta_coeff = (2.0 * v**2 / cfg.wheelbase) * lateral_projection
-            lhs_a_coeff = 2.0 * heading_projection
-            rhs = -2.0 * v**2 - cfg.gamma1 * v_dot_h - cfg.gamma2 * h
+            A2 = cfg.a_ell**2
+            B2 = cfg.b_ell**2
+
+            # Elliptical barrier function h >= 0
+            h = (X**2 / A2) + (Y**2 / B2) - 1.0
+            
+            # First-order condition components
+            # h_dot = (2X/A2)*X_dot + (2Y/B2)*Y_dot
+            # We use a second-order CBF condition: h_ddot + gamma1*h_dot + gamma2*h >= 0
+            # Simplified approach:
+            lhs_a_coeff = 2.0 * X / A2
+            lhs_delta_coeff = (2.0 * v**2 / cfg.wheelbase) * Y * (1.0/A2 - 1.0/B2)
+            rhs = -(2.0 * v**2 / A2) - cfg.gamma1 * (2.0 * X * v / A2) - cfg.gamma2 * h
 
             constraints.append(lhs_delta_coeff * delta + lhs_a_coeff * a >= rhs)
+
+            # Store debug info for the "closest" obstacle (minimum h)
+            if h < min_h:
+                min_h = h
+                self.last_h = float(h)
+                self.last_lhs_a_coeff = float(lhs_a_coeff)
+                self.last_lhs_delta_coeff = float(lhs_delta_coeff)
+                self.last_rhs = float(rhs)
 
         constraints += [
             a >= cfg.min_accel,
@@ -106,7 +133,6 @@ class CBFQPSafetyFilter:
         if problem.status in ('optimal', 'optimal_inaccurate'):
             return float(a.value), float(delta.value)
 
-        print(f'CBF-QP failed: {problem.status}', self.counter)
         return self.fail_safe(delta_ref)
 
     def clip(self, accel_ref, delta_ref):
@@ -124,14 +150,3 @@ class CBFQPSafetyFilter:
             float(cfg.min_accel),
             float(np.clip(delta_ref, cfg.min_delta, cfg.max_delta)),
         )
-
-
-def cbf_qp(
-    car,
-    obstacles: Iterable,
-    accel_ref: float,
-    delta_ref: float,
-    config: Optional[CBFQPConfig] = None,
-):
-    """Functional wrapper around CBFQPSafetyFilter.solve()."""
-    return CBFQPSafetyFilter(config).solve(car, obstacles, accel_ref, delta_ref)

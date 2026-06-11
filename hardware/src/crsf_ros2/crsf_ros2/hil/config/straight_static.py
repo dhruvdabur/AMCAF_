@@ -1,4 +1,4 @@
-"""Command-line configuration for the closed-ellipse hil follower."""
+"""Command-line configuration for the straight-road hil follower."""
 
 import argparse
 import json
@@ -30,7 +30,7 @@ QP_MAX_ACCEL = 0.5
 QP_MIN_DELTA = -0.4
 QP_MAX_DELTA = 0.4
 QP_SOLVER = 'OSQP'
-STEERING_KP_PX = 3.8
+STEERING_KP_PX = 15
 STEERING_KI_PX = 0.0
 STEERING_KD_PX = 0.25
 HEADING_KP_RAD = 120.0
@@ -42,8 +42,9 @@ def parse_args(args=None):
     """Read vision, control, and safety settings while retaining ROS args."""
     parser = argparse.ArgumentParser(
         description=(
-            'Detect ArUco DICT_4X4 marker ID 0 on /image_raw, draw a closed '
-            'elliptical road, and publish bounded RC commands to follow it.'
+            'Detect ArUco DICT_4X4 marker ID 0 on /image_raw, draw an open '
+            'straight road with static obstacles, and publish bounded RC '
+            'commands to follow it.'
         )
     )
     parser.add_argument('--image-topic', default=IMAGE_TOPIC)
@@ -84,16 +85,20 @@ def parse_args(args=None):
     )
     parser.add_argument('--track-center-x', type=float, default=0.5)
     parser.add_argument('--track-center-y', type=float, default=0.55)
-    parser.add_argument('--track-radius-x', type=float, default=0.20)
-    parser.add_argument('--track-radius-y', type=float, default=0.24)
+    parser.add_argument(
+        '--road-length-x',
+        type=float,
+        default=0.82,
+        help='Straight road length as a fraction of image width.',
+    )
     parser.add_argument(
         '--track-shape',
-        choices=('ellipse_road',),
-        default='ellipse_road',
+        choices=('straight_road',),
+        default='straight_road',
         help='Virtual image-space track shape.',
     )
     parser.add_argument('--lookahead-points', type=int, default=10)
-    parser.add_argument('--road-half-width-px', type=float, default=150.0)
+    parser.add_argument('--road-half-width-px', type=float, default=250.0)
     parser.add_argument(
         '--static-obstacles',
         default='',
@@ -121,6 +126,35 @@ def parse_args(args=None):
         default=1600,
         help='Resize debug preview to this width; 0 shows full size.',
     )
+    parser.add_argument(
+        '--virtual-vehicle-test',
+        action='store_true',
+        help='Run a synthetic image-space vehicle through the controller.',
+    )
+    parser.add_argument('--virtual-width', type=int, default=960)
+    parser.add_argument('--virtual-height', type=int, default=540)
+    parser.add_argument('--virtual-start-progress', type=float, default=0.04)
+    parser.add_argument('--virtual-start-lateral-offset-px', type=float, default=70.0)
+    parser.add_argument('--virtual-start-heading-deg', type=float, default=0.0)
+    parser.add_argument('--virtual-start-speed-pps', type=float, default=0.0)
+    parser.add_argument('--virtual-max-accel-pps2', type=float, default=120.0)
+    parser.add_argument('--virtual-max-brake-pps2', type=float, default=220.0)
+    parser.add_argument('--virtual-speed-response', type=float, default=2.0)
+    parser.add_argument(
+        '--virtual-stop-at-end',
+        action='store_true',
+        help='Stop the virtual test when the vehicle reaches the road end.',
+    )
+    parser.add_argument(
+        '--random-static-obstacles',
+        action='store_true',
+        help='Spawn random virtual obstacles that are not known at startup.',
+    )
+    parser.add_argument('--random-obstacle-count', type=int, default=5)
+    parser.add_argument('--random-obstacle-seed', type=int, default=7)
+    parser.add_argument('--random-obstacle-detection-range-px', type=float, default=260.0)
+    parser.add_argument('--random-obstacle-min-progress', type=float, default=0.18)
+    parser.add_argument('--random-obstacle-max-progress', type=float, default=0.92)
     parser.add_argument('--steering-kp-px', type=float, default=STEERING_KP_PX)
     parser.add_argument('--steering-ki-px', type=float, default=STEERING_KI_PX)
     parser.add_argument('--steering-kd-px', type=float, default=STEERING_KD_PX)
@@ -235,12 +269,17 @@ def parse_args(args=None):
         '--target-laps',
         type=int,
         default=0,
-        help='Stop after this many completed laps; 0 disables lap limit.',
+        help='Reserved for compatibility; straight roads do not count laps.',
     )
     parser.add_argument(
         '--enable-lap-limit',
         action='store_true',
-        help='Enable target-laps stopping from startup.',
+        help='Reserved for compatibility; straight roads do not count laps.',
+    )
+    parser.add_argument(
+        '--add-road-end-walls',
+        action='store_true',
+        help='Add static obstacle walls at the start and end of the road.',
     )
     parser.add_argument(
         '--dry-run',
@@ -295,6 +334,10 @@ def validate_config(config):
         raise SystemExit('cbf-alpha must be positive')
     if config.cbf_r_safe <= 0.0:
         raise SystemExit('cbf-r-safe must be positive')
+    if config.cbf_a_ell <= 0.0:
+        raise SystemExit('cbf-a-ell must be positive')
+    if config.cbf_b_ell <= 0.0:
+        raise SystemExit('cbf-b-ell must be positive')
     if config.cbf_gamma1 <= 0.0:
         raise SystemExit('cbf-gamma1 must be positive')
     if config.cbf_gamma2 <= 0.0:
@@ -325,6 +368,32 @@ def validate_config(config):
         raise SystemExit('command timeout must be positive')
     if config.lookahead_points < 1:
         raise SystemExit('lookahead-points must be at least 1')
+    if not 0.0 < config.road_length_x <= 1.0:
+        raise SystemExit('road-length-x must be between 0 and 1')
+    if config.virtual_width < 160:
+        raise SystemExit('virtual-width must be at least 160')
+    if config.virtual_height < 120:
+        raise SystemExit('virtual-height must be at least 120')
+    if not 0.0 <= config.virtual_start_progress <= 1.0:
+        raise SystemExit('virtual-start-progress must be between 0 and 1')
+    if config.virtual_max_accel_pps2 <= 0.0:
+        raise SystemExit('virtual-max-accel-pps2 must be positive')
+    if config.virtual_max_brake_pps2 <= 0.0:
+        raise SystemExit('virtual-max-brake-pps2 must be positive')
+    if config.virtual_speed_response <= 0.0:
+        raise SystemExit('virtual-speed-response must be positive')
+    if config.random_obstacle_count < 0:
+        raise SystemExit('random-obstacle-count must be non-negative')
+    if config.random_obstacle_detection_range_px <= 0.0:
+        raise SystemExit('random-obstacle-detection-range-px must be positive')
+    if not 0.0 <= config.random_obstacle_min_progress <= 1.0:
+        raise SystemExit('random-obstacle-min-progress must be between 0 and 1')
+    if not 0.0 <= config.random_obstacle_max_progress <= 1.0:
+        raise SystemExit('random-obstacle-max-progress must be between 0 and 1')
+    if config.random_obstacle_max_progress < config.random_obstacle_min_progress:
+        raise SystemExit(
+            'random-obstacle-max-progress must be >= random-obstacle-min-progress'
+        )
     if config.road_half_width_px <= 0.0:
         raise SystemExit('road-half-width-px must be positive')
     if config.obstacle_margin_px <= 0.0:
@@ -352,6 +421,7 @@ def print_config(config):
     )
     print(
         'road: '
+        f'length={config.road_length_x:.2f} '
         f'half_width={config.road_half_width_px:.1f}px '
         f'obstacle_margin={config.obstacle_margin_px:.1f}px'
     )
@@ -359,6 +429,20 @@ def print_config(config):
         f'aruco: marker_size={config.aruco_marker_size_cm:.1f}cm '
         f'parallax_factor={config.aruco_parallax_factor:.3f}'
     )
+    if config.virtual_vehicle_test:
+        print(
+            'virtual: '
+            f'size={config.virtual_width}x{config.virtual_height} '
+            f'start={config.virtual_start_progress:.2f} '
+            f'offset={config.virtual_start_lateral_offset_px:.1f}px'
+        )
+    if config.random_static_obstacles:
+        print(
+            'random obstacles: '
+            f'count={config.random_obstacle_count} '
+            f'seed={config.random_obstacle_seed} '
+            f'detect={config.random_obstacle_detection_range_px:.0f}px'
+        )
     print(
         'steering PWM: '
         f'left={config.left_pwm} center={config.center_steering_pwm} '
