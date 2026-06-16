@@ -7,6 +7,11 @@ from .ellipse_static_controller import EllipseControlResult
 from .ellipse_static_controller import EllipseStaticController
 
 
+def is_road_boundary_obstacle(obstacle):
+    """Return whether an obstacle record represents a track boundary wall."""
+    return str(obstacle.get('kind', '')).startswith('road_boundary_wall')
+
+
 class StraightStaticController(EllipseStaticController):
     """ROS-free controller state for the open straight road follower."""
 
@@ -18,10 +23,19 @@ class StraightStaticController(EllipseStaticController):
         self.road_tangents = scene['tangents']
         self.road_normals = scene['normals']
         self.road_half_width_px = scene['road_half_width_px']
-        self.static_obstacles = scene['obstacles']
+        self.road_boundary_obstacles = [
+            obstacle for obstacle in scene['obstacles']
+            if is_road_boundary_obstacle(obstacle)
+        ]
+        self.static_obstacles = [
+            obstacle for obstacle in scene['obstacles']
+            if not is_road_boundary_obstacle(obstacle)
+        ]
         self.latest_free_space_target = None
         self.latest_free_space_interval = None
         self.latest_free_space_lateral_target_px = 0.0
+        self.latest_free_space_blocked_intervals = []
+        self.latest_free_space_intervals = []
         self.smoothed_free_space_lateral_target_px = None
         self.track_points = scene['centerline']
 

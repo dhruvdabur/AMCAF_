@@ -3,6 +3,7 @@
 import json
 import math
 from pathlib import Path
+import threading
 import time
 
 import cv2
@@ -11,6 +12,9 @@ import numpy as np
 from rc_msgs.msg import RCMessage
 from rc_msgs.srv import CommandBool
 import rclpy
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float64
@@ -44,6 +48,8 @@ class ArucoTrackFollower(Node):
         cv2.setUseOptimized(True)
         self.config = config
         self.bridge = CvBridge()
+        self.control_callback_group = MutuallyExclusiveCallbackGroup()
+        self.command_callback_group = ReentrantCallbackGroup()
         self.command_pub = self.create_publisher(
             RCMessage,
             config.command_topic,
@@ -54,6 +60,7 @@ class ArucoTrackFollower(Node):
             config.image_topic,
             self.image_callback,
             make_sensor_qos(),
+            callback_group=self.control_callback_group,
         )
         self.arming_client = self.create_client(CommandBool, ARMING_SERVICE)
         self.aruco_dictionary = self.load_aruco_dictionary(config.marker_dict)
@@ -68,6 +75,8 @@ class ArucoTrackFollower(Node):
             enabled=not config.no_pid_panel,
         )
         self.latest_preview_frame = None
+        self.pending_preview = None
+        self.preview_lock = threading.Lock()
         self.preview_window_ready = False
         self.preview_text_controls_ready = False
         self.output_enabled = False
@@ -86,8 +95,16 @@ class ArucoTrackFollower(Node):
             self.tuning.create_pid_panel()
         if config.virtual_vehicle_test:
             self.reset_virtual_vehicle()
-            self.create_timer(1.0 / UPDATE_RATE_HZ, self.virtual_vehicle_tick)
-        self.create_timer(1.0 / UPDATE_RATE_HZ, self.publish_command)
+            self.create_timer(
+                1.0 / UPDATE_RATE_HZ,
+                self.virtual_vehicle_tick,
+                callback_group=self.control_callback_group,
+            )
+        self.create_timer(
+            1.0 / UPDATE_RATE_HZ,
+            self.publish_command,
+            callback_group=self.command_callback_group,
+        )
 
     def make_controller(self, config):
         """Create the ROS-free controller core for this node."""
@@ -181,12 +198,12 @@ class ArucoTrackFollower(Node):
             self.stop_immediately()
             self.publish_tuning_telemetry(marker_seen=False)
             if self.config.preview:
-                self.show_preview(frame, None, None, None, None)
+                self.schedule_preview(frame, None, None, None, None)
             return
 
         center, heading, corners = detection
         self.update_marker_scale(corners)
-        self.tuning.update_pid_from_panel()
+        self.update_pid_from_panel()
         result = self.controller.process_detection(
             center,
             heading,
@@ -206,7 +223,7 @@ class ArucoTrackFollower(Node):
             self.command_pub.publish(command)
 
         if self.config.preview:
-            self.show_preview(frame, corners, center, result.target, result.tangent)
+            self.schedule_preview(frame, corners, center, result.target, result.tangent)
 
     def publish_tuning_telemetry(self, result=None, marker_seen=False):
         """Publish one sample of numeric telemetry for PlotJuggler."""
@@ -389,6 +406,8 @@ class ArucoTrackFollower(Node):
 
     def update_pid_from_panel(self):
         """Read live PID sliders and update controller gains."""
+        if threading.current_thread() is not threading.main_thread():
+            return
         self.tuning.update_pid_from_panel()
 
     def current_tuning_values(self):
@@ -442,6 +461,7 @@ class ArucoTrackFollower(Node):
                     0.18,
                 ),
                 'track_speed_filter_alpha': self.config.track_speed_filter_alpha,
+                'track_speed_slew_rate_pps2': self.config.track_speed_slew_rate_pps2,
                 'raw_track_speed_pps_last': self.raw_track_speed_pps,
                 'track_speed_pps_last': self.track_speed_pps,
                 'gap_lookahead_points': getattr(
@@ -464,6 +484,8 @@ class ArucoTrackFollower(Node):
                 'cbf_stop_heading_rad': self.config.cbf_stop_heading_rad,
                 'cbf_edge_margin_px': self.config.cbf_edge_margin_px,
                 'qp_wheelbase_px': self.config.qp_wheelbase_px,
+                'cbf_a_ell': self.config.cbf_a_ell,
+                'cbf_b_ell': self.config.cbf_b_ell,
                 'cbf_gamma1': self.config.cbf_gamma1,
                 'cbf_gamma2': self.config.cbf_gamma2,
                 'cbf_gamma3': self.config.cbf_gamma3,
@@ -543,7 +565,8 @@ class ArucoTrackFollower(Node):
 
     def publish_command(self):
         """Publish fresh RC output, otherwise publish neutral."""
-        self.poll_keyboard()
+        if threading.current_thread() is threading.main_thread():
+            self.poll_keyboard()
         if self.config.dry_run or not self.output_enabled:
             return
         if not self.command_is_fresh():
@@ -657,7 +680,7 @@ class ArucoTrackFollower(Node):
         dt = min(0.1, max(1e-3, now - self.virtual_last_time))
         self.virtual_last_time = now
 
-        self.tuning.update_pid_from_panel()
+        self.update_pid_from_panel()
         state = self.virtual_vehicle_state
         center = np.array([state['x'], state['y']], dtype=np.float32)
         if self.config.random_static_obstacles:
@@ -671,6 +694,7 @@ class ArucoTrackFollower(Node):
         self.publish_tuning_telemetry(result, marker_seen=True)
         previous_center = center.copy()
         self.advance_virtual_vehicle(dt)
+        self.debug_command(self.drive_message(), 'virtual')
         preview_target = result.target
         if self.config.virtual_unlimited_path:
             scene_delta = self.advance_virtual_road_window(previous_center)
@@ -686,13 +710,36 @@ class ArucoTrackFollower(Node):
                 ],
                 dtype=np.float32,
             )
-            self.show_preview(
+            self.schedule_preview(
                 frame,
                 None,
                 preview_center,
                 preview_target,
                 result.tangent,
             )
+
+    def schedule_preview(self, frame, corners, center, target, tangent):
+        """Store the latest preview data; main thread owns OpenCV UI calls."""
+        if threading.current_thread() is threading.main_thread():
+            self.show_preview(frame, corners, center, target, tangent)
+            return
+        with self.preview_lock:
+            self.pending_preview = (
+                frame.copy(),
+                None if corners is None else corners.copy(),
+                None if center is None else center.copy(),
+                None if target is None else target.copy(),
+                None if tangent is None else tangent.copy(),
+            )
+
+    def render_pending_preview(self):
+        """Render at most one pending preview frame on the main thread."""
+        with self.preview_lock:
+            pending = self.pending_preview
+            self.pending_preview = None
+        if pending is None:
+            return
+        self.show_preview(*pending)
 
     def advance_virtual_vehicle(self, dt):
         """Advance the synthetic vehicle using controller output."""
@@ -716,7 +763,9 @@ class ArucoTrackFollower(Node):
         )
         state['speed'] = max(0.0, state['speed'] + accel * dt)
         delta = self.controller.roll_pwm_to_qp_delta(self.roll)
-        heading_rate = state['speed'] / max(1.0, self.config.qp_wheelbase_px) * delta
+        # Image coordinates use +y downward, so positive steering delta must
+        # decrease the rendered heading to turn toward vehicle-left on screen.
+        heading_rate = -state['speed'] / max(1.0, self.config.qp_wheelbase_px) * delta
         state['heading'] = math.atan2(
             math.sin(state['heading'] + heading_rate * dt),
             math.cos(state['heading'] + heading_rate * dt),
@@ -959,24 +1008,10 @@ class ArucoTrackFollower(Node):
             )
         if center is not None:
             cv2.circle(preview, tuple(center.astype(int)), 6, (255, 0, 0), -1)
-            draw_label(
-                preview,
-                tuple(center.astype(int) + np.array([10, 20])),
-                'VEHICLE',
-                (255, 0, 0),
-                scale=0.5,
-            )
         if self.config.virtual_vehicle_test:
             self.draw_virtual_vehicle(preview)
         if target is not None:
             cv2.circle(preview, tuple(target.astype(int)), 8, (0, 0, 255), -1)
-            draw_label(
-                preview,
-                tuple(target.astype(int) + np.array([12, -12])),
-                'SETPOINT',
-                (0, 0, 255),
-                scale=0.6,
-            )
         if center is not None and target is not None:
             cv2.line(
                 preview,
@@ -985,14 +1020,6 @@ class ArucoTrackFollower(Node):
                 (0, 220, 255),
                 2,
                 cv2.LINE_AA,
-            )
-            midpoint = ((center + target) * 0.5).astype(int)
-            draw_label(
-                preview,
-                tuple(midpoint + np.array([10, 0])),
-                f'ERR: {self.latest_lateral_error_px:.1f}px',
-                (0, 220, 255),
-                scale=0.5,
             )
         if self.config.debug_visuals or self.config.virtual_vehicle_test:
             self.draw_debug_visuals(preview, center, target, tangent)
@@ -1111,12 +1138,6 @@ class ArucoTrackFollower(Node):
             cv2.LINE_AA,
             tipLength=0.26,
         )
-        draw_label(
-            preview,
-            tuple((center + np.array([12.0, -24.0])).astype(int)),
-            f'ego {state["speed"]:.1f}pps',
-            (0, 58, 220),
-        )
 
     def draw_road_scene(self, preview):
         """Draw the road scene and static obstacle field."""
@@ -1145,38 +1166,19 @@ class ArucoTrackFollower(Node):
             )
             self.draw_progress_ticks(preview)
         obstacles = self.random_static_obstacles or self.static_obstacles
-        for index, obstacle in enumerate(obstacles):
+        for obstacle in obstacles:
             if self.config.random_static_obstacles and not obstacle.get('detected'):
                 fill_color = (174, 174, 174)
-                edge_color = (112, 112, 112)
             elif obstacle.get('kind') == 'dynamic' or 'dynamic_index' in obstacle:
                 fill_color = (54, 100, 230)
-                edge_color = (255, 244, 210)
             else:
                 fill_color = (66, 66, 196)
-                edge_color = (255, 255, 255)
             shadow = obstacle['polygon'].astype(np.int32) + np.array([3, 4])
             cv2.fillConvexPoly(preview, shadow, (188, 188, 188))
             cv2.fillConvexPoly(
                 preview,
                 obstacle['polygon'].astype(np.int32),
                 fill_color,
-            )
-            cv2.polylines(
-                preview,
-                [obstacle['polygon'].astype(np.int32)],
-                True,
-                edge_color,
-                1,
-                cv2.LINE_AA,
-            )
-            label = self.obstacle_preview_label(index, obstacle)
-            draw_label(
-                preview,
-                tuple(obstacle['center'].astype(int) + np.array([8, -10])),
-                label,
-                edge_color,
-                scale=0.42,
             )
 
     def unlimited_virtual_road_enabled(self):
@@ -1367,24 +1369,11 @@ class ArucoTrackFollower(Node):
         return f'obs {index}'
 
     def draw_debug_visuals(self, preview, center, target, tangent):
-        """Draw dense geometry and CBF debug overlays."""
-        self.draw_progress_debug(preview)
+        """Draw a simplified perception/safety overlay."""
         self.draw_marker_trail(preview)
-        if target is not None and tangent is not None:
-            draw_vector(preview, target, tangent, 70.0, (0, 255, 255), 'target')
-        if center is not None:
-            self.draw_heading_debug(preview, center)
-            self.draw_velocity_debug(preview, center)
-            self.draw_safety_radius_debug(preview, center)
-            self.draw_qp_velocity_debug(preview, center)
-            self.draw_lidar_feedback(preview, center)
-        self.draw_obstacle_debug(preview, center)
         self.draw_cbf_ellipse_debug(preview, center)
         self.draw_controller_debug_panel(preview)
-        if self.config.virtual_vehicle_test:
-            self.draw_virtual_motion_debug(preview)
         self.draw_free_space_interval(preview)
-        self.draw_safety_bars(preview)
 
     def draw_progress_debug(self, preview):
         """Annotate nearest point on the track."""
@@ -1566,12 +1555,6 @@ class ArucoTrackFollower(Node):
             4,
             cv2.LINE_AA,
         )
-        draw_label(
-            preview,
-            tuple(((start + end) * 0.5).astype(int) + np.array([8, -10])),
-            f'free={upper - lower:.0f}px',
-            (255, 255, 0),
-        )
 
     def draw_obstacle_debug(self, preview, center):
         """Annotate static obstacles with progress and clearance."""
@@ -1631,9 +1614,13 @@ class ArucoTrackFollower(Node):
         """Draw the active QP CBF envelope around the car."""
         if center is None:
             return
-        color = (0, 165, 255) if self.cbf_active else (120, 170, 220)
+        color = (120, 170, 220)
+        if self.cbf_active:
+            color = (0, 165, 255)
+        if self.cbf_qp_status == 'infeasible' or self.cbf_qp_h < 0.0:
+            color = (0, 0, 255)
         a_ell_px, b_ell_px = self.controller.cbf_ellipse_axes_px()
-        a_ell_cm, b_ell_cm = self.controller.cbf_ellipse_axes_cm()
+        marker_scale_px = self.controller.cbf_ellipse_marker_scale_px()
         angle_deg = math.degrees(float(self.last_marker_heading))
         axes = (
             max(1, int(round(a_ell_px))),
@@ -1654,8 +1641,11 @@ class ArucoTrackFollower(Node):
         draw_label(
             preview,
             tuple(label_origin.astype(int)),
-            f'QP {a_ell_px:.0f}x{b_ell_px:.0f}px '
-            f'({a_ell_cm:.0f}x{b_ell_cm:.0f}cm)',
+            (
+                f'QP a={self.config.cbf_a_ell:.2f} b={self.config.cbf_b_ell:.2f} '
+                f'scale={marker_scale_px:.1f}px -> '
+                f'{a_ell_px:.0f}x{b_ell_px:.0f}px'
+            ),
             color,
             scale=0.42,
         )
@@ -1674,10 +1664,10 @@ class ArucoTrackFollower(Node):
         )
 
     def draw_controller_debug_panel(self, preview):
-        """Draw compact velocity and QP command diagnostics."""
+        """Draw compact CBF/QP diagnostics."""
         height, width = preview.shape[:2]
-        panel_width = 350
-        panel_height = 252
+        panel_width = 300
+        panel_height = 172
         x = max(12, width - panel_width - 12)
         y = 12
         overlay = preview.copy()
@@ -1693,39 +1683,72 @@ class ArucoTrackFollower(Node):
             preview,
             (x, y),
             (x + panel_width, y + panel_height),
-            (210, 210, 210),
+            self.cbf_debug_color(),
             1,
             cv2.LINE_AA,
         )
+        margin = self.cbf_qp_constraint_margin()
+        margin_text = 'n/a' if margin is None else f'{margin:.3f}'
+        clear_text = (
+            'inf'
+            if not math.isfinite(self.nearest_static_clearance_px)
+            else f'{self.nearest_static_clearance_px:.1f}px'
+        )
         lines = [
-            f'vel {self.track_speed_pps:.1f}/'
-            f'{self.effective_target_track_speed_pps:.1f} pps',
-            f'raw_ref {self.target_track_speed_pps:.1f} '
-            f'vel_scale {self.velocity_debug_scale():.2f}',
-            f'vel_err {self.speed_error_pps:.1f}',
-            f'qp accel {self.cbf_qp_accel:.2f} delta {self.cbf_qp_delta:.2f}',
-            f'qp time {self.cbf_qp_solve_time_ms:.2f}ms slack {self.cbf_qp_slack:.3f}',
-            f'cbf_scale {self.cbf_scale:.2f} active {int(self.cbf_active)}',
-            f'cbf h {self.cbf_qp_h:.3f} h_dot {self.cbf_qp_h_dot:.3f}',
-            f'cbf h_ddot {self.cbf_qp_h_ddot:.3f}',
-            f'qp rhs {self.cbf_qp_rhs:.3f}',
+            f'CBF {self.cbf_qp_status} active={int(self.cbf_active)}',
+            f'h {self.cbf_qp_h:.3f}  hd {self.cbf_qp_h_dot:.3f}  hdd {self.cbf_qp_h_ddot:.3f}',
+            f'margin {margin_text}  rhs {self.cbf_qp_rhs:.3f}',
+            f'a {self.cbf_qp_accel:.4f}  d {self.cbf_qp_delta:.3f}  gate {int(self.cbf_qp_brake_gate_active)}',
+            f'slack {self.cbf_qp_slack:.3f}  clear {clear_text}',
+            f'COLL {self.metrics.collision_samples}  CBF {self.metrics.cbf_interventions}',
         ]
         for index, line in enumerate(lines):
             draw_label(
                 preview,
-                (x + 10, y + 24 + index * 24),
+                (x + 10, y + 24 + index * 22),
                 line,
                 (255, 255, 255),
-                scale=0.5,
+                scale=0.46,
             )
         self.draw_horizontal_meter(
             preview,
             x + 10,
             y + panel_height - 18,
             panel_width - 20,
-            self.cbf_scale,
-            (0, 220, 0) if self.cbf_scale > 0.5 else (0, 140, 255),
+            self.cbf_debug_meter_ratio(),
+            self.cbf_debug_color(),
         )
+
+    def cbf_qp_constraint_margin(self):
+        """Return lhs-rhs for the displayed closest-obstacle CBF constraint."""
+        if self.cbf_qp_status == 'unused':
+            return None
+        lhs = (
+            self.cbf_qp_lhs_a * self.cbf_qp_accel
+            + self.cbf_qp_lhs_delta * self.cbf_qp_delta
+            + self.cbf_qp_slack
+        )
+        return lhs - self.cbf_qp_rhs
+
+    def cbf_debug_color(self):
+        """Return panel color for current CBF state."""
+        margin = self.cbf_qp_constraint_margin()
+        if self.cbf_qp_status == 'infeasible' or self.cbf_qp_h < 0.0:
+            return (0, 0, 255)
+        if margin is not None and margin < 0.0:
+            return (0, 140, 255)
+        if self.cbf_active:
+            return (0, 200, 255)
+        return (0, 220, 0)
+
+    def cbf_debug_meter_ratio(self):
+        """Return a bounded health value for the CBF panel meter."""
+        if self.cbf_qp_status == 'unused':
+            return 1.0
+        margin = self.cbf_qp_constraint_margin()
+        if margin is None:
+            return 1.0
+        return max(0.0, min((float(margin) + 1.0) / 2.0, 1.0))
 
     def draw_qp_velocity_debug(self, preview, center):
         """Draw the QP acceleration result as a short velocity tendency arrow."""
@@ -1854,6 +1877,19 @@ class ArucoTrackFollower(Node):
             cv2.line(preview, origin, hit, (255, 0, 255), 1, cv2.LINE_AA)
             cv2.circle(preview, hit, 3, (255, 0, 255), -1)
 
+        critical_x = getattr(self.controller, 'cbf_qp_obstacle_x', None)
+        critical_y = getattr(self.controller, 'cbf_qp_obstacle_y', None)
+        if critical_x is not None and critical_y is not None:
+            crit_hit = (int(round(critical_x)), int(round(critical_y)))
+            # Draw a thicker yellow line to the critical point
+            cv2.line(preview, origin, crit_hit, (0, 255, 255), 2, cv2.LINE_AA)
+            # Draw a larger yellow circle at the critical point
+            cv2.circle(preview, crit_hit, 6, (0, 255, 255), -1)
+            # Draw an outer red ring to highlight it
+            cv2.circle(preview, crit_hit, 8, (0, 0, 255), 1, cv2.LINE_AA)
+            # Add a small text label
+            draw_label(preview, (crit_hit[0] + 10, crit_hit[1] - 5), "x_obs", (0, 255, 255), scale=0.45)
+
     def road_scene_enabled(self):
         """Return whether the current track uses road-scene planning."""
         return self.controller.road_scene_enabled()
@@ -1867,7 +1903,6 @@ class ArucoTrackFollower(Node):
         deadline = time.monotonic() + duration
         while time.monotonic() < deadline:
             self.command_pub.publish(self.neutral_message())
-            rclpy.spin_once(self, timeout_sec=0.0)
             time.sleep(1.0 / UPDATE_RATE_HZ)
 
     def set_armed(self, armed):
@@ -1890,7 +1925,6 @@ def main(args=None):
     """Run guarded ArUco virtual-track following."""
     config, ros_args = parse_args(args)
     validate_config(config)
-    print_config(config)
     if not config.dry_run and not config.confirm_propulsion_safe:
         raise SystemExit(
             'refusing ArUco track following output: securely restrain driven '
@@ -1904,6 +1938,27 @@ def main(args=None):
 
         follower_class = DynamicArucoTrackFollower
     node = follower_class(config)
+    validate_config(config)
+    print_config(config)
+    executor = None
+    if not config.single_thread:
+        executor = MultiThreadedExecutor(num_threads=config.executor_threads)
+        executor.add_node(node)
+        import threading
+        spin_thread = threading.Thread(target=executor.spin, daemon=True)
+        spin_thread.start()
+
+    def spin_or_render_once():
+        if executor is None:
+            rclpy.spin_once(node, timeout_sec=0.02)
+        else:
+            time.sleep(0.02)
+        if config.preview:
+            node.update_pid_from_panel()
+            node.render_pending_preview()
+        if config.preview or node.tuning.enabled:
+            node.poll_keyboard()
+
     try:
         if config.dry_run:
             if config.virtual_vehicle_test:
@@ -1911,18 +1966,18 @@ def main(args=None):
             else:
                 print('Dry run: detecting marker without publishing RC output.')
             while rclpy.ok() and not node.stop_requested:
-                rclpy.spin_once(node, timeout_sec=0.05)
+                spin_or_render_once()
             return
 
         time.sleep(0.2)
-        if node.count_subscribers(config.command_topic) == 0:
+        if not getattr(config, 'ignore_subscribers', False) and node.count_subscribers(config.command_topic) == 0:
             raise RuntimeError(
                 f'no subscriber on {config.command_topic}; run crsf_ros first'
             )
         print('Waiting for ArUco marker before arming.')
         deadline = time.monotonic() + 10.0
         while not node.command_is_fresh() and time.monotonic() < deadline:
-            rclpy.spin_once(node, timeout_sec=0.05)
+            spin_or_render_once()
         if not node.command_is_fresh():
             raise RuntimeError(
                 f'no marker ID {config.marker_id} seen on {config.image_topic}'
@@ -1936,7 +1991,7 @@ def main(args=None):
             node.command_pub.publish(node.drive_message())
         print('ArUco track follower armed; Ctrl-C stops and disarms.')
         while rclpy.ok() and not node.stop_requested:
-            rclpy.spin_once(node, timeout_sec=0.05)
+            spin_or_render_once()
     except KeyboardInterrupt:
         print('\nInterrupted; stopping ArUco track follower.')
     finally:
@@ -1952,6 +2007,9 @@ def main(args=None):
                     node.set_armed(False)
             finally:
                 cv2.destroyAllWindows()
+                if executor is not None:
+                    executor.shutdown()
+                    executor.remove_node(node)
                 node.destroy_node()
                 rclpy.try_shutdown()
 

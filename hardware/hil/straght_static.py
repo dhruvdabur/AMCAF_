@@ -280,7 +280,7 @@ def parse_args(args=None):
     parser.add_argument('--velocity-ki-pwm', type=float, default=0.0)
     parser.add_argument('--velocity-kd-pwm', type=float, default=0.05)
     parser.add_argument('--velocity-integral-limit', type=float, default=120.0)
-    parser.add_argument('--max-forward-pwm', type=int, default=1600)
+    parser.add_argument('--max-forward-pwm', type=int, default=1590)
     parser.add_argument('--cbf-slow-error-px', type=float, default=55.0)
     parser.add_argument('--cbf-stop-error-px', type=float, default=120.0)
     parser.add_argument('--cbf-stop-heading-rad', type=float, default=1.2)

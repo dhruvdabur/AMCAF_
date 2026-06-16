@@ -32,6 +32,9 @@ def make_ellipse_road_scene(width, height, config):
         make_laneless_static_obstacle(spec, base, tangents, normals, config)
         for spec in obstacle_specs
     ]
+    obstacles.extend(
+        make_road_boundary_walls(base, tangents, normals, config, closed=True)
+    )
     return {
         'centerline': base,
         'boundaries': boundaries,
@@ -133,6 +136,81 @@ def make_laneless_static_obstacle(spec, centerline, tangents, normals, config):
         'lateral_offset_px': lateral_offset,
         'progress': progress,
     }
+
+
+def make_road_boundary_walls(centerline, tangents, normals, config, closed=False):
+    """Create thin obstacle polygons along both road boundaries."""
+    wall_thickness = max(8.0, float(config.obstacle_margin_px) * 0.35)
+    road_half_width_px = float(config.road_half_width_px)
+    walls = []
+    for side_name, side_sign in (('left', -1.0), ('right', 1.0)):
+        boundary = centerline + normals * (side_sign * road_half_width_px)
+        walls.extend(
+            make_boundary_wall_segments(
+                boundary,
+                tangents,
+                normals,
+                side_sign,
+                wall_thickness,
+                closed,
+                side_name,
+            )
+        )
+    return walls
+
+
+def make_boundary_wall_segments(
+    boundary,
+    tangents,
+    normals,
+    side_sign,
+    wall_thickness,
+    closed,
+    side_name,
+):
+    """Return obstacle rectangles whose inner faces trace one road boundary."""
+    walls = []
+    point_count = len(boundary)
+    if point_count < 2:
+        return walls
+
+    segment_count = point_count if closed else point_count - 1
+    half_width = wall_thickness * 0.5
+    for index in range(segment_count):
+        next_index = (index + 1) % point_count
+        start = boundary[index]
+        end = boundary[next_index]
+        segment = end - start
+        length = float(np.linalg.norm(segment))
+        if length <= 1e-6:
+            continue
+        tangent = (segment / length).astype(np.float32)
+        outward = (normals[index] * side_sign).astype(np.float32)
+        center = 0.5 * (start + end) + outward * half_width
+        half_length = 0.5 * length + 1.0
+        polygon = np.array(
+            [
+                center + tangent * half_length + outward * half_width,
+                center - tangent * half_length + outward * half_width,
+                center - tangent * half_length - outward * half_width,
+                center + tangent * half_length - outward * half_width,
+            ],
+            dtype=np.float32,
+        )
+        walls.append(
+            {
+                'center': center.astype(np.float32),
+                'tangent': tangent,
+                'normal': outward,
+                'half_length': half_length,
+                'half_width': half_width,
+                'polygon': polygon,
+                'lateral_offset_px': 0.0,
+                'progress': index / max(1, segment_count),
+                'kind': f'road_boundary_wall_{side_name}',
+            }
+        )
+    return walls
 
 
 def free_lateral_intervals(lower, upper, blocked_intervals):

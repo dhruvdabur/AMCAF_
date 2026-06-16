@@ -21,9 +21,9 @@ from ..controllers import PointObstacle
 from ..controllers import VirtualLidar
 from ..metrics import FollowerMetrics
 from ..metrics import unique_metrics_path
-from ..road import free_lateral_intervals
 from ..road import make_ellipse_road_scene
 from ..road import obstacle_clearance_px
+from . import gap_planner
 
 
 @dataclass
@@ -56,8 +56,11 @@ class EllipseStaticController:
         self.latest_free_space_target = None
         self.latest_free_space_interval = None
         self.latest_free_space_lateral_target_px = 0.0
+        self.latest_free_space_blocked_intervals = []
+        self.latest_free_space_intervals = []
         self.smoothed_free_space_lateral_target_px = None
         self.static_obstacles = []
+        self.road_boundary_obstacles = []
         self.latest_nearest_index = None
         self.latest_target_index = None
         self.latest_target_center = None
@@ -70,6 +73,7 @@ class EllipseStaticController:
         self.last_command_time = None
         self.last_detection_time = None
         self.last_marker_heading = 0.0
+        self.latest_vehicle_center = None
         self.aruco_marker_size_px = None
         self.throttle = config.neutral_throttle_pwm
         self.roll = config.center_steering_pwm
@@ -116,6 +120,8 @@ class EllipseStaticController:
         self.cbf_stop_error_px = config.cbf_stop_error_px
         self.last_progress_index = None
         self.last_progress_time = None
+        self.last_vehicle_center = None
+        self.last_vehicle_time = None
         self.raw_track_speed_pps = 0.0
         self.track_speed_pps = 0.0
         self.speed_error_pps = 0.0
@@ -133,6 +139,9 @@ class EllipseStaticController:
         self.cbf_qp_rhs = 0.0
         self.cbf_qp_solve_time_ms = 0.0
         self.cbf_qp_slack = 0.0
+        self.cbf_qp_brake_gate_active = False
+        self.cbf_qp_obstacle_x = None
+        self.cbf_qp_obstacle_y = None
         self.latest_lidar_points = []
         self.nearest_static_clearance_px = float('inf')
         self.metrics = FollowerMetrics()
@@ -140,6 +149,11 @@ class EllipseStaticController:
         self.metrics_file_path = unique_metrics_path(config.metrics_file)
         self.lap_limit_enabled = config.enable_lap_limit
         self.target_laps = max(0, config.target_laps)
+
+    @staticmethod
+    def is_road_boundary_obstacle(obstacle):
+        """Return whether an obstacle record represents a track boundary wall."""
+        return str(obstacle.get('kind', '')).startswith('road_boundary_wall')
 
     def reset_cbf_qp_debug(self):
         """Clear CBF-QP math diagnostics when the QP path is inactive."""
@@ -149,6 +163,9 @@ class EllipseStaticController:
         self.cbf_qp_lhs_a = 0.0
         self.cbf_qp_lhs_delta = 0.0
         self.cbf_qp_rhs = 0.0
+        self.cbf_qp_brake_gate_active = False
+        self.cbf_qp_obstacle_x = None
+        self.cbf_qp_obstacle_y = None
 
     def set_aruco_marker_size_px(self, marker_size_px):
         """Update marker pixel scale from the detected 10 cm ArUco marker."""
@@ -158,12 +175,17 @@ class EllipseStaticController:
 
     def cbf_ellipse_axes_px(self):
         """Return CBF ellipse semi-axes in image pixels."""
-        if self.aruco_marker_size_px is None:
-            return float(self.config.cbf_a_ell), float(self.config.cbf_b_ell)
+        marker_size_px = self.cbf_ellipse_marker_scale_px()
         return (
-            float(self.config.cbf_a_ell) * self.aruco_marker_size_px,
-            float(self.config.cbf_b_ell) * self.aruco_marker_size_px,
+            float(self.config.cbf_a_ell) * marker_size_px,
+            float(self.config.cbf_b_ell) * marker_size_px,
         )
+
+    def cbf_ellipse_marker_scale_px(self):
+        """Return the marker pixel scale used by CBF-QP and visualization."""
+        if self.aruco_marker_size_px is not None:
+            return float(self.aruco_marker_size_px)
+        return float(getattr(self.config, 'virtual_marker_size_px', 1.0))
 
     def cbf_ellipse_axes_cm(self):
         """Return CBF ellipse semi-axes in centimeters."""
@@ -184,6 +206,7 @@ class EllipseStaticController:
         if now is None:
             now = time.monotonic()
         self.last_marker_heading = heading
+        self.latest_vehicle_center = np.asarray(center, dtype=np.float32)
         target, tangent, error, nearest_index = self.track_error(center, heading)
         heading_error = wrap_angle(math.atan2(tangent[1], tangent[0]) - heading)
         self.latest_lateral_error_px = error
@@ -254,6 +277,8 @@ class EllipseStaticController:
         self.velocity_controller.reset()
         self.last_progress_index = None
         self.last_progress_time = None
+        self.last_vehicle_center = None
+        self.last_vehicle_time = None
         self.raw_track_speed_pps = 0.0
         self.track_speed_pps = 0.0
         self.speed_error_pps = 0.0
@@ -310,12 +335,22 @@ class EllipseStaticController:
                 'forward_pwm': self.config.forward_pwm,
                 'target_track_speed_pps': self.target_track_speed_pps,
                 'track_speed_filter_alpha': self.config.track_speed_filter_alpha,
+                'track_speed_slew_rate_pps2': self.config.track_speed_slew_rate_pps2,
                 'velocity_kp_pwm': self.config.velocity_kp_pwm,
                 'velocity_ki_pwm': self.config.velocity_ki_pwm,
                 'velocity_kd_pwm': self.config.velocity_kd_pwm,
+                'cbf_a_ell': self.config.cbf_a_ell,
+                'cbf_b_ell': self.config.cbf_b_ell,
                 'cbf_gamma1': self.config.cbf_gamma1,
                 'cbf_gamma2': self.config.cbf_gamma2,
                 'cbf_gamma3': self.config.cbf_gamma3,
+                'qp_wheelbase_px': self.config.qp_wheelbase_px,
+                'qp_min_accel': self.config.qp_min_accel,
+                'qp_max_accel': self.config.qp_max_accel,
+                'qp_min_delta': self.config.qp_min_delta,
+                'qp_max_delta': self.config.qp_max_delta,
+                'qp_solver': self.config.qp_solver,
+                'qp_slack_weight': self.config.qp_slack_weight,
                 'lap_limit_enabled': self.lap_limit_enabled,
                 'target_laps': self.target_laps,
             }
@@ -329,12 +364,22 @@ class EllipseStaticController:
                 'max_forward_pwm': self.config.max_forward_pwm,
                 'target_track_speed_pps': self.target_track_speed_pps,
                 'track_speed_filter_alpha': self.config.track_speed_filter_alpha,
+                'track_speed_slew_rate_pps2': self.config.track_speed_slew_rate_pps2,
                 'velocity_kp_pwm': self.config.velocity_kp_pwm,
                 'velocity_ki_pwm': self.config.velocity_ki_pwm,
                 'velocity_kd_pwm': self.config.velocity_kd_pwm,
+                'cbf_a_ell': self.config.cbf_a_ell,
+                'cbf_b_ell': self.config.cbf_b_ell,
                 'cbf_gamma1': self.config.cbf_gamma1,
                 'cbf_gamma2': self.config.cbf_gamma2,
                 'cbf_gamma3': self.config.cbf_gamma3,
+                'qp_wheelbase_px': self.config.qp_wheelbase_px,
+                'qp_min_accel': self.config.qp_min_accel,
+                'qp_max_accel': self.config.qp_max_accel,
+                'qp_min_delta': self.config.qp_min_delta,
+                'qp_max_delta': self.config.qp_max_delta,
+                'qp_solver': self.config.qp_solver,
+                'qp_slack_weight': self.config.qp_slack_weight,
                 'lap_limit_enabled': self.lap_limit_enabled,
                 'target_laps': self.target_laps,
                 'road_half_width_px': self.config.road_half_width_px,
@@ -369,10 +414,19 @@ class EllipseStaticController:
         self.road_tangents = scene['tangents']
         self.road_normals = scene['normals']
         self.road_half_width_px = scene['road_half_width_px']
-        self.static_obstacles = scene['obstacles']
+        self.road_boundary_obstacles = [
+            obstacle for obstacle in scene['obstacles']
+            if self.is_road_boundary_obstacle(obstacle)
+        ]
+        self.static_obstacles = [
+            obstacle for obstacle in scene['obstacles']
+            if not self.is_road_boundary_obstacle(obstacle)
+        ]
         self.latest_free_space_target = None
         self.latest_free_space_interval = None
         self.latest_free_space_lateral_target_px = 0.0
+        self.latest_free_space_blocked_intervals = []
+        self.latest_free_space_intervals = []
         self.smoothed_free_space_lateral_target_px = None
         self.track_points = scene['centerline']
 
@@ -415,143 +469,33 @@ class EllipseStaticController:
         return self.track_points
 
     def free_space_target(self, path_index):
-        """Return the center of the widest obstacle-free road interval."""
-        if (
-            self.road_normals is None
-            or self.road_tangents is None
-            or self.road_half_width_px <= 0.0
-        ):
-            return self.track_points[path_index]
+        """Return the selected obstacle-free road interval target."""
+        return gap_planner.free_space_target(self, path_index)
 
-        center = self.track_points[path_index]
-        tangent = self.road_tangents[path_index]
-        normal = self.road_normals[path_index]
-        road_margin = max(4.0, self.config.obstacle_margin_px * 0.35)
-        lower = -self.road_half_width_px + road_margin
-        upper = self.road_half_width_px - road_margin
-        blocked = []
-        lookahead_length = max(
-            self.config.road_half_width_px,
-            self.config.lookahead_points * 4.0,
-        )
-
-        for obstacle in self.static_obstacles:
-            delta = obstacle['center'] - center
-            along = float(np.dot(delta, tangent))
-            if abs(along) > lookahead_length + obstacle['half_length']:
-                continue
-            lateral = float(np.dot(delta, normal))
-            half_width = obstacle['half_width'] + self.config.obstacle_margin_px
-            blocked_lower = max(lower, lateral - half_width)
-            blocked_upper = min(upper, lateral + half_width)
-            if blocked_lower < blocked_upper:
-                blocked.append((blocked_lower, blocked_upper))
-
-        free_intervals = free_lateral_intervals(lower, upper, blocked)
-        if free_intervals:
-            planner_mode = getattr(
-                self.config,
-                'gap_planner_mode',
-                'stable_free_space',
-            )
-            if planner_mode == 'centerline':
-                best_lower, best_upper = lower, upper
-                lateral_target = bounded(0.0, best_lower, best_upper)
-                self.smoothed_free_space_lateral_target_px = lateral_target
-                self.latest_free_space_lateral_target_px = lateral_target
-            elif planner_mode == 'free_space':
-                best_lower, best_upper = max(
-                    free_intervals,
-                    key=lambda interval: interval[1] - interval[0],
-                )
-                lateral_target = 0.5 * (best_lower + best_upper)
-                self.smoothed_free_space_lateral_target_px = lateral_target
-                self.latest_free_space_lateral_target_px = lateral_target
-            else:
-                best_lower, best_upper = self.select_free_space_interval(
-                    free_intervals
-                )
-                lateral_target = self.smooth_free_space_lateral_target(
-                    best_lower,
-                    best_upper,
-                )
-            self.latest_free_space_interval = (best_lower, best_upper)
-        else:
-            lateral_target = 0.0
-            self.latest_free_space_interval = None
-            self.latest_free_space_lateral_target_px = lateral_target
-            self.smoothed_free_space_lateral_target_px = lateral_target
-
-        self.latest_free_space_target = center + normal * lateral_target
-        return self.latest_free_space_target
-
-    def select_free_space_interval(self, free_intervals):
-        """Pick a stable free interval instead of switching every frame."""
-        widest = max(free_intervals, key=self.interval_width)
-        previous = self.smoothed_free_space_lateral_target_px
-        if previous is None:
-            return widest
-
-        hysteresis = float(getattr(self.config, 'gap_switch_hysteresis_px', 80.0))
-        containing = [
-            interval
-            for interval in free_intervals
-            if interval[0] <= previous <= interval[1]
-        ]
-        if containing:
-            current = max(containing, key=self.interval_width)
-            if self.interval_width(widest) <= self.interval_width(current) + hysteresis:
-                return current
-            return widest
-
-        closest = min(
-            free_intervals,
-            key=lambda interval: self.interval_distance_to_value(interval, previous),
-        )
-        if self.interval_width(widest) <= self.interval_width(closest) + hysteresis:
-            return closest
-        return widest
-
-    def smooth_free_space_lateral_target(self, lower, upper):
-        """Low-pass the lateral setpoint while keeping it inside a free gap."""
-        midpoint = 0.5 * (lower + upper)
-        alpha = float(getattr(self.config, 'gap_target_smoothing_alpha', 0.18))
-        alpha = bounded(alpha, 1e-6, 1.0)
-        previous = self.smoothed_free_space_lateral_target_px
-        if previous is None:
-            target = midpoint
-        else:
-            safe_previous = bounded(previous, lower, upper)
-            target = safe_previous + alpha * (midpoint - safe_previous)
-        target = bounded(target, lower, upper)
-        self.smoothed_free_space_lateral_target_px = target
-        self.latest_free_space_lateral_target_px = target
-        return target
-
-    @staticmethod
-    def interval_width(interval):
-        """Return lateral width of a free interval."""
-        return float(interval[1] - interval[0])
-
-    @staticmethod
-    def interval_distance_to_value(interval, value):
-        """Return distance from a lateral value to an interval."""
-        if interval[0] <= value <= interval[1]:
-            return 0.0
-        return min(abs(value - interval[0]), abs(value - interval[1]))
+    def gap_planner_obstacles(self):
+        """Return obstacles considered by the lateral gap planner."""
+        return self.static_obstacles
 
     def steering_to_pwm(self, lateral_error_px, heading_error_rad, now):
         """Convert image-space path error into bounded steering PWM."""
         steering_delta = self.pid.step(lateral_error_px, now)
-        steering_delta += self.heading_kp * heading_error_rad
+        heading_term = self.heading_kp * heading_error_rad
+        steering_delta += heading_term
         roll = self.config.center_steering_pwm - steering_delta
-        return round(
-            bounded(
-                roll,
-                self.config.right_pwm,
-                self.config.left_pwm,
-            )
+        bounded_roll = bounded(
+            roll,
+            self.config.right_pwm,
+            self.config.left_pwm,
         )
+        if getattr(self.config, 'debug_visuals', False):
+            d_error = 0.0 if self.pid.previous_error is None or self.pid.previous_time is None or now == self.pid.previous_time else (lateral_error_px - self.pid.previous_error) / (now - self.pid.previous_time)
+            print(f"[PID_STEER_DEBUG] cte={lateral_error_px:.1f}px | head_err={heading_error_rad:.3f}rad | p_term={self.pid.kp*lateral_error_px:.2f} | i_term={self.pid.ki*self.pid.integral:.2f} | d_term={self.pid.kd*d_error:.2f} | heading_term={heading_term:.2f} | roll_pwm={bounded_roll}")
+        if (
+            (roll > self.config.left_pwm and lateral_error_px < 0.0)
+            or (roll < self.config.right_pwm and lateral_error_px > 0.0)
+        ):
+            self.pid.decay_integral(0.5)
+        return round(bounded_roll)
 
     def throttle_to_pwm(
         self,
@@ -587,7 +531,7 @@ class EllipseStaticController:
             self.cbf_qp_solve_time_ms = 0.0
             self.cbf_qp_slack = 0.0
             self.nominal_throttle = throttle
-            return round(throttle)
+            return self.command_throttle_pwm(throttle)
 
         if self.config.controller_mode == PID_VELOCITY_CBF:
             return self.pid_velocity_cbf_throttle(
@@ -635,7 +579,7 @@ class EllipseStaticController:
             self.cbf_scale = min(cbf_scale_before_qp, self.cbf_scale)
             self.cbf_active = self.cbf_active or self.cbf_scale < 0.999
             self.roll = round(roll)
-            return round(throttle)
+            return self.command_throttle_pwm(throttle)
 
         self.cbf_scale = 1.0
         self.cbf_active = False
@@ -644,7 +588,16 @@ class EllipseStaticController:
         self.cbf_qp_solve_time_ms = 0.0
         self.cbf_qp_slack = 0.0
         self.nominal_throttle = self.config.forward_pwm
-        return self.config.forward_pwm
+        return self.command_throttle_pwm(self.config.forward_pwm)
+
+    def command_throttle_pwm(self, throttle_pwm):
+        """Return either stopped throttle or a minimum actuating forward PWM."""
+        throttle_pwm = float(throttle_pwm)
+        neutral = float(self.config.neutral_throttle_pwm)
+        min_forward = float(self.config.min_forward_pwm)
+        if throttle_pwm < min_forward:
+            return int(round(neutral))
+        return int(round(throttle_pwm))
 
     def pid_cbf_throttle(
         self,
@@ -684,7 +637,7 @@ class EllipseStaticController:
             self.velocity_controller.virtual_lidar.latest_points
         )
         self.nominal_throttle = self.config.forward_pwm
-        return round(result.throttle_pwm)
+        return self.command_throttle_pwm(result.throttle_pwm)
 
     def pid_velocity_cbf_throttle(
         self,
@@ -735,7 +688,12 @@ class EllipseStaticController:
             self.velocity_controller.virtual_lidar.latest_points
         )
         self.nominal_throttle = throttle
-        return round(result.throttle_pwm)
+        self.velocity_controller.apply_throttle_anti_windup(
+            throttle,
+            result.throttle_pwm,
+            speed_error,
+        )
+        return self.command_throttle_pwm(result.throttle_pwm)
 
     def cbf_velocity_scale(
         self,
@@ -773,14 +731,18 @@ class EllipseStaticController:
 
     def apply_cbf_qp(self, center, throttle_pwm, roll_pwm):
         """Filter nominal throttle and steering through the ellipse CBF-QP."""
+        spacing = 1.0
+        if self.track_points is not None and len(self.track_points) > 1:
+            spacing = float(np.linalg.norm(self.track_points[1] - self.track_points[0]))
+
         car = Car(
             x=float(center[0]),
             y=float(center[1]),
             psi=float(self.last_marker_heading),
-            v=max(0.0, float(self.track_speed_pps)),
-            v_cmd=max(0.0, float(self.track_speed_pps)),
+            v=max(0.0, float(self.track_speed_pps) * spacing),
+            v_cmd=max(0.0, float(self.track_speed_pps) * spacing),
         )
-        lidar_clusters = self.virtual_lidar.detect_obstacles_from_scan(
+        lidar_points = self.virtual_lidar.scan(
             center,
             self.last_marker_heading,
             self.static_obstacles,
@@ -790,18 +752,33 @@ class EllipseStaticController:
             self.config.cbf_h_px
         )
         obstacles = []
-        for cluster in lidar_clusters:
-            point = cluster.nearest_point
-            obstacle = PointObstacle(
+        # Sort and limit to the closest 10 points to optimize QP solve time and prevent CPU latency bottlenecks
+        sorted_points = sorted(lidar_points, key=lambda p: p.distance_px)
+        if not sorted_points:
+            self.nominal_throttle = self.config.forward_pwm
+            self.nominal_roll = roll_pwm
+            self.cbf_qp_status = 'no_x_obs'
+            self.cbf_qp_accel = 0.0
+            self.cbf_qp_delta = self.roll_pwm_to_qp_delta(roll_pwm)
+            self.reset_cbf_qp_debug()
+            self.cbf_qp_solve_time_ms = 0.0
+            self.cbf_qp_slack = 0.0
+            self.cbf_scale = 1.0
+            self.cbf_active = False
+            self.velocity_controller.apply_throttle_anti_windup(
+                throttle_pwm,
+                self.config.forward_pwm,
+                self.speed_error_pps,
+            )
+            return float(self.config.forward_pwm), roll_pwm
+        for point in sorted_points[:10]:
+            obstacle_velocity = self.lidar_point_obstacle_velocity(point)
+            obstacles.append(PointObstacle(
                 x=float(point.x_px),
                 y=float(point.y_px),
-                half_length=max(0.0, 0.5 * (cluster.x_max_px - cluster.x_min_px)),
-                half_width=max(0.0, 0.5 * cluster.width_px),
-            )
-            obstacle.y_left = float(cluster.y_left_px)
-            obstacle.y_right = float(cluster.y_right_px)
-            obstacle.width_px = float(cluster.width_px)
-            obstacles.append(obstacle)
+                vx=obstacle_velocity[0],
+                vy=obstacle_velocity[1],
+            ))
         accel_ref = self.throttle_pwm_to_qp_accel(throttle_pwm)
         delta_ref = self.roll_pwm_to_qp_delta(roll_pwm)
         try:
@@ -827,6 +804,11 @@ class EllipseStaticController:
                 self.cbf_qp_ellipse_filter.last_solve_time_ms
             )
             self.cbf_qp_slack = self.cbf_qp_ellipse_filter.last_slack
+            self.cbf_qp_brake_gate_active = (
+                self.cbf_qp_ellipse_filter.last_brake_gate_active
+            )
+            self.cbf_qp_obstacle_x = self.cbf_qp_ellipse_filter.last_obstacle_x
+            self.cbf_qp_obstacle_y = self.cbf_qp_ellipse_filter.last_obstacle_y
         except RuntimeError as exc:
             self.cbf_qp_status = 'unavailable'
             raise RuntimeError(
@@ -845,6 +827,13 @@ class EllipseStaticController:
         throttle_changed = abs(safe_throttle - throttle_pwm) > 1.0
         steering_changed = abs(safe_roll - roll_pwm) > 1.0
         self.cbf_active = throttle_changed or steering_changed or front_scale < 0.999
+        self.velocity_controller.apply_throttle_anti_windup(
+            throttle_pwm,
+            safe_throttle,
+            self.speed_error_pps,
+        )
+        if steering_changed:
+            self.pid.decay_integral(0.7)
         if throttle_pwm > self.config.neutral_throttle_pwm:
             self.cbf_scale = bounded(
                 (safe_throttle - self.config.neutral_throttle_pwm)
@@ -855,6 +844,47 @@ class EllipseStaticController:
         else:
             self.cbf_scale = 1.0
         return safe_throttle, safe_roll
+
+    def lidar_point_obstacle_velocity(self, point):
+        """Return the source obstacle velocity for a lidar surface point."""
+        best_obstacle = None
+        best_distance = float('inf')
+        point_xy = np.array([float(point.x_px), float(point.y_px)], dtype=np.float64)
+        for obstacle in self.static_obstacles:
+            polygon = obstacle.get('polygon')
+            if polygon is None:
+                continue
+            distance = self.point_polygon_distance_px(point_xy, polygon)
+            if distance < best_distance:
+                best_distance = distance
+                best_obstacle = obstacle
+
+        if best_obstacle is None or best_distance > 2.0:
+            return 0.0, 0.0
+        return (
+            float(best_obstacle.get('vx', 0.0)),
+            float(best_obstacle.get('vy', 0.0)),
+        )
+
+    @staticmethod
+    def point_polygon_distance_px(point_xy, polygon):
+        """Return the shortest distance between a point and polygon boundary."""
+        points = np.asarray(polygon, dtype=np.float64)
+        if len(points) == 0:
+            return float('inf')
+        best = float('inf')
+        for index, start in enumerate(points):
+            end = points[(index + 1) % len(points)]
+            segment = end - start
+            length_sq = float(np.dot(segment, segment))
+            if length_sq <= 1e-9:
+                closest = start
+            else:
+                ratio = float(np.dot(point_xy - start, segment) / length_sq)
+                ratio = bounded(ratio, 0.0, 1.0)
+                closest = start + ratio * segment
+            best = min(best, float(np.linalg.norm(point_xy - closest)))
+        return best
 
     def front_obstacle_velocity_scale(self, center, lidar_points=None):
         """Return a forward-obstacle throttle scale for lidar-detected obstacles."""
@@ -896,29 +926,34 @@ class EllipseStaticController:
         """Map drive PWM into the QP acceleration interval."""
         if throttle_pwm <= self.config.neutral_throttle_pwm:
             return self.config.qp_min_accel
-        span = max(
-            1.0,
-            self.config.max_forward_pwm - self.config.neutral_throttle_pwm,
-        )
-        ratio = bounded(
-            (throttle_pwm - self.config.neutral_throttle_pwm) / span,
-            0.0,
-            1.0,
-        )
-        return ratio * self.config.qp_max_accel
+        if throttle_pwm >= self.config.min_forward_pwm:
+            span = max(1.0, self.config.max_forward_pwm - self.config.min_forward_pwm)
+            ratio = bounded(
+                (throttle_pwm - self.config.min_forward_pwm) / span,
+                0.0,
+                1.0,
+            )
+            return ratio * self.config.qp_max_accel
+        else:
+            span = max(1.0, self.config.min_forward_pwm - self.config.neutral_throttle_pwm)
+            ratio = bounded(
+                (throttle_pwm - self.config.neutral_throttle_pwm) / span,
+                0.0,
+                1.0,
+            )
+            return self.config.qp_min_accel + ratio * (0.0 - self.config.qp_min_accel)
 
     def qp_accel_to_throttle_pwm(self, accel):
         """Map QP acceleration back to bounded forward PWM."""
-        if accel <= 0.0:
-            return float(self.config.neutral_throttle_pwm)
-        ratio = bounded(accel / max(1e-6, self.config.qp_max_accel), 0.0, 1.0)
-        return bounded(
-            self.config.neutral_throttle_pwm
-            + ratio
-            * (self.config.max_forward_pwm - self.config.neutral_throttle_pwm),
-            self.config.neutral_throttle_pwm,
-            self.config.max_forward_pwm,
-        )
+        if accel > 0.0:
+            ratio = bounded(accel / max(1e-6, self.config.qp_max_accel), 0.0, 1.0)
+            return bounded(
+                self.config.min_forward_pwm
+                + ratio * (self.config.max_forward_pwm - self.config.min_forward_pwm),
+                self.config.min_forward_pwm,
+                self.config.max_forward_pwm,
+            )
+        return float(self.config.neutral_throttle_pwm)
 
     def roll_pwm_to_qp_delta(self, roll_pwm):
         """Map steering PWM into QP steering angle limits."""
@@ -926,10 +961,10 @@ class EllipseStaticController:
         if roll_pwm <= center:
             span = max(1.0, center - self.config.right_pwm)
             ratio = bounded((center - roll_pwm) / span, 0.0, 1.0)
-            return ratio * self.config.qp_max_delta
+            return ratio * self.config.qp_min_delta
         span = max(1.0, self.config.left_pwm - center)
         ratio = bounded((roll_pwm - center) / span, 0.0, 1.0)
-        return ratio * self.config.qp_min_delta
+        return ratio * self.config.qp_max_delta
 
     def qp_delta_to_roll_pwm(self, delta):
         """Map QP steering angle back to steering PWM."""
@@ -937,13 +972,13 @@ class EllipseStaticController:
         if delta >= 0.0:
             ratio = bounded(delta / max(1e-6, self.config.qp_max_delta), 0.0, 1.0)
             return bounded(
-                center - ratio * (center - self.config.right_pwm),
+                center + ratio * (self.config.left_pwm - center),
                 self.config.right_pwm,
                 self.config.left_pwm,
             )
         ratio = bounded(delta / min(-1e-6, self.config.qp_min_delta), 0.0, 1.0)
         return bounded(
-            center + ratio * (self.config.left_pwm - center),
+            center - ratio * (center - self.config.right_pwm),
             self.config.right_pwm,
             self.config.left_pwm,
         )
@@ -969,34 +1004,73 @@ class EllipseStaticController:
         if self.last_progress_index is None or self.last_progress_time is None:
             self.last_progress_index = nearest_index
             self.last_progress_time = now
+            self.last_vehicle_center = None
+            self.last_vehicle_time = None
             self.raw_track_speed_pps = 0.0
             self.track_speed_pps = 0.0
             return
         dt = now - self.last_progress_time
         if dt <= 0.0:
             return
-        if self.closed_road_scene_enabled() or not self.road_scene_enabled():
-            point_count = len(self.track_points)
-            forward_delta = (
-                nearest_index - self.last_progress_index
-            ) % point_count
-            reverse_delta = forward_delta - point_count
-            if abs(forward_delta) < abs(reverse_delta):
-                delta = forward_delta
+
+        center = self.latest_vehicle_center
+        spacing = 1.0
+        if self.track_points is not None and len(self.track_points) > 1:
+            spacing = float(np.linalg.norm(self.track_points[1] - self.track_points[0]))
+        spacing = max(1e-6, spacing)
+
+        if (
+            self.last_vehicle_center is None
+            or self.last_vehicle_time is None
+            or center is None
+            or (now - self.last_vehicle_time) > 0.2
+        ):
+            # Fallback to index-based delta on first frame or after tracking loss / time gap
+            if self.closed_road_scene_enabled() or not self.road_scene_enabled():
+                point_count = len(self.track_points)
+                forward_delta = (
+                    nearest_index - self.last_progress_index
+                ) % point_count
+                reverse_delta = forward_delta - point_count
+                if abs(forward_delta) < abs(reverse_delta):
+                    delta = float(forward_delta)
+                else:
+                    delta = float(reverse_delta)
             else:
-                delta = reverse_delta
+                delta = float(nearest_index - self.last_progress_index)
         else:
-            delta = nearest_index - self.last_progress_index
+            displacement = center - self.last_vehicle_center
+            tangent = self.road_tangents[nearest_index]
+            delta_px = float(np.dot(displacement, tangent))
+            delta = delta_px / spacing
+
+        # Update tracking state for next frame
+        if center is not None:
+            self.last_vehicle_center = center.copy()
+            self.last_vehicle_time = now
+        else:
+            self.last_vehicle_center = None
+            self.last_vehicle_time = None
+
         self.raw_track_speed_pps = delta / dt
         alpha = bounded(
             float(getattr(self.config, 'track_speed_filter_alpha', 1.0)),
             0.0,
             1.0,
         )
-        self.track_speed_pps = (
+        filtered_speed = (
             alpha * self.raw_track_speed_pps
             + (1.0 - alpha) * self.track_speed_pps
         )
+        slew_rate = float(getattr(self.config, 'track_speed_slew_rate_pps2', 0.0))
+        if slew_rate > 0.0:
+            max_step = slew_rate * dt
+            filtered_speed = bounded(
+                filtered_speed,
+                self.track_speed_pps - max_step,
+                self.track_speed_pps + max_step,
+            )
+        self.track_speed_pps = filtered_speed
         self.last_progress_index = nearest_index
         self.last_progress_time = now
 
@@ -1068,11 +1142,21 @@ class EllipseStaticController:
 
     def apply_tuning_values(self, values):
         """Apply tuning values to current config and controller gains."""
-        self.config.steering_kp_px = values['steering_kp_px']
-        self.config.steering_ki_px = values['steering_ki_px']
-        self.config.steering_kd_px = values['steering_kd_px']
+        self.config.steering_kp_px = values.get(
+            'steering_kp_px',
+            self.config.steering_kp_px,
+        )
+        self.config.steering_ki_px = values.get(
+            'steering_ki_px',
+            self.config.steering_ki_px,
+        )
+        self.config.steering_kd_px = values.get(
+            'steering_kd_px',
+            self.config.steering_kd_px,
+        )
         self.heading_kp = values.get('heading_kp', self.heading_kp)
-        self.config.forward_pwm = values['forward_pwm']
+        self.config.heading_kp = self.heading_kp
+        self.config.forward_pwm = values.get('forward_pwm', self.config.forward_pwm)
         self.target_track_speed_pps = values.get(
             'target_track_speed_pps',
             self.target_track_speed_pps,
@@ -1080,6 +1164,10 @@ class EllipseStaticController:
         self.config.track_speed_filter_alpha = values.get(
             'track_speed_filter_alpha',
             self.config.track_speed_filter_alpha,
+        )
+        self.config.track_speed_slew_rate_pps2 = values.get(
+            'track_speed_slew_rate_pps2',
+            self.config.track_speed_slew_rate_pps2,
         )
         self.config.velocity_kp_pwm = values.get(
             'velocity_kp_pwm',
@@ -1095,9 +1183,34 @@ class EllipseStaticController:
         )
         self.config.cbf_a_ell = values.get('cbf_a_ell', self.config.cbf_a_ell)
         self.config.cbf_b_ell = values.get('cbf_b_ell', self.config.cbf_b_ell)
-        self.config.cbf_gamma1 = values['cbf_gamma1']
-        self.config.cbf_gamma2 = values['cbf_gamma2']
-        self.config.cbf_gamma3 = values['cbf_gamma3']
+        self.config.cbf_gamma1 = values.get('cbf_gamma1', self.config.cbf_gamma1)
+        self.config.cbf_gamma2 = values.get('cbf_gamma2', self.config.cbf_gamma2)
+        self.config.cbf_gamma3 = values.get('cbf_gamma3', self.config.cbf_gamma3)
+        self.config.qp_wheelbase_px = values.get(
+            'qp_wheelbase_px',
+            self.config.qp_wheelbase_px,
+        )
+        self.config.qp_min_accel = values.get(
+            'qp_min_accel',
+            self.config.qp_min_accel,
+        )
+        self.config.qp_max_accel = values.get(
+            'qp_max_accel',
+            self.config.qp_max_accel,
+        )
+        self.config.qp_min_delta = values.get(
+            'qp_min_delta',
+            self.config.qp_min_delta,
+        )
+        self.config.qp_max_delta = values.get(
+            'qp_max_delta',
+            self.config.qp_max_delta,
+        )
+        self.config.qp_solver = values.get('qp_solver', self.config.qp_solver)
+        self.config.qp_slack_weight = values.get(
+            'qp_slack_weight',
+            self.config.qp_slack_weight,
+        )
         self.refresh_cbf_qp_config()
         self.lap_limit_enabled = values.get(
             'lap_limit_enabled',

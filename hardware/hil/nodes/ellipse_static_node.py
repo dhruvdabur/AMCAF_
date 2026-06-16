@@ -372,6 +372,9 @@ class ArucoTrackFollower(Node):
 
     def update_pid_from_panel(self):
         """Read live PID sliders and update controller gains."""
+        import threading
+        if threading.current_thread() is not threading.main_thread():
+            return
         self.tuning.update_pid_from_panel()
 
     def current_tuning_values(self):
@@ -425,6 +428,7 @@ class ArucoTrackFollower(Node):
                     0.18,
                 ),
                 'track_speed_filter_alpha': self.config.track_speed_filter_alpha,
+                'track_speed_slew_rate_pps2': self.config.track_speed_slew_rate_pps2,
                 'raw_track_speed_pps_last': self.raw_track_speed_pps,
                 'track_speed_pps_last': self.track_speed_pps,
                 'forward_pwm': self.config.forward_pwm,
@@ -437,6 +441,8 @@ class ArucoTrackFollower(Node):
                 'cbf_stop_heading_rad': self.config.cbf_stop_heading_rad,
                 'cbf_edge_margin_px': self.config.cbf_edge_margin_px,
                 'qp_wheelbase_px': self.config.qp_wheelbase_px,
+                'cbf_a_ell': self.config.cbf_a_ell,
+                'cbf_b_ell': self.config.cbf_b_ell,
                 'cbf_gamma1': self.config.cbf_gamma1,
                 'cbf_gamma2': self.config.cbf_gamma2,
                 'cbf_gamma3': self.config.cbf_gamma3,
@@ -516,7 +522,9 @@ class ArucoTrackFollower(Node):
 
     def publish_command(self):
         """Publish fresh RC output, otherwise publish neutral."""
-        self.poll_keyboard()
+        import threading
+        if threading.current_thread() is threading.main_thread():
+            self.poll_keyboard()
         if self.config.dry_run or not self.output_enabled:
             return
         if not self.command_is_fresh():
@@ -609,7 +617,6 @@ class ArucoTrackFollower(Node):
             )
         if center is not None:
             cv2.circle(preview, tuple(center.astype(int)), 5, (255, 0, 0), -1)
-            self.draw_lidar_feedback(preview, center)
         if target is not None:
             cv2.circle(preview, tuple(target.astype(int)), 7, (0, 0, 255), -1)
         if self.config.debug_visuals:
@@ -715,6 +722,7 @@ class ArucoTrackFollower(Node):
         if target is not None and tangent is not None:
             draw_vector(preview, target, tangent, 70.0, (0, 255, 255), 'target')
         self.draw_cbf_ellipse_debug(preview, center)
+        self.draw_controller_debug_panel(preview)
         self.draw_free_space_interval(preview)
         self.draw_safety_bars(preview)
 
@@ -794,6 +802,7 @@ class ArucoTrackFollower(Node):
         color = (0, 165, 255) if self.cbf_active else (120, 170, 220)
         a_ell_px, b_ell_px = self.controller.cbf_ellipse_axes_px()
         a_ell_cm, b_ell_cm = self.controller.cbf_ellipse_axes_cm()
+        marker_scale_px = self.controller.cbf_ellipse_marker_scale_px()
         angle_deg = math.degrees(float(self.last_marker_heading))
         axes = (
             max(1, int(round(a_ell_px))),
@@ -814,8 +823,12 @@ class ArucoTrackFollower(Node):
         draw_label(
             preview,
             tuple(label_origin.astype(int)),
-            f'QP {a_ell_px:.0f}x{b_ell_px:.0f}px '
-            f'({a_ell_cm:.0f}x{b_ell_cm:.0f}cm)',
+            (
+                f'QP a={self.config.cbf_a_ell:.2f} b={self.config.cbf_b_ell:.2f} '
+                f'scale={marker_scale_px:.1f}px -> '
+                f'{a_ell_px:.0f}x{b_ell_px:.0f}px '
+                f'({a_ell_cm:.0f}x{b_ell_cm:.0f}cm)'
+            ),
             color,
             scale=0.42,
         )
@@ -884,6 +897,107 @@ class ArucoTrackFollower(Node):
                 scale=0.48,
             )
 
+    def draw_controller_debug_panel(self, preview):
+        """Draw compact CBF/QP diagnostics."""
+        height, width = preview.shape[:2]
+        panel_width = 300
+        panel_height = 172
+        x = max(12, width - panel_width - 12)
+        y = 12
+        overlay = preview.copy()
+        cv2.rectangle(
+            overlay,
+            (x, y),
+            (x + panel_width, y + panel_height),
+            (25, 25, 25),
+            -1,
+        )
+        cv2.addWeighted(overlay, 0.55, preview, 0.45, 0.0, preview)
+        cv2.rectangle(
+            preview,
+            (x, y),
+            (x + panel_width, y + panel_height),
+            self.cbf_debug_color(),
+            1,
+            cv2.LINE_AA,
+        )
+        margin = self.cbf_qp_constraint_margin()
+        margin_text = 'n/a' if margin is None else f'{margin:.3f}'
+        clear_text = (
+            'inf'
+            if not math.isfinite(self.nearest_static_clearance_px)
+            else f'{self.nearest_static_clearance_px:.1f}px'
+        )
+        lines = [
+            f'CBF {self.cbf_qp_status}',
+            f'h {self.cbf_qp_h:.3f}  hd {self.cbf_qp_h_dot:.3f}  hdd {self.cbf_qp_h_ddot:.3f}',
+            f'margin {margin_text}  rhs {self.cbf_qp_rhs:.3f}',
+            f'a {self.cbf_qp_accel:.2f}  d {self.cbf_qp_delta:.2f}',
+            f'slack {self.cbf_qp_slack:.3f}  clear {clear_text}',
+            f'COLL {self.metrics.collision_samples}  CBF {self.metrics.cbf_interventions}',
+        ]
+        for index, line in enumerate(lines):
+            draw_label(
+                preview,
+                (x + 10, y + 24 + index * 22),
+                line,
+                (255, 255, 255),
+                scale=0.46,
+            )
+        self.draw_horizontal_meter(
+            preview,
+            x + 10,
+            y + panel_height - 18,
+            panel_width - 20,
+            self.cbf_debug_meter_ratio(),
+            self.cbf_debug_color(),
+        )
+
+    def cbf_qp_constraint_margin(self):
+        """Return lhs-rhs for the displayed closest-obstacle CBF constraint."""
+        if self.cbf_qp_status == 'unused':
+            return None
+        lhs = (
+            self.cbf_qp_lhs_a * self.cbf_qp_accel
+            + self.cbf_qp_lhs_delta * self.cbf_qp_delta
+            + self.cbf_qp_slack
+        )
+        return lhs - self.cbf_qp_rhs
+
+    def cbf_debug_color(self):
+        """Return panel color for current CBF state."""
+        margin = self.cbf_qp_constraint_margin()
+        if self.cbf_qp_status == 'infeasible' or self.cbf_qp_h < 0.0:
+            return (0, 0, 255)
+        if margin is not None and margin < 0.0:
+            return (0, 140, 255)
+        if self.cbf_active:
+            return (0, 200, 255)
+        return (0, 220, 0)
+
+    def cbf_debug_meter_ratio(self):
+        """Return a bounded health value for the CBF panel meter."""
+        if self.cbf_qp_status == 'unused':
+            return 1.0
+        margin = self.cbf_qp_constraint_margin()
+        if margin is None:
+            return 1.0
+        return max(0.0, min((float(margin) + 1.0) / 2.0, 1.0))
+
+    @staticmethod
+    def draw_horizontal_meter(preview, x, y, width, ratio, color):
+        """Draw a bounded 0..1 meter used by debug panels."""
+        bounded_ratio = max(0.0, min(float(ratio), 1.0))
+        cv2.rectangle(preview, (x, y), (x + width, y + 8), (70, 70, 70), -1)
+        cv2.rectangle(
+            preview,
+            (x, y),
+            (x + int(round(width * bounded_ratio)), y + 8),
+            color,
+            -1,
+        )
+        cv2.rectangle(preview, (x, y), (x + width, y + 8), (230, 230, 230), 1)
+
     def draw_lidar_feedback(self, preview, center):
         """Draw virtual lidar returns from the marker/car center."""
         if not self.latest_lidar_points:
@@ -893,6 +1007,19 @@ class ArucoTrackFollower(Node):
             hit = (int(round(point.x_px)), int(round(point.y_px)))
             cv2.line(preview, origin, hit, (255, 0, 255), 1, cv2.LINE_AA)
             cv2.circle(preview, hit, 3, (255, 0, 255), -1)
+
+        critical_x = getattr(self.controller, 'cbf_qp_obstacle_x', None)
+        critical_y = getattr(self.controller, 'cbf_qp_obstacle_y', None)
+        if critical_x is not None and critical_y is not None:
+            crit_hit = (int(round(critical_x)), int(round(critical_y)))
+            # Draw a thicker yellow line to the critical point
+            cv2.line(preview, origin, crit_hit, (0, 255, 255), 2, cv2.LINE_AA)
+            # Draw a larger yellow circle at the critical point
+            cv2.circle(preview, crit_hit, 6, (0, 255, 255), -1)
+            # Draw an outer red ring to highlight it
+            cv2.circle(preview, crit_hit, 8, (0, 0, 255), 1, cv2.LINE_AA)
+            # Add a small text label
+            draw_label(preview, (crit_hit[0] + 10, crit_hit[1] - 5), "x_obs", (0, 255, 255), scale=0.45)
 
     def road_scene_enabled(self):
         """Return whether the current track uses road-scene planning."""
@@ -928,7 +1055,6 @@ def main(args=None):
     """Run guarded ArUco virtual-track following."""
     config, ros_args = parse_args(args)
     validate_config(config)
-    print_config(config)
     if not config.dry_run and not config.confirm_propulsion_safe:
         raise SystemExit(
             'refusing ArUco track following output: securely restrain driven '
@@ -937,6 +1063,8 @@ def main(args=None):
 
     rclpy.init(args=ros_args)
     node = ArucoTrackFollower(config)
+    validate_config(config)
+    print_config(config)
     try:
         if config.dry_run:
             print('Dry run: detecting marker without publishing RC output.')
@@ -945,7 +1073,7 @@ def main(args=None):
             return
 
         time.sleep(0.2)
-        if node.count_subscribers(config.command_topic) == 0:
+        if not getattr(config, 'ignore_subscribers', False) and node.count_subscribers(config.command_topic) == 0:
             raise RuntimeError(
                 f'no subscriber on {config.command_topic}; run crsf_ros first'
             )

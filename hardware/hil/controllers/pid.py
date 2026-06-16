@@ -82,13 +82,18 @@ class PIDController:
         self.kd = kd
         self.integral_limit = integral_limit
 
-    def step(self, error, now):
+    def decay_integral(self, ratio=0.5):
+        """Bleed off stored integral when a downstream safety filter dominates."""
+        self.integral *= max(0.0, min(float(ratio), 1.0))
+
+    def step(self, error, now, output_limits=None, output_offset=0.0):
         """Return PID output for one control sample."""
         if self.previous_time is None:
             dt = 0.0
         else:
             dt = max(0.0, now - self.previous_time)
 
+        previous_integral = self.integral
         if dt > 0.0:
             self.integral += error * dt
             self.integral = max(
@@ -103,7 +108,19 @@ class PIDController:
 
         self.previous_error = error
         self.previous_time = now
-        return self.kp * error + self.ki * self.integral + self.kd * derivative
+        output = self.kp * error + self.ki * self.integral + self.kd * derivative
+        if output_limits is None:
+            return output
+
+        lower, upper = output_limits
+        commanded = output_offset + output
+        if (
+            (commanded > upper and error > 0.0)
+            or (commanded < lower and error < 0.0)
+        ):
+            self.integral = previous_integral
+            output = self.kp * error + self.ki * self.integral + self.kd * derivative
+        return output
 
 
 class VirtualLidar:
@@ -540,13 +557,28 @@ class PIDVelocityCBFController:
     ):
         """Return bounded throttle and raw velocity-PID delta."""
         speed_error = target_speed_pps - measured_speed_pps
-        speed_delta = self.velocity_pid.step(speed_error, now)
+        speed_delta = self.velocity_pid.step(
+            speed_error,
+            now,
+            output_limits=(min_forward_pwm, max_forward_pwm),
+            output_offset=nominal_forward_pwm,
+        )
         throttle = bounded(
             nominal_forward_pwm + speed_delta,
             min_forward_pwm,
             max_forward_pwm,
         )
         return throttle, speed_delta, speed_error
+
+    def apply_throttle_anti_windup(
+        self,
+        nominal_throttle,
+        applied_throttle,
+        speed_error,
+    ):
+        """Unwind velocity integral when safety filtering reduces throttle."""
+        if applied_throttle < nominal_throttle - 1.0 and speed_error > 0.0:
+            self.velocity_pid.decay_integral(0.35)
 
     def apply_cbf(
         self,

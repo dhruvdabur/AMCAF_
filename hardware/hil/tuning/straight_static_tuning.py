@@ -79,21 +79,21 @@ class StraightStaticTuning:
             'GAMMA1 x100',
             PID_WINDOW,
             int(round(self.config.cbf_gamma1 * CBF_GAMMA_SCALE)),
-            500,
+            2000,
             noop,
         )
         cv2.createTrackbar(
             'GAMMA2 x100',
             PID_WINDOW,
             int(round(self.config.cbf_gamma2 * CBF_GAMMA_SCALE)),
-            500,
+            2000,
             noop,
         )
         cv2.createTrackbar(
             'GAMMA3 x100',
             PID_WINDOW,
             int(round(self.config.cbf_gamma3 * CBF_GAMMA_SCALE)),
-            500,
+            2000,
             noop,
         )
         cv2.createTrackbar(
@@ -183,12 +183,13 @@ class StraightStaticTuning:
                 )
             return
         payload = json.loads(self.config.tuning_file.read_text(encoding='utf-8'))
-        for key in (
+        config_keys = [
             'min_forward_pwm',
             'max_forward_pwm',
             'aruco_parallax_factor',
             'target_track_speed_pps',
             'track_speed_filter_alpha',
+            'track_speed_slew_rate_pps2',
             'velocity_kp_pwm',
             'velocity_ki_pwm',
             'velocity_kd_pwm',
@@ -198,58 +199,49 @@ class StraightStaticTuning:
             'cbf_gamma1',
             'cbf_gamma2',
             'cbf_gamma3',
+            'qp_wheelbase_px',
+            'qp_min_accel',
+            'qp_max_accel',
+            'qp_min_delta',
+            'qp_max_delta',
+            'qp_solver',
+            'qp_slack_weight',
             'enable_lap_limit',
             'target_laps',
-        ):
+        ]
+        for key in config_keys:
             if key in payload:
                 setattr(self.config, key, payload[key])
-        self.controller.apply_tuning_values(
-            {
-                'steering_kp_px': payload.get(
-                    'steering_kp_px',
-                    self.config.steering_kp_px,
-                ),
-                'steering_ki_px': payload.get(
-                    'steering_ki_px',
-                    self.config.steering_ki_px,
-                ),
-                'steering_kd_px': payload.get(
-                    'steering_kd_px',
-                    self.config.steering_kd_px,
-                ),
-                'heading_kp': payload.get('heading_kp', self.controller.heading_kp),
-                'forward_pwm': payload.get('forward_pwm', self.config.forward_pwm),
-                'target_track_speed_pps': payload.get(
-                    'target_track_speed_pps',
-                    self.controller.target_track_speed_pps,
-                ),
-                'track_speed_filter_alpha': payload.get(
-                    'track_speed_filter_alpha',
-                    self.config.track_speed_filter_alpha,
-                ),
-                'velocity_kp_pwm': payload.get(
-                    'velocity_kp_pwm',
-                    self.config.velocity_kp_pwm,
-                ),
-                'velocity_ki_pwm': payload.get(
-                    'velocity_ki_pwm',
-                    self.config.velocity_ki_pwm,
-                ),
-                'velocity_kd_pwm': payload.get(
-                    'velocity_kd_pwm',
-                    self.config.velocity_kd_pwm,
-                ),
-                'cbf_a_ell': payload.get('cbf_a_ell', self.config.cbf_a_ell),
-                'cbf_b_ell': payload.get('cbf_b_ell', self.config.cbf_b_ell),
-                'cbf_gamma1': payload.get('cbf_gamma1', self.config.cbf_gamma1),
-                'cbf_gamma2': payload.get('cbf_gamma2', self.config.cbf_gamma2),
-                'cbf_gamma3': payload.get('cbf_gamma3', self.config.cbf_gamma3),
-                'lap_limit_enabled': payload.get(
-                    'lap_limit_enabled',
-                    payload.get('enable_lap_limit', self.controller.lap_limit_enabled),
-                ),
-                'target_laps': payload.get('target_laps', self.controller.target_laps),
-            }
+        value_keys = (
+            'steering_kp_px',
+            'steering_ki_px',
+            'steering_kd_px',
+            'heading_kp',
+            'forward_pwm',
+            'target_track_speed_pps',
+            'track_speed_filter_alpha',
+            'track_speed_slew_rate_pps2',
+            'velocity_kp_pwm',
+            'velocity_ki_pwm',
+            'velocity_kd_pwm',
+            'lap_limit_enabled',
+            'target_laps',
+            'cbf_a_ell',
+            'cbf_b_ell',
+            'cbf_gamma1',
+            'cbf_gamma2',
+            'cbf_gamma3',
+            'qp_wheelbase_px',
+            'qp_min_accel',
+            'qp_max_accel',
+            'qp_min_delta',
+            'qp_max_delta',
+            'qp_solver',
+            'qp_slack_weight',
         )
+        values = {key: payload[key] for key in value_keys if key in payload}
+        if 'enable_lap_limit' in payload and 'lap_limit_enabled' not in values:
+            values['lap_limit_enabled'] = payload['enable_lap_limit']
+        self.controller.apply_tuning_values(values)
         if self.logger is not None:
             self.logger.info(f'loaded tuning from {self.config.tuning_file}')

@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 
 package_name = 'crsf_ros2'
 submodules = 'crsf_ros2/submodules'
-hil_source = Path(__file__).resolve().parents[1] / 'hil'
+hil_source = Path(__file__).resolve().parents[3] / 'hil'
 setup_dir = Path(__file__).resolve().parent
 
 

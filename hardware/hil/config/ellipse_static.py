@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from ..controllers import CONTROLLER_MODES
+from ..controllers import EllipseCBFQPConfig
 from ..controllers import PID
 from ..controllers import PID_VELOCITY_CBF_QP_ELLIPSE
 from ..road import parse_static_obstacle_specs
@@ -23,14 +24,15 @@ CBF_ERROR_SCALE = 1
 CBF_ALPHA_SCALE = 100
 CBF_ELLIPSE_SCALE = 10
 CBF_GAMMA_SCALE = 100
-QP_WHEELBASE_PX = 90.0
-QP_MIN_ACCEL = -5.0
-QP_MAX_ACCEL = 0.5
-QP_MIN_DELTA = -0.4
-QP_MAX_DELTA = 0.4
-QP_SOLVER = 'OSQP'
-QP_SLACK_WEIGHT = 0.0
-GAP_SWITCH_HYSTERESIS_PX = 80.0
+QP_DEFAULTS = EllipseCBFQPConfig()
+QP_WHEELBASE_PX = QP_DEFAULTS.wheelbase
+QP_MIN_ACCEL = QP_DEFAULTS.min_accel
+QP_MAX_ACCEL = QP_DEFAULTS.max_accel
+QP_MIN_DELTA = QP_DEFAULTS.min_delta
+QP_MAX_DELTA = QP_DEFAULTS.max_delta
+QP_SOLVER = QP_DEFAULTS.solver
+QP_SLACK_WEIGHT = QP_DEFAULTS.slack_weight
+GAP_SWITCH_HYSTERESIS_PX = 25.0
 GAP_TARGET_SMOOTHING_ALPHA = 0.18
 STEERING_KP_PX = 3.8
 STEERING_KI_PX = 0.0
@@ -55,6 +57,11 @@ def parse_args(args=None):
     )
     parser.add_argument('--image-topic', default=IMAGE_TOPIC)
     parser.add_argument('--command-topic', default=COMMAND_TOPIC)
+    parser.add_argument(
+        '--ignore-subscribers',
+        action='store_true',
+        help='Ignore the check for active subscribers on the command topic.',
+    )
     parser.add_argument(
         '--telemetry-prefix',
         default='/aruco_track_follower/tuning',
@@ -171,11 +178,17 @@ def parse_args(args=None):
             'lower values reduce velocity PID jitter.'
         ),
     )
+    parser.add_argument(
+        '--track-speed-slew-rate-pps2',
+        type=float,
+        default=120.0,
+        help='Maximum frame-to-frame change in filtered progress speed.',
+    )
     parser.add_argument('--velocity-kp-pwm', type=float, default=2.0)
     parser.add_argument('--velocity-ki-pwm', type=float, default=0.0)
     parser.add_argument('--velocity-kd-pwm', type=float, default=0.05)
     parser.add_argument('--velocity-integral-limit', type=float, default=120.0)
-    parser.add_argument('--max-forward-pwm', type=int, default=1600)
+    parser.add_argument('--max-forward-pwm', type=int, default=1590)
     parser.add_argument('--cbf-slow-error-px', type=float, default=55.0)
     parser.add_argument('--cbf-stop-error-px', type=float, default=120.0)
     parser.add_argument('--cbf-stop-heading-rad', type=float, default=1.2)
@@ -192,11 +205,11 @@ def parse_args(args=None):
         default=1.0,
         help='CBF aggressiveness: lower slows earlier, higher allows more speed.',
     )
-    parser.add_argument('--cbf-a-ell', type=float, default=2.0)
-    parser.add_argument('--cbf-b-ell', type=float, default=1.0)
-    parser.add_argument('--cbf-gamma1', type=float, default=2.0)
-    parser.add_argument('--cbf-gamma2', type=float, default=1.0)
-    parser.add_argument('--cbf-gamma3', type=float, default=1.0)
+    parser.add_argument('--cbf-a-ell', type=float, default=QP_DEFAULTS.a_ell)
+    parser.add_argument('--cbf-b-ell', type=float, default=QP_DEFAULTS.b_ell)
+    parser.add_argument('--cbf-gamma1', type=float, default=QP_DEFAULTS.gamma1)
+    parser.add_argument('--cbf-gamma2', type=float, default=QP_DEFAULTS.gamma2)
+    parser.add_argument('--cbf-gamma3', type=float, default=QP_DEFAULTS.gamma3)
     parser.add_argument(
         '--qp-slack-weight',
         type=float,
@@ -265,6 +278,17 @@ def parse_args(args=None):
         help='Load tuning-file values on startup.',
     )
     parser.add_argument(
+        '--load',
+        choices=('tuning',),
+        default=None,
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        '--load-cbf-tuning',
+        action='store_true',
+        help='Also load CBF-QP ellipse/gamma values from the tuning file.',
+    )
+    parser.add_argument(
         '--metrics-file',
         type=Path,
         default=DEFAULT_METRICS_FILE,
@@ -300,7 +324,10 @@ def parse_args(args=None):
         qp_solver=QP_SOLVER,
         qp_slack_weight=QP_SLACK_WEIGHT,
     )
-    return parser.parse_known_args(args)
+    config, remaining = parser.parse_known_args(args)
+    if config.load == 'tuning':
+        config.load_tuning = True
+    return config, remaining
 
 
 def validate_config(config):
@@ -329,6 +356,8 @@ def validate_config(config):
         raise SystemExit('cbf-stop-error-px must be greater than cbf-slow-error-px')
     if not 0.0 < config.track_speed_filter_alpha <= 1.0:
         raise SystemExit('track-speed-filter-alpha must be in (0, 1]')
+    if config.track_speed_slew_rate_pps2 <= 0.0:
+        raise SystemExit('track-speed-slew-rate-pps2 must be positive')
     if config.cbf_stop_heading_rad <= 0.0:
         raise SystemExit('cbf-stop-heading-rad must be positive')
     if config.cbf_h_px <= 0.0:

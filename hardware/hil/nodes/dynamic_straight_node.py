@@ -6,6 +6,7 @@ import time
 import cv2
 import numpy as np
 import rclpy
+from rclpy.executors import MultiThreadedExecutor
 
 from ..config.dynamic_straight import ARMING_SERVICE
 from ..config.dynamic_straight import NEUTRAL_VALUE
@@ -19,6 +20,10 @@ from ..road import make_laneless_static_obstacle
 from .straight_static_node import ArucoTrackFollower as StraightArucoTrackFollower
 
 
+FREE_FLOW_DYNAMIC_DIRECTION = 1.0
+FREE_FLOW_DYNAMIC_SPEED_FACTORS = (0.30, 0.34)
+
+
 class ArucoTrackFollower(StraightArucoTrackFollower):
     """Straight-road follower that moves virtual obstacles over time."""
 
@@ -26,6 +31,8 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
         self.dynamic_obstacles = []
         self.detected_dynamic_obstacles = []
         self.dynamic_obstacle_specs = []
+        self.dynamic_obstacle_previous_states = {}
+        self.dynamic_obstacle_smoothed_states = {}
         self.retired_dynamic_obstacle_indices = set()
         self.dynamic_obstacle_start_time = None
         self.static_scene_obstacles = []
@@ -63,12 +70,12 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
             self.stop_immediately()
             self.publish_tuning_telemetry(marker_seen=False)
             if self.config.preview:
-                self.show_preview(frame, None, None, None, None)
+                self.schedule_preview(frame, None, None, None, None)
             return
 
         center, heading, corners = detection
         self.update_marker_scale(corners)
-        self.tuning.update_pid_from_panel()
+        self.update_pid_from_panel()
         self.update_dynamic_obstacles(now, center, heading)
         result = self.controller.process_detection(
             center,
@@ -89,7 +96,7 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
             self.command_pub.publish(command)
 
         if self.config.preview:
-            self.show_preview(frame, corners, center, result.target, result.tangent)
+            self.schedule_preview(frame, corners, center, result.target, result.tangent)
 
     def virtual_vehicle_tick(self):
         """Run one controller/simulation step with moving obstacles."""
@@ -99,7 +106,7 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
         dt = min(0.1, max(1e-3, now - self.virtual_last_time))
         self.virtual_last_time = now
 
-        self.tuning.update_pid_from_panel()
+        self.update_pid_from_panel()
         state = self.virtual_vehicle_state
         center = np.array([state['x'], state['y']], dtype=np.float32)
         if self.config.random_static_obstacles:
@@ -129,7 +136,7 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
                 ],
                 dtype=np.float32,
             )
-            self.show_preview(
+            self.schedule_preview(
                 frame,
                 None,
                 preview_center,
@@ -145,9 +152,12 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
         """Create repeatable moving obstacle specs for the current road scene."""
         self.dynamic_obstacle_start_time = now
         self.dynamic_obstacle_specs = []
+        self.dynamic_obstacle_previous_states = {}
+        self.dynamic_obstacle_smoothed_states = {}
         self.dynamic_obstacles = []
         self.detected_dynamic_obstacles = []
         self.retired_dynamic_obstacle_indices = set()
+        self.dynamic_obstacles_need_ego_placement = True
         if self.track_points is None:
             self.sync_controller_obstacles()
             return
@@ -156,52 +166,35 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
         rng = np.random.default_rng(self.config.dynamic_obstacle_seed)
         if scenario != 'free_flow':
             self.dynamic_obstacle_specs = self.make_scenario_specs(scenario, rng)
-            self.place_dynamic_specs_ahead_of_ego()
-            self.update_dynamic_obstacles(now)
-            return
+        else:
+            if self.config.dynamic_obstacle_count <= 0:
+                self.sync_controller_obstacles()
+                return
+            self.dynamic_obstacle_specs = self.make_free_flow_specs(rng)
 
-        if self.config.dynamic_obstacle_count <= 0:
-            self.sync_controller_obstacles()
-            return
-
-        min_progress = float(self.config.dynamic_obstacle_min_progress)
-        max_progress = float(self.config.dynamic_obstacle_max_progress)
-        for index in range(self.config.dynamic_obstacle_count):
-            base_progress = float(rng.uniform(min_progress, max_progress))
-            base_offset_px = float(
-                rng.uniform(
-                    -self.config.road_half_width_px * 0.35,
-                    self.config.road_half_width_px * 0.35,
-                )
-            )
-            self.dynamic_obstacle_specs.append(
-                {
-                    'index': index,
-                    'base_progress': base_progress,
-                    'base_offset_px': base_offset_px,
-                    'length_px': float(rng.uniform(70.0, 125.0)),
-                    'width_px': float(rng.uniform(45.0, 76.0)),
-                }
-            )
         self.place_dynamic_specs_ahead_of_ego()
         self.update_dynamic_obstacles(now)
 
-    def place_dynamic_specs_ahead_of_ego(self):
+    def place_dynamic_specs_ahead_of_ego(self, center=None):
         """Place newly-created dynamic specs ahead of ego without runtime reloads."""
-        if not self.config.virtual_vehicle_test or not self.dynamic_obstacle_specs:
+        if not self.dynamic_obstacle_specs:
             return
-        if self.virtual_vehicle_state is None:
-            return
-        center = np.array(
-            [
-                self.virtual_vehicle_state['x'],
-                self.virtual_vehicle_state['y'],
-            ],
-            dtype=np.float32,
-        )
+        if center is None:
+            if self.virtual_vehicle_state is None:
+                return
+            center = np.array(
+                [
+                    self.virtual_vehicle_state['x'],
+                    self.virtual_vehicle_state['y'],
+                ],
+                dtype=np.float32,
+            )
+        else:
+            center = np.asarray(center, dtype=np.float32)
         ego_progress = self.vehicle_progress(center)
         if ego_progress is None:
             return
+        self.dynamic_obstacles_need_ego_placement = False
         min_start_progress = ego_progress + self.dynamic_obstacle_ahead_gap()
         earliest_progress = min(
             float(spec.get('base_progress', 0.0))
@@ -250,15 +243,15 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
 
         if scenario == 'lead_slowdown':
             return [
-                spec(0.28, offset_center, 0.030, slowdown_rate=0.75),
-                spec(0.62, offset_right * 0.45, 0.010, length_px=78.0, width_px=50.0),
+                spec(0.28, offset_center, ego_progress_speed * 0.10, slowdown_rate=0.75),
+                spec(0.62, offset_right * 0.45, ego_progress_speed * 0.08, length_px=78.0, width_px=50.0),
             ]
         if scenario == 'cut_in':
             return [
                 spec(
                     0.34,
                     offset_left,
-                    ego_progress_speed * 0.20,
+                    ego_progress_speed * 0.10,
                     lateral_target_px=offset_center,
                     lateral_start_delay_s=2.0,
                     lateral_target_duration_s=3.4,
@@ -268,7 +261,7 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
                 spec(
                     0.08,
                     offset_right,
-                    ego_progress_speed * 0.16,
+                    ego_progress_speed * 0.08,
                     length_px=82.0,
                     width_px=52.0,
                     lateral_target_px=offset_center,
@@ -280,52 +273,58 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
             ]
         if scenario == 'overtake_merge':
             return [
-                spec(0.22, offset_center, 0.020, length_px=104.0, width_px=62.0),
-                spec(0.12, offset_left, 0.070, lateral_target_px=offset_center, lateral_target_duration_s=4.5, progress_wave_amp=12.0, progress_wave_period_s=7.0),
+                spec(0.22, offset_center, ego_progress_speed * 0.10, length_px=104.0, width_px=62.0),
+                spec(0.12, offset_left, ego_progress_speed * 0.08, lateral_target_px=offset_center, lateral_target_duration_s=4.5, progress_wave_amp=12.0, progress_wave_period_s=7.0),
             ]
         if scenario == 'stop_go_platoon':
             return [
-                spec(0.24, offset_center, 0.028, stop_go_period_s=5.5, stop_go_duty=0.45, phase_s=0.0),
-                spec(0.33, offset_center, 0.026, stop_go_period_s=5.5, stop_go_duty=0.45, phase_s=1.5),
-                spec(0.42, offset_center, 0.024, stop_go_period_s=5.5, stop_go_duty=0.45, phase_s=3.0),
-                spec(0.51, offset_right * 0.18, 0.022, stop_go_period_s=5.5, stop_go_duty=0.45, phase_s=4.5, width_px=50.0),
+                spec(0.24, offset_center, ego_progress_speed * 0.10, stop_go_period_s=5.5, stop_go_duty=0.45, phase_s=0.0),
+                spec(0.33, offset_center, ego_progress_speed * 0.08, stop_go_period_s=5.5, stop_go_duty=0.45, phase_s=1.5),
+                spec(0.42, offset_center, ego_progress_speed * 0.10, stop_go_period_s=5.5, stop_go_duty=0.45, phase_s=3.0),
+                spec(0.51, offset_right * 0.18, ego_progress_speed * 0.08, stop_go_period_s=5.5, stop_go_duty=0.45, phase_s=4.5, width_px=50.0),
             ]
         if scenario == 'dense_flow':
             return [
-                spec(0.18, offset_left * 0.75, 0.048, length_px=84.0, width_px=52.0),
-                spec(0.28, offset_center, 0.041, length_px=92.0, width_px=58.0),
-                spec(0.38, offset_right * 0.80, 0.046, length_px=88.0, width_px=54.0),
-                spec(0.49, offset_left * 0.25, 0.039, length_px=96.0, width_px=56.0),
-                spec(0.60, offset_right * 0.30, 0.043, length_px=90.0, width_px=55.0),
+                spec(0.18, offset_left * 0.75, ego_progress_speed * 0.10, length_px=84.0, width_px=52.0),
+                spec(0.28, offset_center, ego_progress_speed * 0.08, length_px=92.0, width_px=58.0),
+                spec(0.38, offset_right * 0.80, ego_progress_speed * 0.10, length_px=88.0, width_px=54.0),
+                spec(0.49, offset_left * 0.25, ego_progress_speed * 0.08, length_px=96.0, width_px=56.0),
+                spec(0.60, offset_right * 0.30, ego_progress_speed * 0.10, length_px=90.0, width_px=55.0),
             ]
         if scenario == 'bottleneck_merge':
             return [
-                spec(0.18, offset_left, 0.038, lateral_target_px=offset_center, lateral_target_duration_s=5.0),
-                spec(0.22, offset_right, 0.037, lateral_target_px=offset_center, lateral_target_duration_s=4.2),
-                spec(0.34, offset_left * 0.55, 0.034, lateral_target_px=offset_center, lateral_target_duration_s=3.5),
-                spec(0.40, offset_right * 0.55, 0.033, lateral_target_px=offset_center, lateral_target_duration_s=3.0),
+                spec(0.18, offset_left, ego_progress_speed * 0.10, lateral_target_px=offset_center, lateral_target_duration_s=5.0),
+                spec(0.22, offset_right, ego_progress_speed * 0.08, lateral_target_px=offset_center, lateral_target_duration_s=4.2),
+                spec(0.34, offset_left * 0.55, ego_progress_speed * 0.10, lateral_target_px=offset_center, lateral_target_duration_s=3.5),
+                spec(0.40, offset_right * 0.55, ego_progress_speed * 0.08, lateral_target_px=offset_center, lateral_target_duration_s=3.0),
             ]
         if scenario == 'lane_weave':
             return [
-                spec(0.16, offset_left * 0.65, 0.044, lateral_wave_amp=road_half_width * 0.14, lateral_wave_period_s=4.8, phase_s=0.0),
-                spec(0.32, offset_center, 0.041, lateral_wave_amp=road_half_width * 0.16, lateral_wave_period_s=5.4, phase_s=1.8),
-                spec(0.49, offset_right * 0.60, 0.038, lateral_wave_amp=road_half_width * 0.18, lateral_wave_period_s=6.0, phase_s=3.6),
+                spec(0.16, offset_left * 0.65, ego_progress_speed * 0.10, lateral_wave_amp=road_half_width * 0.14, lateral_wave_period_s=4.8, phase_s=0.0),
+                spec(0.32, offset_center, ego_progress_speed * 0.08, lateral_wave_amp=road_half_width * 0.16, lateral_wave_period_s=5.4, phase_s=1.8),
+                spec(0.49, offset_right * 0.60, ego_progress_speed * 0.10, lateral_wave_amp=road_half_width * 0.18, lateral_wave_period_s=6.0, phase_s=3.6),
             ]
         if scenario == 'crossing_conflict':
             return [
-                spec(0.50, -road_half_width * 0.52, 0.000, lateral_speed_px=road_half_width * 0.22, respect_vehicle_gap=False, length_px=70.0, width_px=46.0),
-                spec(0.62, road_half_width * 0.48, 0.018, length_px=82.0, width_px=50.0),
+                spec(0.50, -road_half_width * 0.52, ego_progress_speed * 0.00, lateral_speed_px=road_half_width * 0.22, respect_vehicle_gap=False, length_px=70.0, width_px=46.0),
+                spec(0.62, road_half_width * 0.48, ego_progress_speed * 0.08, length_px=82.0, width_px=50.0),
             ]
         if scenario == 'signal_phase':
             return [
-                spec(0.36, offset_center, 0.030, stop_go_period_s=6.0, stop_go_duty=0.35, phase_s=0.0, hold_point_progress=0.42),
-                spec(0.55, offset_center, 0.024, stop_go_period_s=6.0, stop_go_duty=0.35, phase_s=2.8, hold_point_progress=0.58),
+                spec(0.36, offset_center, ego_progress_speed * 0.10, stop_go_period_s=6.0, stop_go_duty=0.35, phase_s=0.0, hold_point_progress=0.42),
+                spec(0.55, offset_center, ego_progress_speed * 0.08, stop_go_period_s=6.0, stop_go_duty=0.35, phase_s=2.8, hold_point_progress=0.58),
             ]
         if scenario == 'looping_flow':
             return [
-                spec(0.20, offset_left * 0.40, 0.042, wrap_progress=True, length_px=88.0, width_px=52.0),
-                spec(0.45, offset_center, 0.038, wrap_progress=True, length_px=94.0, width_px=56.0),
-                spec(0.70, offset_right * 0.42, 0.044, wrap_progress=True, length_px=90.0, width_px=54.0),
+                spec(0.20, offset_left * 0.40, ego_progress_speed * 0.10, wrap_progress=True, length_px=88.0, width_px=52.0),
+                spec(0.45, offset_center, ego_progress_speed * 0.08, wrap_progress=True, length_px=94.0, width_px=56.0),
+                spec(0.70, offset_right * 0.42, ego_progress_speed * 0.10, wrap_progress=True, length_px=90.0, width_px=54.0),
+            ]
+        if scenario == 'three_sparse':
+            return [
+                spec(0.20, offset_left, ego_progress_speed * 0.10, wrap_progress=True, length_px=90.0, width_px=54.0),
+                spec(0.50, offset_center, ego_progress_speed * 0.08, wrap_progress=True, length_px=90.0, width_px=54.0),
+                spec(0.80, offset_right, ego_progress_speed * 0.10, wrap_progress=True, length_px=90.0, width_px=54.0),
             ]
 
         return self.make_free_flow_specs(rng)
@@ -335,8 +334,19 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
         min_progress = float(self.config.dynamic_obstacle_min_progress)
         max_progress = float(self.config.dynamic_obstacle_max_progress)
         road_half_width = float(self.config.road_half_width_px)
+        ego_progress_speed = self.nominal_ego_progress_speed()
         specs = []
-        for index in range(self.config.dynamic_obstacle_count):
+        # Double the dynamic obstacle count for free_flow
+        count = self.config.dynamic_obstacle_count * 2
+        for index in range(count):
+            speed_factor = FREE_FLOW_DYNAMIC_SPEED_FACTORS[
+                index % len(FREE_FLOW_DYNAMIC_SPEED_FACTORS)
+            ]
+            progress_speed_pps = (
+                FREE_FLOW_DYNAMIC_DIRECTION
+                * ego_progress_speed
+                * speed_factor
+            )
             specs.append(
                 {
                     'index': index,
@@ -344,7 +354,7 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
                     'base_offset_px': float(rng.uniform(-road_half_width * 0.35, road_half_width * 0.35)),
                     'length_px': float(rng.uniform(70.0, 125.0)),
                     'width_px': float(rng.uniform(45.0, 76.0)),
-                    'progress_speed_pps': float(self.config.dynamic_obstacle_speed_pps),
+                    'progress_speed_pps': progress_speed_pps,
                     'kind': 'dynamic',
                 }
             )
@@ -357,6 +367,16 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
         if self.dynamic_obstacle_start_time is None:
             self.reset_dynamic_obstacles(now)
             return
+        if (
+            self.dynamic_obstacles_need_ego_placement
+            and vehicle_center is not None
+        ):
+            self.place_dynamic_specs_ahead_of_ego(vehicle_center)
+            self.dynamic_obstacle_start_time = now
+            self.dynamic_obstacle_previous_states = {}
+            self.dynamic_obstacle_smoothed_states = {}
+            self.retired_dynamic_obstacle_indices = set()
+            self.dynamic_obstacles_need_ego_placement = False
 
         elapsed = max(0.0, now - self.dynamic_obstacle_start_time)
         min_progress = float(self.config.dynamic_obstacle_min_progress)
@@ -365,6 +385,7 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
             self.config.virtual_vehicle_test
             and self.config.virtual_unlimited_path
         )
+        scene_track_points = self.dynamic_scene_track_points()
         candidates = []
         repeat_obstacles = self.dynamic_scenario_repeats_obstacles()
         for spec in self.dynamic_obstacle_specs:
@@ -377,7 +398,10 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
                 max_progress,
                 continuous=unlimited_path or not repeat_obstacles,
             )
-            if not repeat_obstacles and progress > max_progress:
+            if (
+                not repeat_obstacles
+                and (progress < min_progress or progress > max_progress)
+            ):
                 self.retired_dynamic_obstacle_indices.add(spec['index'])
                 continue
             lateral_offset = self.evaluate_dynamic_lateral_offset(spec, elapsed)
@@ -409,6 +433,10 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
                 min_progress,
                 max_progress,
             )
+        candidates = [
+            self.smooth_dynamic_candidate(candidate, now)
+            for candidate in candidates
+        ]
         obstacles = []
         for candidate in candidates:
             spec = candidate['spec']
@@ -423,7 +451,7 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
                     'width_px': candidate['width_px'],
                     'lateral_offset_px': candidate['lateral_offset_px'],
                 },
-                self.track_points,
+                scene_track_points,
                 self.road_tangents,
                 self.road_normals,
                 self.config,
@@ -435,37 +463,87 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
             obstacle['dynamic_index'] = spec['index']
             obstacle['kind'] = spec.get('kind', 'dynamic')
             obstacle['detected'] = True
+            previous = self.dynamic_obstacle_previous_states.get(spec['index'])
+            if previous is not None:
+                previous_center, previous_time = previous
+                dt = max(1e-6, now - previous_time)
+                velocity = (obstacle['center'] - previous_center) / dt
+                obstacle['vx'] = float(velocity[0])
+                obstacle['vy'] = float(velocity[1])
+            else:
+                obstacle['vx'] = 0.0
+                obstacle['vy'] = 0.0
+            self.dynamic_obstacle_previous_states[spec['index']] = (
+                obstacle['center'].copy(),
+                now,
+            )
             obstacles.append(obstacle)
         self.dynamic_obstacles = obstacles
         self.update_detected_dynamic_obstacles(vehicle_center, vehicle_heading)
         self.sync_controller_obstacles()
 
-    def update_detected_dynamic_obstacles(self, center, heading):
-        """Reveal moving obstacles only when a virtual-lidar corner is in range."""
-        if center is None or heading is None:
-            self.detected_dynamic_obstacles = []
-            return
-        max_range = float(self.controller.virtual_lidar.max_range_px)
-        detected = []
-        for obstacle in self.dynamic_obstacles:
-            polygon = obstacle.get('polygon')
-            if polygon is None:
-                continue
-            nearest_distance = min(
-                float(np.linalg.norm(np.asarray(corner, dtype=np.float32) - center))
-                for corner in polygon
+    def dynamic_scene_track_points(self):
+        """Return the currently displayed road geometry for obstacle placement."""
+        if (
+            self.config.virtual_vehicle_test
+            and self.config.virtual_unlimited_path
+            and getattr(self.controller, 'track_points', None) is not None
+        ):
+            return self.controller.track_points
+        return self.track_points
+
+    def translate_virtual_scene(self, delta):
+        """Translate dynamic bookkeeping along with the scrolled virtual scene."""
+        super().translate_virtual_scene(delta)
+        delta = np.asarray(delta, dtype=np.float32)
+        shifted_previous = {}
+        for index, previous in self.dynamic_obstacle_previous_states.items():
+            center, previous_time = previous
+            shifted_previous[index] = (
+                np.asarray(center, dtype=np.float32) + delta,
+                previous_time,
             )
-            if 0.0 < nearest_distance <= max_range:
-                obstacle['detected'] = True
-                detected.append(obstacle)
-            else:
-                obstacle['detected'] = False
-        self.detected_dynamic_obstacles = detected
+        self.dynamic_obstacle_previous_states = shifted_previous
+
+    def smooth_dynamic_candidate(self, candidate, now):
+        """Low-pass traffic progress/lateral states for smoother simulation."""
+        spec_index = candidate['spec']['index']
+        previous = self.dynamic_obstacle_smoothed_states.get(spec_index)
+        if previous is None:
+            self.dynamic_obstacle_smoothed_states[spec_index] = {
+                'progress': float(candidate['progress']),
+                'lateral_offset_px': float(candidate['lateral_offset_px']),
+                'time': now,
+            }
+            return candidate
+
+        dt = min(1.0 / 20.0, max(1e-3, now - float(previous['time'])))
+        alpha = 1.0 - math.exp(-dt / 0.16)
+        smoothed = dict(candidate)
+        smoothed['progress'] = (
+            (1.0 - alpha) * float(previous['progress'])
+            + alpha * float(candidate['progress'])
+        )
+        smoothed['lateral_offset_px'] = (
+            (1.0 - alpha) * float(previous['lateral_offset_px'])
+            + alpha * float(candidate['lateral_offset_px'])
+        )
+        self.dynamic_obstacle_smoothed_states[spec_index] = {
+            'progress': float(smoothed['progress']),
+            'lateral_offset_px': float(smoothed['lateral_offset_px']),
+            'time': now,
+        }
+        return smoothed
+
+    def update_detected_dynamic_obstacles(self, center, heading):
+        for obstacle in self.dynamic_obstacles:
+            obstacle['detected'] = True
+        self.detected_dynamic_obstacles = list(self.dynamic_obstacles)
 
     def dynamic_scenario_repeats_obstacles(self):
         """Return whether this scenario intentionally recycles traffic vehicles."""
         scenario = getattr(self.config, 'traffic_scenario', 'free_flow')
-        return scenario in ('free_flow', 'looping_flow')
+        return scenario in ('looping_flow', 'three_sparse')
 
     def resolve_dynamic_obstacle_layout(self, candidates, min_progress, max_progress):
         """Pack dynamic obstacle rectangles so their road-frame boxes do not overlap."""
@@ -565,6 +643,8 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
         else:
             source_obstacles = self.static_scene_obstacles
         for obstacle in source_obstacles:
+            if str(obstacle.get('kind', '')).startswith('road_boundary_wall'):
+                continue
             fixed.append(
                 {
                     'progress': float(obstacle.get('progress', 0.0)),
@@ -771,13 +851,11 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
             use_random_static_obstacles=self.config.random_static_obstacles,
         )
 
-
 def main(args=None):
     """Run guarded straight-road following with moving virtual obstacles."""
     config, ros_args = parse_args(args)
     config.dynamic_obstacles = True
     validate_config(config)
-    print_config(config)
     if not config.dry_run and not config.confirm_propulsion_safe:
         raise SystemExit(
             'refusing ArUco track following output: securely restrain driven '
@@ -786,6 +864,27 @@ def main(args=None):
 
     rclpy.init(args=ros_args)
     node = ArucoTrackFollower(config)
+    validate_config(config)
+    print_config(config)
+    executor = None
+    if not config.single_thread:
+        executor = MultiThreadedExecutor(num_threads=config.executor_threads)
+        executor.add_node(node)
+        import threading
+        spin_thread = threading.Thread(target=executor.spin, daemon=True)
+        spin_thread.start()
+
+    def spin_or_render_once():
+        if executor is None:
+            rclpy.spin_once(node, timeout_sec=0.02)
+        else:
+            time.sleep(0.02)
+        if config.preview:
+            node.update_pid_from_panel()
+            node.render_pending_preview()
+        if config.preview or node.tuning.enabled:
+            node.poll_keyboard()
+
     try:
         if config.dry_run:
             if config.virtual_vehicle_test:
@@ -793,18 +892,18 @@ def main(args=None):
             else:
                 print('Dry run: detecting marker without publishing RC output.')
             while rclpy.ok() and not node.stop_requested:
-                rclpy.spin_once(node, timeout_sec=0.05)
+                spin_or_render_once()
             return
 
         time.sleep(0.2)
-        if node.count_subscribers(config.command_topic) == 0:
+        if not getattr(config, 'ignore_subscribers', False) and node.count_subscribers(config.command_topic) == 0:
             raise RuntimeError(
                 f'no subscriber on {config.command_topic}; run crsf_ros first'
             )
         print('Waiting for ArUco marker before arming.')
         deadline = time.monotonic() + 10.0
         while not node.command_is_fresh() and time.monotonic() < deadline:
-            rclpy.spin_once(node, timeout_sec=0.05)
+            spin_or_render_once()
         if not node.command_is_fresh():
             raise RuntimeError(
                 f'no marker ID {config.marker_id} seen on {config.image_topic}'
@@ -818,7 +917,7 @@ def main(args=None):
             node.command_pub.publish(node.drive_message())
         print('Dynamic straight follower armed; Ctrl-C stops and disarms.')
         while rclpy.ok() and not node.stop_requested:
-            rclpy.spin_once(node, timeout_sec=0.05)
+            spin_or_render_once()
     except KeyboardInterrupt:
         print('\nInterrupted; stopping dynamic straight follower.')
     finally:
@@ -834,6 +933,9 @@ def main(args=None):
                     node.set_armed(False)
             finally:
                 cv2.destroyAllWindows()
+                if executor is not None:
+                    executor.shutdown()
+                    executor.remove_node(node)
                 node.destroy_node()
                 rclpy.try_shutdown()
 

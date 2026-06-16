@@ -29,6 +29,9 @@ def make_straight_road_scene(width, height, config):
         make_laneless_static_obstacle(spec, centerline, tangents, normals, config)
         for spec in obstacle_specs
     ]
+    obstacles.extend(
+        make_straight_road_boundary_walls(centerline, tangents, normals, config)
+    )
     if config.add_road_end_walls:
         obstacles.extend(
             make_straight_road_end_walls(centerline, tangents, normals, config)
@@ -42,6 +45,52 @@ def make_straight_road_scene(width, height, config):
         'road_half_width_px': road_half_width_px,
         'obstacles': obstacles,
     }
+
+
+def make_straight_road_boundary_walls(centerline, tangents, normals, config):
+    """Create two solid obstacle walls along the straight road boundaries."""
+    wall_thickness = max(8.0, float(config.obstacle_margin_px) * 0.35)
+    half_width = wall_thickness * 0.5
+    road_half_width_px = float(config.road_half_width_px)
+    start = centerline[0]
+    end = centerline[-1]
+    segment = end - start
+    length = float(np.linalg.norm(segment))
+    if length <= 1e-6:
+        return []
+    tangent = (segment / length).astype(np.float32)
+    base_center = 0.5 * (start + end)
+    normal = normals[0].astype(np.float32)
+    half_length = 0.5 * length + 1.0
+
+    walls = []
+    for side_name, side_sign in (('left', -1.0), ('right', 1.0)):
+        outward = (normal * side_sign).astype(np.float32)
+        boundary_center = base_center + normal * (side_sign * road_half_width_px)
+        center = boundary_center + outward * half_width
+        polygon = np.array(
+            [
+                center + tangent * half_length + outward * half_width,
+                center - tangent * half_length + outward * half_width,
+                center - tangent * half_length - outward * half_width,
+                center + tangent * half_length - outward * half_width,
+            ],
+            dtype=np.float32,
+        )
+        walls.append(
+            {
+                'center': center.astype(np.float32),
+                'tangent': tangent,
+                'normal': outward,
+                'half_length': half_length,
+                'half_width': half_width,
+                'polygon': polygon,
+                'lateral_offset_px': 0.0,
+                'progress': 0.5,
+                'kind': f'road_boundary_wall_{side_name}',
+            }
+        )
+    return walls
 
 
 def make_straight_road_end_walls(centerline, tangents, normals, config):

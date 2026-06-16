@@ -32,6 +32,8 @@ class PointObstacle:
     y: float
     half_length: float = 0.0
     half_width: float = 0.0
+    vx: float = 0.0
+    vy: float = 0.0
 
 
 @dataclass
@@ -45,11 +47,12 @@ class EllipseCBFQPConfig:
     gamma2: float = 1.0
     gamma3: float = 1.0
     min_accel: float = -10.0
-    max_accel: float = 0.5
-    min_delta: float = -0.8
-    max_delta: float = 0.8
+    max_accel: float = 0.01 
+    min_delta: float = -1.3
+    max_delta: float = 1.3
     solver: str = 'OSQP'
-    slack_weight: float = 0.0
+    slack_weight: float = 2000.0
+
 
 
 class EllipseCBFQPSafetyFilter:
@@ -68,6 +71,9 @@ class EllipseCBFQPSafetyFilter:
         self.last_rhs = 0.0
         self.last_solve_time_ms = 0.0
         self.last_slack = 0.0
+        self.last_obstacle_x = None
+        self.last_obstacle_y = None
+        self.last_brake_gate_active = False
 
     def solve(self, car, obstacles, accel_ref, delta_ref):
         """Return safe acceleration and steering commands."""
@@ -94,6 +100,9 @@ class EllipseCBFQPSafetyFilter:
         self.last_lhs_delta_coeff = 0.0
         self.last_h_ddot_base = 0.0
         self.last_rhs = 0.0
+        self.last_obstacle_x = None
+        self.last_obstacle_y = None
+        self.last_brake_gate_active = False
         min_h = float('inf')
 
         for obs in obstacles:
@@ -115,12 +124,20 @@ class EllipseCBFQPSafetyFilter:
             A2 = A**2
             B2 = B**2
 
-            h = (p**2 / A2) + (q**2 / B2) - 2.8
-            h_dot = -2.0 * v * p / A2
-            h_ddot_base = 2.0 * v**2 / A2
+            # Braking CBF: treat obstacles as stop boundaries for ego motion.
+            # Using obstacle velocity here makes the QP try to regulate relative
+            # speed; for this controller we want ego speed to go to zero when
+            # the barrier requires deceleration.
+            p_dot = -v
+            q_dot = 0.0
+
+            h = (p**2 / A2) + (q**2 / B2) - 2.2
+            h_dot = 2.0 * p * p_dot / A2 + 2.0 * q * q_dot / B2
+            h_ddot_base = 2.0 * (p_dot**2 / A2 + q_dot**2 / B2)
             lhs_a_coeff = -2.0 * p / A2
             lhs_delta_coeff = (
-                (v / max(1e-6, float(cfg.wheelbase)))
+                cfg.gamma1
+                * (v / max(1e-6, float(cfg.wheelbase)))
                 * 2.0
                 * p
                 * q
@@ -136,6 +153,9 @@ class EllipseCBFQPSafetyFilter:
                 constraints.append(
                     lhs_a_coeff * a + lhs_delta_coeff * delta + slack >= rhs
                 )
+            brake_gate_active = h < 0.0 or rhs > 0.0
+            if brake_gate_active:
+                constraints.append(a <= 0.0)
 
             if h < min_h:
                 min_h = h
@@ -145,6 +165,9 @@ class EllipseCBFQPSafetyFilter:
                 self.last_lhs_delta_coeff = float(lhs_delta_coeff)
                 self.last_h_ddot_base = float(h_ddot_base)
                 self.last_rhs = float(rhs)
+                self.last_obstacle_x = float(obs.x)
+                self.last_obstacle_y = float(obs.y)
+                self.last_brake_gate_active = bool(brake_gate_active)
 
         constraints += [
             a >= cfg.min_accel,
@@ -170,6 +193,8 @@ class EllipseCBFQPSafetyFilter:
         self.last_status = problem.status
 
         if problem.status in ('optimal', 'optimal_inaccurate'):
+            if self.last_rhs > 0.0:
+                print(f"[CBF_QP_DEBUG] status={problem.status} | rhs={self.last_rhs:.3f} | h={self.last_h:.3f} | lhs_a={self.last_lhs_a_coeff:.4f} | lhs_delta={self.last_lhs_delta_coeff:.4f} | accel_ref={accel_ref:.3f} | delta_ref={delta_ref:.3f} | solved_a={a.value:.3f} | solved_delta={delta.value:.3f} | slack={slack.value if slack is not None else 0.0:.4f}")
             if slack is not None and slack.value is not None:
                 self.last_slack = float(slack.value)
             else:
@@ -182,7 +207,13 @@ class EllipseCBFQPSafetyFilter:
             return float(a.value), float(delta.value)
 
         self.last_slack = 0.0
-        return self.fail_safe(delta_ref)
+        fail_accel, fail_delta = self.fail_safe(delta_ref)
+        self.last_h_ddot = (
+            self.last_h_ddot_base
+            + self.last_lhs_a_coeff * fail_accel
+            + self.last_lhs_delta_coeff * fail_delta
+        )
+        return fail_accel, fail_delta
 
     def clip(self, accel_ref, delta_ref):
         """Clip a nominal command to actuator limits."""

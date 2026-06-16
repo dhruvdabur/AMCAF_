@@ -60,49 +60,22 @@ def put_status(
     if not OVERLAY_TEXT_VISIBLE:
         return
     lines = [
-        f'MODE: {mode}  THR: {throttle}  ROLL: {roll}',
-        (
-            f'SPEED: {track_speed_pps:.1f}/{target_track_speed_pps:.1f} '
-            f'PPS  CBF_SCALE: {cbf_scale:.2f}'
-        ),
-        f'VEL_ERR: {speed_error_pps:.1f} PPS',
-        (
-            f'MAE: {metrics["mean_abs_cte_px"]:.1f} PX  '
-            f'RMSE: {metrics["rmse_cte_px"]:.1f} PX  '
-            f'MAX: {metrics["max_abs_cte_px"]:.1f} PX'
-        ),
-        (
-            f'HEAD: {metrics["mean_abs_heading_error_deg"]:.1f} DEG  '
-            f'SPEED_ERR: {metrics["mean_abs_speed_error_pps"]:.1f} PPS'
-        ),
-        (
-            f'STEER_EFF: {metrics["steering_effort_pwm_s"]:.0f}  '
-            f'THR_EFF: {metrics["throttle_effort_pwm_s"]:.0f}'
-        ),
-        (
-            f'CLEAR: {metrics["min_obstacle_clearance_px"]:.1f} PX  '
-            f'COLL: {metrics["collision_samples"]}  '
-            f'CBF: {metrics["cbf_interventions"]}  '
-            f'LAPS: {metrics["laps_completed"]}'
-        ),
-        (
-            f'LAP_LIMIT: {"ON" if lap_limit_enabled else "OFF"}  '
-            f'TARGET: {target_laps}'
-        ),
+        f'{mode}  thr {throttle}  roll {roll}',
+        f'speed {track_speed_pps:.1f}/{target_track_speed_pps:.1f} pps',
+        f'cbf {cbf_scale:.2f}  clear {metrics["min_obstacle_clearance_px"]:.1f}px',
     ]
     if np.isfinite(nearest_static_clearance_px):
         clearance_text = f'{nearest_static_clearance_px:.1f} PX'
     else:
         clearance_text = 'INF'
-    lines.append(f'STATIC_CLEAR: {clearance_text}')
+    lines.append(f'lidar clear {clearance_text}')
     if cbf_qp_status != 'unused':
         lines.append(
-            f'QP: {cbf_qp_status.upper()}  ACCEL: {cbf_qp_accel:.2f}  '
-            f'DELTA: {cbf_qp_delta:.2f}'
+            f'qp {cbf_qp_status.lower()}  a {cbf_qp_accel:.2f}  d {cbf_qp_delta:.2f}'
         )
-    scale = 0.7 * OVERLAY_TEXT_SCALE
-    line_step = max(12, int(round(28 * OVERLAY_TEXT_SCALE)))
-    y_start = max(14, int(round(30 * OVERLAY_TEXT_SCALE)))
+    scale = 0.55 * OVERLAY_TEXT_SCALE
+    line_step = max(12, int(round(22 * OVERLAY_TEXT_SCALE)))
+    y_start = max(14, int(round(24 * OVERLAY_TEXT_SCALE)))
     halo_thickness = max(1, int(round(4 * OVERLAY_TEXT_SCALE)))
     text_thickness = max(1, int(round(OVERLAY_TEXT_SCALE)))
     for index, line in enumerate(lines):
