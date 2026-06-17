@@ -5,8 +5,15 @@ import argparse
 import csv
 import json
 import math
+import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+
+os.environ.setdefault(
+    "MPLCONFIGDIR",
+    str(Path(tempfile.gettempdir()) / "amcaf-matplotlib"),
+)
 
 import matplotlib.pyplot as plt
 import numpy as np

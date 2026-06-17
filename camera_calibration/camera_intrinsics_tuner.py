@@ -3,6 +3,8 @@
 
 import argparse
 import json
+import re
+import subprocess
 from pathlib import Path
 
 import cv2
@@ -11,6 +13,28 @@ import numpy as np
 
 WINDOW_NAME = 'Camera Intrinsics Tuner'
 CONTROL_WINDOW = 'Intrinsic Controls'
+IMAGE_CONTROL_WINDOW = 'Image Controls'
+CAMERA_CONTROL_NAMES = (
+    'brightness',
+    'contrast',
+    'saturation',
+    'hue',
+    'white_balance_temperature',
+    'sharpness',
+    'gain',
+    'auto_exposure',
+    'exposure_absolute',
+    'exposure_time_absolute',
+)
+OPENCV_CAMERA_CONTROLS = {
+    'brightness': cv2.CAP_PROP_BRIGHTNESS,
+    'contrast': cv2.CAP_PROP_CONTRAST,
+    'saturation': cv2.CAP_PROP_SATURATION,
+    'hue': cv2.CAP_PROP_HUE,
+    'gain': cv2.CAP_PROP_GAIN,
+    'exposure': cv2.CAP_PROP_EXPOSURE,
+    'auto_exposure': cv2.CAP_PROP_AUTO_EXPOSURE,
+}
 
 
 def parse_args():
@@ -61,6 +85,11 @@ def parse_args():
         type=Path,
         default=Path('camera_intrinsics.yaml'),
         help='Path to save tuned parameters with S (default: camera_intrinsics.yaml).',
+    )
+    parser.add_argument(
+        '--no-camera-controls',
+        action='store_true',
+        help='Skip V4L2/OpenCV hardware camera sliders; preview sliders stay available.',
     )
     return parser.parse_args()
 
@@ -298,6 +327,274 @@ class TunerControls:
         return None
 
 
+class ImageControls:
+    """Track hardware camera controls and preview-only image adjustments."""
+
+    PREVIEW_DEFAULTS = {
+        'view_brightness': 100,
+        'view_contrast_x100': 100,
+        'view_gamma_x100': 100,
+        'view_saturation_x100': 100,
+        'view_hue_shift': 180,
+        'view_sharpness': 0,
+        'view_blur': 0,
+        'view_clahe': 0,
+    }
+    PREVIEW_MAX = {
+        'view_brightness': 200,
+        'view_contrast_x100': 300,
+        'view_gamma_x100': 300,
+        'view_saturation_x100': 300,
+        'view_hue_shift': 360,
+        'view_sharpness': 100,
+        'view_blur': 30,
+        'view_clahe': 1,
+    }
+
+    def __init__(self, cap, device, include_camera_controls=True):
+        self.cap = cap
+        self.device_path = f'/dev/video{device}'
+        self.camera_controls = {}
+        self.trackbar_to_control = {}
+
+        cv2.namedWindow(IMAGE_CONTROL_WINDOW, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(IMAGE_CONTROL_WINDOW, 620, 520)
+
+        if include_camera_controls:
+            self._create_camera_control_trackbars()
+        self._create_preview_trackbars()
+
+    def _create_camera_control_trackbars(self):
+        self.camera_controls = self._read_v4l2_controls()
+        if self.camera_controls:
+            for name, control in self.camera_controls.items():
+                label = f'cam_{control["label"]}'[:30]
+                control['label'] = label
+                cv2.createTrackbar(
+                    label,
+                    IMAGE_CONTROL_WINDOW,
+                    self._value_to_position(control, control['value']),
+                    control['max_position'],
+                    self._noop,
+                )
+                self.trackbar_to_control[label] = name
+            return
+
+        print('Using basic OpenCV camera controls; ranges may vary by camera.')
+        for name, prop in OPENCV_CAMERA_CONTROLS.items():
+            current = int(round(self.cap.get(prop)))
+            if current < 0:
+                current = 0
+            value = min(max(current, 0), 255)
+            label = f'cam_{name}'[:30]
+            self.camera_controls[name] = {
+                'label': label,
+                'backend': 'opencv',
+                'property': prop,
+                'min': 0,
+                'step': 1,
+                'max_position': 255,
+                'last_value': value,
+            }
+            cv2.createTrackbar(label, IMAGE_CONTROL_WINDOW, value, 255, self._noop)
+            self.trackbar_to_control[label] = name
+
+    def _create_preview_trackbars(self):
+        for label, value in self.PREVIEW_DEFAULTS.items():
+            cv2.createTrackbar(
+                label,
+                IMAGE_CONTROL_WINDOW,
+                value,
+                self.PREVIEW_MAX[label],
+                self._noop,
+            )
+
+    def update_camera_controls(self):
+        """Apply changed hardware slider values to the active camera."""
+        for name, control in self.camera_controls.items():
+            label = control['label']
+            position = cv2.getTrackbarPos(label, IMAGE_CONTROL_WINDOW)
+            value = self._position_to_value(control, position)
+            if value == control.get('last_value'):
+                continue
+
+            if control['backend'] == 'v4l2':
+                self._set_v4l2_control(name, value)
+            else:
+                self.cap.set(control['property'], value)
+            control['last_value'] = value
+
+    def apply_preview_adjustments(self, frame):
+        """Apply preview-only image operations before calibration visualization."""
+        settings = self.read_preview_settings()
+        adjusted = frame
+
+        blur = settings['blur']
+        if blur > 0:
+            kernel = blur * 2 + 1
+            adjusted = cv2.GaussianBlur(adjusted, (kernel, kernel), 0)
+
+        contrast = settings['contrast']
+        brightness = settings['brightness']
+        if contrast != 1.0 or brightness != 0:
+            adjusted = np.clip(
+                adjusted.astype(np.float32) * contrast + brightness,
+                0,
+                255,
+            ).astype(np.uint8)
+
+        gamma = settings['gamma']
+        if abs(gamma - 1.0) > 0.001:
+            adjusted = self._apply_gamma(adjusted, gamma)
+
+        if (
+            settings['saturation'] != 1.0
+            or settings['hue_shift'] != 0
+            or settings['clahe']
+        ):
+            hsv = cv2.cvtColor(adjusted, cv2.COLOR_BGR2HSV)
+            if settings['hue_shift'] != 0:
+                hue = hsv[:, :, 0].astype(np.int16)
+                hsv[:, :, 0] = np.mod(hue + settings['hue_shift'], 180).astype(
+                    np.uint8
+                )
+            if settings['saturation'] != 1.0:
+                saturation = hsv[:, :, 1].astype(np.float32) * settings['saturation']
+                hsv[:, :, 1] = np.clip(saturation, 0, 255).astype(np.uint8)
+            if settings['clahe']:
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+                hsv[:, :, 2] = clahe.apply(hsv[:, :, 2])
+            adjusted = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+
+        sharpness = settings['sharpness']
+        if sharpness > 0:
+            blurred = cv2.GaussianBlur(adjusted, (0, 0), 1.2)
+            adjusted = cv2.addWeighted(adjusted, 1.0 + sharpness, blurred, -sharpness, 0)
+
+        return adjusted
+
+    def read_preview_settings(self):
+        """Return current preview adjustment values in human-scale units."""
+        return {
+            'brightness': cv2.getTrackbarPos(
+                'view_brightness', IMAGE_CONTROL_WINDOW
+            )
+            - 100,
+            'contrast': cv2.getTrackbarPos(
+                'view_contrast_x100', IMAGE_CONTROL_WINDOW
+            )
+            / 100.0,
+            'gamma': max(
+                1,
+                cv2.getTrackbarPos('view_gamma_x100', IMAGE_CONTROL_WINDOW),
+            )
+            / 100.0,
+            'saturation': cv2.getTrackbarPos(
+                'view_saturation_x100', IMAGE_CONTROL_WINDOW
+            )
+            / 100.0,
+            'hue_shift': cv2.getTrackbarPos(
+                'view_hue_shift', IMAGE_CONTROL_WINDOW
+            )
+            - 180,
+            'sharpness': cv2.getTrackbarPos(
+                'view_sharpness', IMAGE_CONTROL_WINDOW
+            )
+            / 25.0,
+            'blur': cv2.getTrackbarPos('view_blur', IMAGE_CONTROL_WINDOW),
+            'clahe': bool(cv2.getTrackbarPos('view_clahe', IMAGE_CONTROL_WINDOW)),
+        }
+
+    def get_camera_control_values(self):
+        """Return last applied hardware camera control values."""
+        values = {}
+        for name, control in self.camera_controls.items():
+            if control['backend'] == 'v4l2':
+                values[name] = control.get('last_value')
+            else:
+                values[name] = float(self.cap.get(control['property']))
+        return values
+
+    def reset_preview_adjustments(self):
+        """Reset preview-only sliders to neutral values."""
+        for label, value in self.PREVIEW_DEFAULTS.items():
+            cv2.setTrackbarPos(label, IMAGE_CONTROL_WINDOW, value)
+
+    def _read_v4l2_controls(self):
+        try:
+            result = subprocess.run(
+                ['v4l2-ctl', '-d', self.device_path, '--list-ctrls'],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            return {}
+
+        controls = {}
+        pattern = re.compile(
+            r'^\s*(?P<name>\w+)\s+.*:\s+'
+            r'min=(?P<min>-?\d+)\s+'
+            r'max=(?P<max>-?\d+)\s+'
+            r'step=(?P<step>\d+)\s+'
+            r'default=(?P<default>-?\d+)\s+'
+            r'value=(?P<value>-?\d+)'
+        )
+        for line in result.stdout.splitlines():
+            match = pattern.match(line)
+            if not match:
+                continue
+            name = match.group('name')
+            if name not in CAMERA_CONTROL_NAMES:
+                continue
+            low = int(match.group('min'))
+            high = int(match.group('max'))
+            step = max(1, int(match.group('step')))
+            value = int(match.group('value'))
+            controls[name] = {
+                'label': name,
+                'backend': 'v4l2',
+                'min': low,
+                'max': high,
+                'step': step,
+                'value': value,
+                'last_value': value,
+                'max_position': int((high - low) / step),
+            }
+        return controls
+
+    def _set_v4l2_control(self, name, value):
+        result = subprocess.run(
+            ['v4l2-ctl', '-d', self.device_path, '-c', f'{name}={value}'],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            print(f'Warning: could not set {name}={value}: {result.stderr.strip()}')
+
+    @staticmethod
+    def _apply_gamma(frame, gamma):
+        inverse = 1.0 / gamma
+        table = np.array(
+            [((value / 255.0) ** inverse) * 255 for value in range(256)],
+            dtype=np.uint8,
+        )
+        return cv2.LUT(frame, table)
+
+    @staticmethod
+    def _value_to_position(control, value):
+        return int(round((value - control['min']) / control['step']))
+
+    @staticmethod
+    def _position_to_value(control, position):
+        return int(control['min'] + position * control['step'])
+
+    @staticmethod
+    def _noop(_value):
+        return None
+
+
 def draw_grid(frame, spacing=80):
     """Draw a reference grid over the preview frame."""
     output = frame.copy()
@@ -318,7 +615,7 @@ def put_status(frame, camera_matrix, distortion, undistort_enabled):
         f'fx={fx:.0f} fy={fy:.0f} cx={cx:.0f} cy={cy:.0f}',
         f'k1={k1:+.3f} k2={k2:+.3f} p1={p1:+.4f} p2={p2:+.4f} k3={k3:+.3f}',
         f'U: undistort {"on" if undistort_enabled else "off"}  '
-        'G: grid  R: reset  S: save  Q: quit',
+        'G: grid  R: reset intrinsics  A: reset image  S: save  Q: quit',
     ]
     for index, line in enumerate(lines):
         origin = (12, 28 + index * 28)
@@ -344,7 +641,14 @@ def put_status(frame, camera_matrix, distortion, undistort_enabled):
         )
 
 
-def save_parameters(path, camera_matrix, distortion, image_size):
+def save_parameters(
+    path,
+    camera_matrix,
+    distortion,
+    image_size,
+    preview_settings=None,
+    camera_controls=None,
+):
     """Save current camera parameters in OpenCV YAML format."""
     path.parent.mkdir(parents=True, exist_ok=True)
     storage = cv2.FileStorage(str(path), cv2.FILE_STORAGE_WRITE)
@@ -355,6 +659,18 @@ def save_parameters(path, camera_matrix, distortion, image_size):
         storage.write('image_height', int(image_size[1]))
         storage.write('camera_matrix', camera_matrix)
         storage.write('distortion_coefficients', distortion)
+        if preview_settings:
+            storage.write('preview_brightness', float(preview_settings['brightness']))
+            storage.write('preview_contrast', float(preview_settings['contrast']))
+            storage.write('preview_gamma', float(preview_settings['gamma']))
+            storage.write('preview_saturation', float(preview_settings['saturation']))
+            storage.write('preview_hue_shift', int(preview_settings['hue_shift']))
+            storage.write('preview_sharpness', float(preview_settings['sharpness']))
+            storage.write('preview_blur', int(preview_settings['blur']))
+            storage.write('preview_clahe', int(preview_settings['clahe']))
+        if camera_controls:
+            for name, value in camera_controls.items():
+                storage.write(f'camera_control_{name}', float(value))
     finally:
         storage.release()
     print(f'Saved intrinsics to {path}')
@@ -382,19 +698,29 @@ def main():
         )
         default_matrix, default_distortion = default_parameters(width, height)
         controls = TunerControls(width, height, camera_matrix, distortion)
+        image_controls = ImageControls(
+            cap,
+            args.device,
+            include_camera_controls=not args.no_camera_controls,
+        )
 
         cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
-        print('Controls: U undistort, G grid, R reset, S save, Q/Esc quit')
+        print(
+            'Controls: U undistort, G grid, R reset intrinsics, '
+            'A reset image, S save, Q/Esc quit'
+        )
 
         while True:
+            image_controls.update_camera_controls()
             camera_matrix, distortion, alpha = controls.read()
-            preview = frame
+            adjusted_frame = image_controls.apply_preview_adjustments(frame)
+            preview = adjusted_frame
             if undistort_enabled:
                 new_matrix, _roi = cv2.getOptimalNewCameraMatrix(
                     camera_matrix, distortion, (width, height), alpha, (width, height)
                 )
                 preview = cv2.undistort(
-                    frame,
+                    adjusted_frame,
                     camera_matrix,
                     distortion,
                     None,
@@ -420,7 +746,16 @@ def main():
                     alpha=0,
                 )
             elif key == ord('s'):
-                save_parameters(args.output, camera_matrix, distortion, (width, height))
+                save_parameters(
+                    args.output,
+                    camera_matrix,
+                    distortion,
+                    (width, height),
+                    image_controls.read_preview_settings(),
+                    image_controls.get_camera_control_values(),
+                )
+            elif key == ord('a'):
+                image_controls.reset_preview_adjustments()
 
             received, frame = cap.read()
             if not received:

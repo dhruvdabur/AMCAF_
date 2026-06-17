@@ -153,7 +153,7 @@ def parse_args(args=None):
     parser.add_argument('--target-track-speed-pps', type=float, default=38.0)
     parser.add_argument(
         '--gap-planner-mode',
-        choices=('stable_free_space', 'free_space', 'centerline'),
+        choices=('stable_free_space', 'free_space', 'centerline', 'follow_the_gap_advanced'),
         default='stable_free_space',
         help='How the lookahead setpoint is chosen around obstacles.',
     )

@@ -1,6 +1,7 @@
 """Reusable controller core for the closed-ellipse ArUco follower."""
 
 from dataclasses import dataclass
+import heapq
 import math
 import time
 
@@ -128,6 +129,9 @@ class EllipseStaticController:
         self.velocity_delta_pwm = 0.0
         self.cbf_scale = 1.0
         self.cbf_active = False
+        self.ftg_stuck_repulsion_active = False
+        self.ftg_stuck_repulsion_roll_bias = 0.0
+        self.ftg_stuck_repulsion_throttle_pwm = config.neutral_throttle_pwm
         self.cbf_qp_accel = 0.0
         self.cbf_qp_delta = 0.0
         self.cbf_qp_status = 'unused'
@@ -336,6 +340,18 @@ class EllipseStaticController:
                 'target_track_speed_pps': self.target_track_speed_pps,
                 'track_speed_filter_alpha': self.config.track_speed_filter_alpha,
                 'track_speed_slew_rate_pps2': self.config.track_speed_slew_rate_pps2,
+                'ftg_stuck_speed_pps': getattr(self.config, 'ftg_stuck_speed_pps', 0.0),
+                'ftg_stuck_forward_pwm': getattr(self.config, 'ftg_stuck_forward_pwm', 0.0),
+                'ftg_stuck_steering_gain_pwm': getattr(
+                    self.config,
+                    'ftg_stuck_steering_gain_pwm',
+                    0.0,
+                ),
+                'ftg_stuck_max_steering_bias_pwm': getattr(
+                    self.config,
+                    'ftg_stuck_max_steering_bias_pwm',
+                    0.0,
+                ),
                 'velocity_kp_pwm': self.config.velocity_kp_pwm,
                 'velocity_ki_pwm': self.config.velocity_ki_pwm,
                 'velocity_kd_pwm': self.config.velocity_kd_pwm,
@@ -351,6 +367,7 @@ class EllipseStaticController:
                 'qp_max_delta': self.config.qp_max_delta,
                 'qp_solver': self.config.qp_solver,
                 'qp_slack_weight': self.config.qp_slack_weight,
+                'qp_max_obstacles': getattr(self.config, 'qp_max_obstacles', 4),
                 'lap_limit_enabled': self.lap_limit_enabled,
                 'target_laps': self.target_laps,
             }
@@ -365,6 +382,18 @@ class EllipseStaticController:
                 'target_track_speed_pps': self.target_track_speed_pps,
                 'track_speed_filter_alpha': self.config.track_speed_filter_alpha,
                 'track_speed_slew_rate_pps2': self.config.track_speed_slew_rate_pps2,
+                'ftg_stuck_speed_pps': getattr(self.config, 'ftg_stuck_speed_pps', 0.0),
+                'ftg_stuck_forward_pwm': getattr(self.config, 'ftg_stuck_forward_pwm', 0.0),
+                'ftg_stuck_steering_gain_pwm': getattr(
+                    self.config,
+                    'ftg_stuck_steering_gain_pwm',
+                    0.0,
+                ),
+                'ftg_stuck_max_steering_bias_pwm': getattr(
+                    self.config,
+                    'ftg_stuck_max_steering_bias_pwm',
+                    0.0,
+                ),
                 'velocity_kp_pwm': self.config.velocity_kp_pwm,
                 'velocity_ki_pwm': self.config.velocity_ki_pwm,
                 'velocity_kd_pwm': self.config.velocity_kd_pwm,
@@ -380,6 +409,7 @@ class EllipseStaticController:
                 'qp_max_delta': self.config.qp_max_delta,
                 'qp_solver': self.config.qp_solver,
                 'qp_slack_weight': self.config.qp_slack_weight,
+                'qp_max_obstacles': getattr(self.config, 'qp_max_obstacles', 4),
                 'lap_limit_enabled': self.lap_limit_enabled,
                 'target_laps': self.target_laps,
                 'road_half_width_px': self.config.road_half_width_px,
@@ -470,6 +500,84 @@ class EllipseStaticController:
 
     def free_space_target(self, path_index):
         """Return the selected obstacle-free road interval target."""
+        if getattr(self.config, 'traffic_scenario', '') == 'head_on':
+            dynamic_obs = getattr(self, 'dynamic_obstacles', [])
+            if dynamic_obs:
+                obstacle_center = dynamic_obs[0].get('center')
+                if obstacle_center is not None:
+                    target = np.asarray(obstacle_center, dtype=np.float32)
+                    self.latest_free_space_target = target
+                    if getattr(self.config, 'gap_planner_mode', 'stable_free_space') == 'follow_the_gap_advanced':
+                        heading = getattr(self, 'last_marker_heading', 0.0)
+                        if heading is None:
+                            heading = 0.0
+                        origin = self.latest_vehicle_center
+                        if origin is None:
+                            origin = np.asarray(self.track_points[path_index], dtype=np.float32)
+                        delta_vec = target - origin
+                        target_dist = float(np.linalg.norm(delta_vec))
+                        target_angle = 0.0
+                        if target_dist > 0.0:
+                            target_angle = float(math.atan2(delta_vec[1], delta_vec[0]) - heading)
+                        self.latest_ftg_debug = {
+                            'target': target,
+                            'target_angle': target_angle,
+                            'target_dist': target_dist,
+                            'nearest_point': target,
+                            'nearest_angle': target_angle,
+                            'nearest_dist': target_dist,
+                            'bubble_radius': float(getattr(self.config, 'obstacle_margin_px', 42.0)),
+                            'max_range_cap': 500.0,
+                            'safe_ranges': np.array([target_dist], dtype=np.float32),
+                            'angles': np.array([target_angle], dtype=np.float32),
+                        }
+                    return target
+
+        if getattr(self.config, 'gap_planner_mode', 'stable_free_space') == 'follow_the_gap_advanced':
+            from . import follow_the_gap_advanced
+            origin = self.latest_vehicle_center
+            if origin is None:
+                origin = np.asarray(self.track_points[path_index], dtype=np.float32)
+            heading = getattr(self, 'last_marker_heading', 0.0)
+            if heading is None:
+                heading = 0.0
+            max_range = getattr(
+                self.config,
+                'ftg_max_range_px',
+                getattr(self.virtual_lidar, 'max_range_px', 500.0),
+            )
+            resolution = getattr(self.virtual_lidar, 'resolution_rad', 0.052359877)
+            bubble_radius = float(getattr(self.config, 'ftg_bubble_radius_px', 0.0))
+            if bubble_radius <= 0.0:
+                bubble_radius = follow_the_gap_advanced.follow_the_gap_bubble_radius(self.config)
+            
+            # Refresh lidar scan with current combined obstacles
+            self.virtual_lidar.scan(origin, heading, self.static_obstacles)
+            lidar_points = self.virtual_lidar.latest_points
+            
+            t0 = time.perf_counter()
+            ftg_debug = follow_the_gap_advanced.calculate_follow_the_gap_debug(
+                lidar_points=lidar_points,
+                origin=origin,
+                heading=heading,
+                max_range=max_range,
+                resolution=resolution,
+                bubble_radius=bubble_radius,
+            )
+            ftg_solve_time = (time.perf_counter() - t0) * 1000.0
+            ftg_debug['solve_time_ms'] = ftg_solve_time
+            target_angle = ftg_debug['target_angle']
+            target_dist = ftg_debug['target_dist']
+            ftg_debug['origin'] = np.asarray(origin, dtype=np.float32)
+            ftg_debug['heading'] = float(heading)
+            ftg_debug['scan_ranges'] = ftg_debug.get('ranges')
+            raw_target = ftg_debug.get('target')
+            self.latest_ftg_debug = ftg_debug
+            if raw_target is not None:
+                self.latest_free_space_target = raw_target
+                return raw_target
+            return self.track_points[path_index]
+
         return gap_planner.free_space_target(self, path_index)
 
     def gap_planner_obstacles(self):
@@ -578,6 +686,7 @@ class EllipseStaticController:
             )
             self.cbf_scale = min(cbf_scale_before_qp, self.cbf_scale)
             self.cbf_active = self.cbf_active or self.cbf_scale < 0.999
+            throttle, roll = self.apply_ftg_stuck_repulsion(throttle, roll)
             self.roll = round(roll)
             return self.command_throttle_pwm(throttle)
 
@@ -597,6 +706,66 @@ class EllipseStaticController:
         if throttle_pwm < neutral:
             return int(round(neutral))
         return int(round(throttle_pwm))
+
+    def apply_ftg_stuck_repulsion(self, throttle_pwm, roll_pwm):
+        """Apply a small FTG-directed nudge when safety filtering leaves the bot stuck."""
+        self.ftg_stuck_repulsion_active = False
+        self.ftg_stuck_repulsion_roll_bias = 0.0
+        self.ftg_stuck_repulsion_throttle_pwm = self.config.neutral_throttle_pwm
+
+        if getattr(self.config, 'gap_planner_mode', '') != 'follow_the_gap_advanced':
+            return throttle_pwm, roll_pwm
+        if getattr(self.config, 'traffic_scenario', '') == 'head_on':
+            return throttle_pwm, roll_pwm
+
+        nudge_pwm = float(getattr(self.config, 'ftg_stuck_forward_pwm', 0.0))
+        if nudge_pwm <= 0.0:
+            return throttle_pwm, roll_pwm
+
+        stuck_speed = max(0.0, float(getattr(self.config, 'ftg_stuck_speed_pps', 0.0)))
+        if abs(float(self.track_speed_pps)) > stuck_speed:
+            return throttle_pwm, roll_pwm
+
+        neutral = float(self.config.neutral_throttle_pwm)
+        if float(throttle_pwm) > neutral + max(1.0, 0.25 * nudge_pwm):
+            return throttle_pwm, roll_pwm
+
+        ftg_debug = getattr(self, 'latest_ftg_debug', None)
+        if not ftg_debug:
+            return throttle_pwm, roll_pwm
+
+        target_dist = float(ftg_debug.get('target_dist', 0.0) or 0.0)
+        if (
+            target_dist <= 0.0
+            or (
+                ftg_debug.get('scaled_target') is None
+                and ftg_debug.get('target') is None
+            )
+        ):
+            return throttle_pwm, roll_pwm
+
+        target_angle = float(ftg_debug.get('target_angle', 0.0) or 0.0)
+        steering_gain = float(getattr(self.config, 'ftg_stuck_steering_gain_pwm', 0.0))
+        max_bias = max(0.0, float(getattr(self.config, 'ftg_stuck_max_steering_bias_pwm', 0.0)))
+        roll_bias = bounded(
+            steering_gain * math.sin(target_angle),
+            -max_bias,
+            max_bias,
+        )
+        nudged_roll = bounded(
+            float(roll_pwm) - roll_bias,
+            self.config.right_pwm,
+            self.config.left_pwm,
+        )
+        nudged_throttle = max(float(throttle_pwm), neutral + nudge_pwm)
+
+        self.ftg_stuck_repulsion_active = True
+        self.ftg_stuck_repulsion_roll_bias = roll_bias
+        self.ftg_stuck_repulsion_throttle_pwm = nudged_throttle
+        self.cbf_active = True
+        if self.cbf_qp_status not in ('unused', 'unavailable'):
+            self.cbf_qp_status = f'{self.cbf_qp_status}+ftg_unstuck'
+        return nudged_throttle, nudged_roll
 
     def pid_cbf_throttle(
         self,
@@ -636,7 +805,9 @@ class EllipseStaticController:
             self.velocity_controller.virtual_lidar.latest_points
         )
         self.nominal_throttle = self.config.forward_pwm
-        return self.command_throttle_pwm(result.throttle_pwm)
+        throttle, roll = self.apply_ftg_stuck_repulsion(result.throttle_pwm, self.roll)
+        self.roll = round(roll)
+        return self.command_throttle_pwm(throttle)
 
     def pid_velocity_cbf_throttle(
         self,
@@ -692,7 +863,9 @@ class EllipseStaticController:
             result.throttle_pwm,
             speed_error,
         )
-        return self.command_throttle_pwm(result.throttle_pwm)
+        throttle, roll = self.apply_ftg_stuck_repulsion(result.throttle_pwm, self.roll)
+        self.roll = round(roll)
+        return self.command_throttle_pwm(throttle)
 
     def cbf_velocity_scale(
         self,
@@ -751,9 +924,13 @@ class EllipseStaticController:
             self.config.cbf_h_px
         )
         obstacles = []
-        # Sort and limit to the closest 10 points to optimize QP solve time and prevent CPU latency bottlenecks
-        sorted_points = sorted(lidar_points, key=lambda p: p.distance_px)
-        if not sorted_points:
+        max_obstacles = max(1, int(getattr(self.config, 'qp_max_obstacles', 4)))
+        closest_points = heapq.nsmallest(
+            max_obstacles,
+            lidar_points,
+            key=lambda point: point.distance_px,
+        )
+        if not closest_points:
             self.nominal_throttle = self.config.forward_pwm
             self.nominal_roll = roll_pwm
             self.cbf_qp_status = 'no_x_obs'
@@ -770,7 +947,7 @@ class EllipseStaticController:
                 self.speed_error_pps,
             )
             return float(self.config.forward_pwm), roll_pwm
-        for point in sorted_points[:10]:
+        for point in closest_points:
             obstacle_velocity = self.lidar_point_obstacle_velocity(point)
             obstacles.append(PointObstacle(
                 x=float(point.x_px),
@@ -1175,6 +1352,14 @@ class EllipseStaticController:
             'track_speed_slew_rate_pps2',
             self.config.track_speed_slew_rate_pps2,
         )
+        for key in (
+            'ftg_stuck_speed_pps',
+            'ftg_stuck_forward_pwm',
+            'ftg_stuck_steering_gain_pwm',
+            'ftg_stuck_max_steering_bias_pwm',
+        ):
+            if key in values and hasattr(self.config, key):
+                setattr(self.config, key, values[key])
         self.config.velocity_kp_pwm = values.get(
             'velocity_kp_pwm',
             self.config.velocity_kp_pwm,
@@ -1217,6 +1402,8 @@ class EllipseStaticController:
             'qp_slack_weight',
             self.config.qp_slack_weight,
         )
+        if 'qp_max_obstacles' in values and hasattr(self.config, 'qp_max_obstacles'):
+            self.config.qp_max_obstacles = max(1, int(values['qp_max_obstacles']))
         self.refresh_cbf_qp_config()
         self.lap_limit_enabled = values.get(
             'lap_limit_enabled',

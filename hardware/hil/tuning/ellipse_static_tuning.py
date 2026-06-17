@@ -206,6 +206,7 @@ class EllipseStaticTuning:
             'qp_max_delta',
             'qp_solver',
             'qp_slack_weight',
+            'qp_max_obstacles',
             'enable_lap_limit',
             'target_laps',
         ]
@@ -238,6 +239,7 @@ class EllipseStaticTuning:
             'qp_max_delta',
             'qp_solver',
             'qp_slack_weight',
+            'qp_max_obstacles',
         )
         values = {key: payload[key] for key in value_keys if key in payload}
         if 'enable_lap_limit' in payload and 'lap_limit_enabled' not in values:

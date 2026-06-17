@@ -36,15 +36,16 @@ class DynamicStraightController(StraightStaticController):
     def combined_obstacles(self, use_random_static_obstacles=False):
         """Return the obstacle list used by the inherited safety logic."""
         obstacles = []
+        if getattr(self.config, 'include_road_boundary_walls', False):
+            obstacles.extend(getattr(self, 'road_boundary_obstacles', []))
         if use_random_static_obstacles:
             obstacles.extend(self.detected_random_obstacles)
         else:
             obstacles.extend(self.static_scene_obstacles)
         obstacles.extend(self.dynamic_obstacles)
-        return [
-            obstacle for obstacle in obstacles
-            if not is_road_boundary_obstacle(obstacle)
-        ]
+        if getattr(self.config, 'include_road_boundary_walls', False):
+            return obstacles
+        return [obstacle for obstacle in obstacles if not is_road_boundary_obstacle(obstacle)]
 
 
 DynamicStraightControlResult = StraightControlResult

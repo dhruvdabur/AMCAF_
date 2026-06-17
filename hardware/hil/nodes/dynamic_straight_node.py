@@ -35,8 +35,9 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
         self.dynamic_obstacle_smoothed_states = {}
         self.retired_dynamic_obstacle_indices = set()
         self.dynamic_obstacle_start_time = None
-        self.static_scene_obstacles = []
         config.dynamic_obstacles = True
+        if getattr(config, 'traffic_scenario', 'free_flow') == 'head_on':
+            config.include_road_boundary_walls = False
         if not config.static_obstacles:
             config.static_obstacles = '[]'
         super().__init__(config)
@@ -326,6 +327,17 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
                 spec(0.50, offset_center, ego_progress_speed * 0.08, wrap_progress=True, length_px=90.0, width_px=54.0),
                 spec(0.80, offset_right, ego_progress_speed * 0.10, wrap_progress=True, length_px=90.0, width_px=54.0),
             ]
+        if scenario == 'head_on':
+            return [
+                spec(0.50, offset_center, 0.0, length_px=90.0, width_px=54.0),
+            ]
+        if scenario == 'endless_walls':
+            return [
+                spec(0.15, offset_right, ego_progress_speed * 0.10, wrap_progress=True, length_px=90.0, width_px=54.0),
+                spec(0.35, offset_left, 0.0, wrap_progress=True, length_px=30.0, width_px=150.0),
+                spec(0.55, offset_left, ego_progress_speed * 0.08, wrap_progress=True, length_px=90.0, width_px=54.0),
+                spec(0.80, offset_right, 0.0, wrap_progress=True, length_px=30.0, width_px=150.0),
+            ]
 
         return self.make_free_flow_specs(rng)
 
@@ -398,6 +410,20 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
                 max_progress,
                 continuous=unlimited_path or not repeat_obstacles,
             )
+            if unlimited_path and repeat_obstacles:
+                ego_local_progress = 0.0
+                if vehicle_center is not None:
+                    local_p = self.vehicle_progress(vehicle_center)
+                    if local_p is not None:
+                        ego_local_progress = local_p
+                else:
+                    if self.virtual_vehicle_state is not None:
+                        vc = np.array([self.virtual_vehicle_state['x'], self.virtual_vehicle_state['y']], dtype=np.float32)
+                        local_p = self.vehicle_progress(vc)
+                        if local_p is not None:
+                            ego_local_progress = local_p
+                ego_cont = float(getattr(self, 'virtual_road_tile_index', 0)) + ego_local_progress
+                progress = ego_cont - 0.15 + ((progress - (ego_cont - 0.15)) % 1.0)
             if (
                 not repeat_obstacles
                 and (progress < min_progress or progress > max_progress)
@@ -467,9 +493,14 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
             if previous is not None:
                 previous_center, previous_time = previous
                 dt = max(1e-6, now - previous_time)
-                velocity = (obstacle['center'] - previous_center) / dt
-                obstacle['vx'] = float(velocity[0])
-                obstacle['vy'] = float(velocity[1])
+                displacement = np.linalg.norm(obstacle['center'] - previous_center)
+                if displacement > 300.0:
+                    obstacle['vx'] = 0.0
+                    obstacle['vy'] = 0.0
+                else:
+                    velocity = (obstacle['center'] - previous_center) / dt
+                    obstacle['vx'] = float(velocity[0])
+                    obstacle['vy'] = float(velocity[1])
             else:
                 obstacle['vx'] = 0.0
                 obstacle['vy'] = 0.0
@@ -509,7 +540,7 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
         """Low-pass traffic progress/lateral states for smoother simulation."""
         spec_index = candidate['spec']['index']
         previous = self.dynamic_obstacle_smoothed_states.get(spec_index)
-        if previous is None:
+        if previous is None or abs(float(candidate['progress']) - float(previous['progress'])) > 0.5:
             self.dynamic_obstacle_smoothed_states[spec_index] = {
                 'progress': float(candidate['progress']),
                 'lateral_offset_px': float(candidate['lateral_offset_px']),
@@ -543,7 +574,7 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
     def dynamic_scenario_repeats_obstacles(self):
         """Return whether this scenario intentionally recycles traffic vehicles."""
         scenario = getattr(self.config, 'traffic_scenario', 'free_flow')
-        return scenario in ('looping_flow', 'three_sparse')
+        return scenario in ('looping_flow', 'three_sparse', 'endless_walls')
 
     def resolve_dynamic_obstacle_layout(self, candidates, min_progress, max_progress):
         """Pack dynamic obstacle rectangles so their road-frame boxes do not overlap."""

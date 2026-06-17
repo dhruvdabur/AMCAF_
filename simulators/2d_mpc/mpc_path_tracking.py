@@ -9,17 +9,24 @@ lane while considering nearby traffic as nonlinear MPC safety constraints.
 
 import argparse
 import math
+import os
 import sys
+import tempfile
 import warnings
 from pathlib import Path
 
 warnings.filterwarnings("ignore", message="Pandas requires version .*")
+os.environ.setdefault(
+    "MPLCONFIGDIR",
+    str(Path(tempfile.gettempdir()) / "amcaf-matplotlib"),
+)
 
 import numpy as np
 import do_mpc
 import casadi as ca
 import matplotlib.animation as anm
 import matplotlib.pyplot as plt
+import matplotlib.transforms as transforms
 from matplotlib.patches import Rectangle, Circle
 from matplotlib.widgets import Button
 
@@ -65,6 +72,10 @@ MAIN_ROAD_WIDTH_M = 4.0 * LANE_WIDTH_M + 4.0
 SECONDARY_ROAD_WIDTH_M = 4.0 * LANE_WIDTH_M + 3.0
 LANE_CHANGE_PROB_PER_SEC = 0.08
 LANE_CHANGE_RATE_MPS = 1.3
+TRAFFIC_SPEED_MULTIPLIER = 2.0
+TRAFFIC_ACCEL_MULTIPLIER = 2.0
+DEFAULT_PLAYBACK_SPEED = 2
+PLAYBACK_SPEED_STEPS = (1, 2, 4, 8)
 DEFAULT_CONTROL_TOPIC = "/mpc/ackermann_command"
 
 
@@ -336,8 +347,8 @@ class TrafficVehicle:
     def __init__(self, course, start_idx, speed, color="blue", offset=0.0, direction=1, lane_offsets=None):
         self.course = course
         self.idx = float(start_idx)
-        self.target_speed = speed
-        self.speed = speed
+        self.target_speed = speed * TRAFFIC_SPEED_MULTIPLIER
+        self.speed = self.target_speed
         self.color = color
         self.offset = offset
         self.target_offset = offset
@@ -352,7 +363,7 @@ class TrafficVehicle:
             x_m=x,
             y_m=y,
             yaw_rad=yaw if direction == 1 else pi_to_pi(yaw + math.pi),
-            speed_mps=speed,
+            speed_mps=self.speed,
             color=color,
         )
         self.obstacle = Obstacle(self.state, length_m=2.4, width_m=1.1)
@@ -372,7 +383,7 @@ class TrafficVehicle:
         x, y, _ = self._get_state_at_idx(int(self.idx))
         near_red = any(signal.is_red and math.hypot(x - signal.x, y - signal.y) < signal.stop_radius for signal in signals)
         desired_speed = 0.0 if near_red else self.target_speed
-        accel = 3.0 if desired_speed > self.speed else 5.0
+        accel = (3.0 if desired_speed > self.speed else 5.0) * TRAFFIC_ACCEL_MULTIPLIER
         step_speed = accel * dt
         if self.speed < desired_speed:
             self.speed = min(desired_speed, self.speed + step_speed)
@@ -732,7 +743,7 @@ class CityTrafficSimulationGUI:
         self.sim_time_s = 0.0
         self.paused = False
         self.follow_vehicle = True
-        self.playback_speed = 1
+        self.playback_speed = DEFAULT_PLAYBACK_SPEED
         self.traffic_count = DEFAULT_TRAFFIC_COUNT
         self.command_publisher = command_publisher
 
@@ -809,7 +820,8 @@ class CityTrafficSimulationGUI:
         self.figure.canvas.draw_idle()
 
     def _on_speed(self, _event):
-        self.playback_speed = {1: 2, 2: 3, 3: 1}[self.playback_speed]
+        index = PLAYBACK_SPEED_STEPS.index(self.playback_speed)
+        self.playback_speed = PLAYBACK_SPEED_STEPS[(index + 1) % len(PLAYBACK_SPEED_STEPS)]
         self._sync_button_labels()
         self.figure.canvas.draw_idle()
 
@@ -830,13 +842,47 @@ class CityTrafficSimulationGUI:
         pause_label = "paused" if self.paused else "running"
         self.axes.set_title(f"City traffic MPC - Time {self.sim_time_s:.1f}s ({pause_label})", fontsize=14)
 
+        follow_transform = self._ego_view_transform() if self.follow_vehicle else None
         for obj in self.objects:
+            first_new_elem = len(self.elems)
             obj.draw(self.axes, self.elems)
+            if follow_transform and self._uses_world_coordinates(obj):
+                self._apply_ego_view_transform(first_new_elem, follow_transform)
 
-        if not self.follow_vehicle:
+        self._setup_axes()
+        if self.follow_vehicle:
+            area = self.vehicle.spec.area_size if self.vehicle else 34.0
+            self.axes.set_xlim(-area, area)
+            self.axes.set_ylim(-area, area)
+            self.axes.set_xlabel("Forward [m]", fontsize=14)
+            self.axes.set_ylabel("Left [m]", fontsize=14)
+        else:
             self.axes.set_xlim(self.x_lim.min_value(), self.x_lim.max_value())
             self.axes.set_ylim(self.y_lim.min_value(), self.y_lim.max_value())
-        self._setup_axes()
+
+    def _ego_view_transform(self):
+        """Map global world coordinates into the ego vehicle's local frame."""
+        state = self.vehicle.state
+        ego_x = state.get_x_m()
+        ego_y = state.get_y_m()
+        ego_yaw = state.get_yaw_rad()
+        cos_yaw = math.cos(ego_yaw)
+        sin_yaw = math.sin(ego_yaw)
+        return transforms.Affine2D.from_values(
+            cos_yaw,
+            -sin_yaw,
+            sin_yaw,
+            cos_yaw,
+            -cos_yaw * ego_x - sin_yaw * ego_y,
+            sin_yaw * ego_x - cos_yaw * ego_y,
+        )
+
+    def _uses_world_coordinates(self, obj):
+        return not isinstance(obj, (PathTrackingMetrics, TrafficScenarioOverlay))
+
+    def _apply_ego_view_transform(self, first_new_elem, ego_transform):
+        for artist in self.elems[first_new_elem:]:
+            artist.set_transform(ego_transform + self.axes.transData)
 
     def update(self, _frame):
         if not self.paused:
@@ -852,6 +898,15 @@ class CityTrafficSimulationGUI:
         return self.elems
 
     def draw(self):
+        if plt.get_backend().lower() == "agg":
+            self._draw_frame()
+            self.figure.canvas.draw()
+            plt.close(self.figure)
+            print(
+                "Matplotlib is using the non-interactive Agg backend; "
+                "rendered one frame and exited."
+            )
+            return
         self.anime = anm.FuncAnimation(
             self.figure,
             self.update,

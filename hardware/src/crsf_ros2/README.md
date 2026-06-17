@@ -136,11 +136,35 @@ ros2 run crsf_ros2 aruco_track_follower \
   --metrics-file metrics/aruco_track_follower_metrics.json
 ```
 
-Record the important topics during a run:
+Record a run with `rosbag`:
 
 ```bash
-ros2 bag record /image_raw /drone/rc_command
+ros2 bag record -a
 ```
+
+### Telemetry Decoding and Analysis Scripts
+
+1. **Decompress Bag File**:
+   ```bash
+   zstd -d bags/<bag_dir>/<file_name>.db3.zstd -o bags/<bag_dir>/<file_name>.db3
+   ```
+
+2. **Decode Bag Payload to CSV**:
+   ```bash
+   python3 bags/decode_bag.py bags/<bag_folder_name>
+   ```
+
+3. **Plot Telemetry Analysis**:
+   ```bash
+   python3 bags/graph_generator.py bags/<bag_folder_name>/pivoted_messages.csv
+   ```
+   *Generates and saves `cbf_qp_analysis.png` in the bag folder.*
+
+4. **Calculate Detailed Performance Metrics Report**:
+   ```bash
+   python3 bags/telemetry_analyser.py bags/<bag_folder_name>
+   ```
+   *Generates and saves `telemetry_analysis_report.md` in the bag folder.*
 
 Inspect topics and message types:
 

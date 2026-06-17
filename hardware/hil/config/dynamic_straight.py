@@ -31,8 +31,11 @@ QP_MIN_DELTA = QP_DEFAULTS.min_delta
 QP_MAX_DELTA = QP_DEFAULTS.max_delta
 QP_SOLVER = QP_DEFAULTS.solver
 QP_SLACK_WEIGHT = QP_DEFAULTS.slack_weight
+QP_MAX_OBSTACLES = 4
 GAP_SWITCH_HYSTERESIS_PX = 25.0
 GAP_TARGET_SMOOTHING_ALPHA = 0.18
+FTG_MAX_RANGE_PX = 500.0
+FTG_BUBBLE_RADIUS_PX = 0.0
 STEERING_KP_PX = 15
 STEERING_KI_PX = 0.0
 STEERING_KD_PX = 0.25
@@ -200,6 +203,8 @@ def parse_args(args=None):
             'signal_phase',
             'looping_flow',
             'three_sparse',
+            'head_on',
+            'endless_walls',
         ),
         default='free_flow',
         help='Preset dynamic-traffic pattern used by straight_dynamic.',
@@ -238,10 +243,20 @@ def parse_args(args=None):
         help='Control variant used for throttle/pitch output.',
     )
     parser.add_argument('--target-track-speed-pps', type=float, default=38.0)
+    import sys
+    import os
+    script_name = os.path.basename(sys.argv[0])
+    has_prefix = False
+    for suffix in ('dynamic_straight', 'dyanmic_straight'):
+        if script_name.endswith(suffix) and len(script_name) > len(suffix):
+            has_prefix = True
+            break
+    default_gap_mode = 'follow_the_gap_advanced' if has_prefix else 'stable_free_space'
+
     parser.add_argument(
         '--gap-planner-mode',
-        choices=('stable_free_space', 'free_space', 'centerline'),
-        default='stable_free_space',
+        choices=('stable_free_space', 'free_space', 'centerline', 'follow_the_gap_advanced'),
+        default=default_gap_mode,
         help='How the lookahead setpoint is chosen around obstacles.',
     )
     parser.add_argument(
@@ -255,6 +270,42 @@ def parse_args(args=None):
         type=float,
         default=GAP_TARGET_SMOOTHING_ALPHA,
         help='Low-pass coefficient for lateral free-space setpoint.',
+    )
+    parser.add_argument(
+        '--ftg-max-range-px',
+        type=float,
+        default=FTG_MAX_RANGE_PX,
+        help='Forward scan range used by Follow-the-Gap debug and target selection.',
+    )
+    parser.add_argument(
+        '--ftg-bubble-radius-px',
+        type=float,
+        default=FTG_BUBBLE_RADIUS_PX,
+        help='Override Follow-the-Gap safety bubble radius; 0 uses tuned default.',
+    )
+    parser.add_argument(
+        '--ftg-stuck-speed-pps',
+        type=float,
+        default=2.0,
+        help='Measured speed below which FTG may apply a small unstuck nudge.',
+    )
+    parser.add_argument(
+        '--ftg-stuck-forward-pwm',
+        type=float,
+        default=18.0,
+        help='Forward PWM above neutral for the FTG unstuck nudge; 0 disables.',
+    )
+    parser.add_argument(
+        '--ftg-stuck-steering-gain-pwm',
+        type=float,
+        default=80.0,
+        help='Steering PWM bias per sin(target angle) for FTG unstuck repulsion.',
+    )
+    parser.add_argument(
+        '--ftg-stuck-max-steering-bias-pwm',
+        type=float,
+        default=70.0,
+        help='Maximum steering PWM bias used by the FTG unstuck nudge.',
     )
     parser.add_argument(
         '--track-speed-filter-alpha',
@@ -303,6 +354,12 @@ def parse_args(args=None):
         default=QP_SLACK_WEIGHT,
         help='Optional CBF-QP slack penalty. 0 disables slack.',
     )
+    parser.add_argument(
+        '--qp-max-obstacles',
+        type=int,
+        default=QP_MAX_OBSTACLES,
+        help='Maximum closest xobs points used by the CBF-QP per frame.',
+    )
     parser.add_argument('--forward-pwm', type=int, default=1590)
     parser.add_argument('--min-forward-pwm', type=int, default=1585)
     parser.add_argument('--neutral-throttle-pwm', type=int, default=1500)
@@ -320,6 +377,12 @@ def parse_args(args=None):
         '--preview',
         action='store_true',
         help='Show OpenCV debug preview with marker, track, and target.',
+    )
+    parser.add_argument(
+        '--preview-max-fps',
+        type=float,
+        default=20.0,
+        help='Maximum OpenCV preview refresh rate; control still runs every frame.',
     )
     parser.add_argument(
         '--no-pid-panel',
@@ -409,6 +472,15 @@ def parse_args(args=None):
         help='Add static obstacle walls at the start and end of the road.',
     )
     parser.add_argument(
+        '--include-road-boundary-walls',
+        action=argparse.BooleanOptionalAction,
+        default=(default_gap_mode == 'follow_the_gap_advanced'),
+        help=(
+            'Treat straight-road side boundaries as solid obstacle walls. '
+            'Enabled by default for ftg_dynamic_straight.'
+        ),
+    )
+    parser.add_argument(
         '--dry-run',
         action='store_true',
         help='Detect marker and preview without publishing or arming.',
@@ -426,6 +498,7 @@ def parse_args(args=None):
         qp_max_delta=QP_MAX_DELTA,
         qp_solver=QP_SOLVER,
         qp_slack_weight=QP_SLACK_WEIGHT,
+        qp_max_obstacles=QP_MAX_OBSTACLES,
     )
     config, remaining = parser.parse_known_args(args)
     if config.load == 'tuning':

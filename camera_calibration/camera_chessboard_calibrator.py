@@ -152,9 +152,11 @@ def is_distinct_view(corners, previous_corners, min_motion):
     return float(np.mean(motion)) >= min_motion
 
 
-def put_text(frame, lines):
+def put_text(frame, lines, colors=None):
     """Draw readable status text on the frame."""
-    for index, line in enumerate(lines):
+    if colors is None:
+        colors = [(255, 255, 255)] * len(lines)
+    for index, (line, color) in enumerate(zip(lines, colors)):
         origin = (12, 30 + index * 28)
         cv2.putText(
             frame,
@@ -172,7 +174,7 @@ def put_text(frame, lines):
             origin,
             cv2.FONT_HERSHEY_SIMPLEX,
             0.65,
-            (255, 255, 255),
+            color,
             1,
             cv2.LINE_AA,
         )
@@ -232,29 +234,36 @@ def main():
     object_points = []
     image_points = []
     previous_corners = None
-    last_message = ''
+    last_message = ""
+    flash_timer = 0
 
     print(
-        f'Looking for {args.columns}x{args.rows} inner corners. '
-        'Move/tilt the chessboard between captures.'
+        f"Looking for {args.columns}x{args.rows} inner corners. "
+        "Move/tilt the chessboard between captures."
     )
-    print('SPACE: capture manually   C: calibrate now   R: reset   Q/Esc: quit')
+    print("SPACE: capture manually   C: calibrate now   R: reset   Q/Esc: quit")
 
     try:
         while True:
             received, frame = cap.read()
             if not received:
-                raise SystemExit('Camera stream stopped returning frames.')
+                raise SystemExit("Camera stream stopped returning frames.")
 
             image_size = (frame.shape[1], frame.shape[0])
             found, corners = find_chessboard(frame, pattern_size)
             preview = frame.copy()
+
+            # Draw coverage map of all previously accepted corners
+            for points in image_points:
+                for pt in points.reshape(-1, 2):
+                    cv2.circle(preview, tuple(pt.astype(int)), 2, (0, 255, 0), -1)
+
             if found:
                 cv2.drawChessboardCorners(preview, pattern_size, corners, found)
 
             key = cv2.waitKey(1) & 0xFF
             should_capture = False
-            if found and args.manual and key == ord(' '):
+            if found and args.manual and key == ord(" "):
                 should_capture = True
             elif found and not args.manual:
                 should_capture = is_distinct_view(
@@ -267,31 +276,40 @@ def main():
                 object_points.append(object_template.copy())
                 image_points.append(corners.copy())
                 previous_corners = corners.reshape(-1, 2).copy()
-                last_message = f'accepted sample {len(image_points)}/{args.samples}'
+                last_message = f"accepted sample {len(image_points)}/{args.samples}"
                 print(last_message)
+                flash_timer = 5  # Flash for 5 frames
+
+            if flash_timer > 0:
+                preview[:] = 255  # White flash
+                flash_timer -= 1
 
             ready = len(image_points) >= args.samples
-            if key == ord('c') and len(image_points) >= 3:
+            if key == ord("c") and len(image_points) >= 3:
                 ready = True
-            elif key == ord('r'):
+            elif key == ord("r"):
                 object_points.clear()
                 image_points.clear()
                 previous_corners = None
-                last_message = 'samples reset'
+                last_message = "samples reset"
                 print(last_message)
-            elif key in (ord('q'), 27):
+            elif key in (ord("q"), 27):
                 break
 
-            status = 'found' if found else 'not found'
-            capture_hint = 'manual SPACE' if args.manual else 'auto'
+            status = "FOUND" if found else "NOT FOUND"
+            status_color = (0, 255, 0) if found else (0, 0, 255)
+            ready = len(image_points) >= args.samples
+            samples_color = (0, 255, 0) if ready else (255, 255, 255)
+
+            # Draw compact status HUD
             put_text(
                 preview,
                 [
-                    f'chessboard: {status}  '
-                    f'samples: {len(image_points)}/{args.samples}',
-                    f'capture: {capture_hint}  C: calibrate  R: reset  Q: quit',
+                    f"CHESSBOARD: {status}",
+                    f"SAMPLES: {len(image_points)}/{args.samples}",
                     last_message,
                 ],
+                colors=[status_color, samples_color, (255, 255, 255)],
             )
             cv2.imshow(WINDOW_NAME, preview)
 

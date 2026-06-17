@@ -15,6 +15,7 @@ from rclpy.node import Node
 from rclpy.qos import HistoryPolicy
 from rclpy.qos import QoSProfile
 from rclpy.qos import ReliabilityPolicy
+from sensor_msgs.msg import CameraInfo
 from sensor_msgs.msg import Image
 
 
@@ -83,6 +84,17 @@ def parse_args(args=None):
         help='ROS2 image topic to publish (default: /image_raw).',
     )
     parser.add_argument(
+        '--camera-info',
+        type=Path,
+        default=None,
+        help='ROS camera_info YAML to publish with each image.',
+    )
+    parser.add_argument(
+        '--camera-info-topic',
+        default='/camera_info',
+        help='ROS2 camera info topic to publish when --camera-info is set.',
+    )
+    parser.add_argument(
         '--frame-id',
         default='camera',
         help='ROS frame_id for published images (default: camera).',
@@ -103,6 +115,11 @@ def parse_args(args=None):
         action='store_true',
         help='Open a live brightness/exposure control slider window.',
     )
+    parser.add_argument(
+        '--no-preview',
+        action='store_true',
+        help='Publish frames without opening the OpenCV preview window.',
+    )
     return parser.parse_known_args(args)
 
 
@@ -120,6 +137,15 @@ class CameraTester(Node):
             config.topic,
             make_sensor_qos(),
         )
+        self.camera_info_publisher = None
+        self.camera_info = None
+        if config.camera_info is not None:
+            self.camera_info = load_camera_info(config.camera_info, config.frame_id)
+            self.camera_info_publisher = self.create_publisher(
+                CameraInfo,
+                config.camera_info_topic,
+                make_sensor_qos(),
+            )
         self.cap = None
         self.controls = {}
         self.trackbar_to_control = {}
@@ -172,7 +198,7 @@ class CameraTester(Node):
                 check=False,
             )
             subprocess.run(
-                ['v4l2-ctl', '-d', self.device_path, '-c', 'auto_exposure=1'],
+                ['v4l2-ctl', '-d', self.device_path, '-c', 'auto_exposure=3'],
                 check=False,
             )
         except FileNotFoundError:
@@ -410,32 +436,43 @@ class CameraTester(Node):
         ros_image.header.stamp = self.get_clock().now().to_msg()
         ros_image.header.frame_id = self.config.frame_id
         self.image_publisher.publish(ros_image)
+        if self.camera_info is not None:
+            self.camera_info.header.stamp = ros_image.header.stamp
+            self.camera_info.header.frame_id = ros_image.header.frame_id
+            self.camera_info_publisher.publish(self.camera_info)
 
     def run(self):
         """Show the video stream until quit and publish each frame."""
         print('\nStarting video stream...')
         print("Press 'q' to quit, 'i' to print camera info again")
         print(f'Publishing to ROS2 topic: {self.config.topic}')
+        if self.camera_info is not None:
+            print(f'Publishing camera info to: {self.config.camera_info_topic}')
 
         frame_count = 0
         start_time = time.time()
-        cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
+        if not self.config.no_preview:
+            cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
 
         while rclpy.ok():
             if self.config.controls:
                 self.update_camera_controls()
             received, frame = self.cap.read()
             if not received:
-                print('Failed to capture frame')
+                print(
+                    'Failed to capture frame. If this happens after one frame, '
+                    'check the V4L2 auto_exposure control.'
+                )
                 break
 
             frame_count += 1
             elapsed_time = time.time() - start_time
             actual_fps = frame_count / elapsed_time if elapsed_time > 0 else 0.0
 
-            display_frame = frame.copy()
-            add_overlay(display_frame, frame_count, actual_fps)
-            cv2.imshow(WINDOW_NAME, display_frame)
+            if not self.config.no_preview:
+                display_frame = frame.copy()
+                add_overlay(display_frame, frame_count, actual_fps)
+                cv2.imshow(WINDOW_NAME, display_frame)
 
             try:
                 self.publish_frame(frame)
@@ -444,12 +481,13 @@ class CameraTester(Node):
 
             rclpy.spin_once(self, timeout_sec=0.0)
 
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q'):
-                self.save_properties_to_yaml()
-                break
-            if key == ord('i'):
-                self.print_camera_info()
+            if not self.config.no_preview:
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord('q'):
+                    self.save_properties_to_yaml()
+                    break
+                if key == ord('i'):
+                    self.print_camera_info()
 
             if frame_count % 30 == 0:
                 print(f'Frames: {frame_count} | Actual FPS: {actual_fps:.2f}')
@@ -478,6 +516,21 @@ def make_sensor_qos():
         depth=1,
         reliability=ReliabilityPolicy.BEST_EFFORT,
     )
+
+
+def load_camera_info(path, frame_id):
+    """Load a ROS camera_info YAML file into a CameraInfo message."""
+    payload = yaml.safe_load(path.read_text(encoding='utf-8'))
+    camera_info = CameraInfo()
+    camera_info.header.frame_id = frame_id
+    camera_info.width = int(payload['image_width'])
+    camera_info.height = int(payload['image_height'])
+    camera_info.distortion_model = payload.get('distortion_model', 'plumb_bob')
+    camera_info.d = list(payload['distortion_coefficients']['data'])
+    camera_info.k = list(payload['camera_matrix']['data'])
+    camera_info.r = list(payload['rectification_matrix']['data'])
+    camera_info.p = list(payload['projection_matrix']['data'])
+    return camera_info
 
 
 def add_overlay(frame, frame_count, actual_fps):

@@ -62,13 +62,8 @@ def put_status(
     lines = [
         f'{mode}  thr {throttle}  roll {roll}',
         f'speed {track_speed_pps:.1f}/{target_track_speed_pps:.1f} pps',
-        f'cbf {cbf_scale:.2f}  clear {metrics["min_obstacle_clearance_px"]:.1f}px',
+        f'cbf {cbf_scale:.2f}',
     ]
-    if np.isfinite(nearest_static_clearance_px):
-        clearance_text = f'{nearest_static_clearance_px:.1f} PX'
-    else:
-        clearance_text = 'INF'
-    lines.append(f'lidar clear {clearance_text}')
     if cbf_qp_status != 'unused':
         lines.append(
             f'qp {cbf_qp_status.lower()}  a {cbf_qp_accel:.2f}  d {cbf_qp_delta:.2f}'

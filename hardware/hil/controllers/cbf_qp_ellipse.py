@@ -54,7 +54,6 @@ class EllipseCBFQPConfig:
     slack_weight: float = 2000.0
 
 
-
 class EllipseCBFQPSafetyFilter:
     """Filter nominal commands through a CBF-QP with elliptical barriers."""
 
@@ -87,11 +86,10 @@ class EllipseCBFQPSafetyFilter:
         a = cp.Variable()
         delta = cp.Variable()
         cfg = self.config
-        slack = None
-        if float(cfg.slack_weight) > 0.0 and obstacles:
-            slack = cp.Variable(nonneg=True)
-
         constraints = []
+        slack_terms = []
+        selected_slack = None
+        use_slack = float(cfg.slack_weight) > 0.0
 
         self.last_h = 0.0
         self.last_h_dot = 0.0
@@ -131,7 +129,7 @@ class EllipseCBFQPSafetyFilter:
             p_dot = -v
             q_dot = 0.0
 
-            h = (p**2 / A2) + (q**2 / B2) - 2.2
+            h = (p**2 / A2) + (q**2 / B2) - 2.8
             h_dot = 2.0 * p * p_dot / A2 + 2.0 * q * q_dot / B2
             h_ddot_base = 2.0 * (p_dot**2 / A2 + q_dot**2 / B2)
             lhs_a_coeff = -2.0 * p / A2
@@ -145,17 +143,20 @@ class EllipseCBFQPSafetyFilter:
             )
             rhs = -h_ddot_base - cfg.gamma1 * h_dot - cfg.gamma2 * h
 
-            if slack is None:
+            obstacle_slack = cp.Variable(nonneg=True) if use_slack else None
+            if obstacle_slack is None:
                 constraints.append(
                     lhs_a_coeff * a + lhs_delta_coeff * delta >= rhs
                 )
             else:
                 constraints.append(
-                    lhs_a_coeff * a + lhs_delta_coeff * delta + slack >= rhs
+                    lhs_a_coeff * a
+                    + lhs_delta_coeff * delta
+                    + obstacle_slack
+                    >= rhs
                 )
+                slack_terms.append(obstacle_slack)
             brake_gate_active = h < 0.0 or rhs > 0.0
-            if brake_gate_active:
-                constraints.append(a <= 0.0)
 
             if h < min_h:
                 min_h = h
@@ -168,6 +169,7 @@ class EllipseCBFQPSafetyFilter:
                 self.last_obstacle_x = float(obs.x)
                 self.last_obstacle_y = float(obs.y)
                 self.last_brake_gate_active = bool(brake_gate_active)
+                selected_slack = obstacle_slack
 
         constraints += [
             a >= cfg.min_accel,
@@ -181,8 +183,10 @@ class EllipseCBFQPSafetyFilter:
             (a - accel_ref) ** 2,
             steering_weight * (delta - delta_ref) ** 2,
         ]
-        if slack is not None:
-            objective_terms.append(float(cfg.slack_weight) * cp.square(slack))
+        for obstacle_slack in slack_terms:
+            objective_terms.append(
+                float(cfg.slack_weight) * cp.square(obstacle_slack)
+            )
         objective = cp.Minimize(sum(objective_terms))
         problem = cp.Problem(objective, constraints)
         start_time = time.perf_counter()
@@ -193,12 +197,12 @@ class EllipseCBFQPSafetyFilter:
         self.last_status = problem.status
 
         if problem.status in ('optimal', 'optimal_inaccurate'):
-            if self.last_rhs > 0.0:
-                print(f"[CBF_QP_DEBUG] status={problem.status} | rhs={self.last_rhs:.3f} | h={self.last_h:.3f} | lhs_a={self.last_lhs_a_coeff:.4f} | lhs_delta={self.last_lhs_delta_coeff:.4f} | accel_ref={accel_ref:.3f} | delta_ref={delta_ref:.3f} | solved_a={a.value:.3f} | solved_delta={delta.value:.3f} | slack={slack.value if slack is not None else 0.0:.4f}")
-            if slack is not None and slack.value is not None:
-                self.last_slack = float(slack.value)
+            if selected_slack is not None and selected_slack.value is not None:
+                self.last_slack = float(selected_slack.value)
             else:
                 self.last_slack = 0.0
+            if self.last_rhs > 0.0:
+                print(f"[CBF_QP_DEBUG] status={problem.status} | rhs={self.last_rhs:.3f} | h={self.last_h:.3f} | lhs_a={self.last_lhs_a_coeff:.4f} | lhs_delta={self.last_lhs_delta_coeff:.4f} | accel_ref={accel_ref:.3f} | delta_ref={delta_ref:.3f} | solved_a={a.value:.3f} | solved_delta={delta.value:.3f} | slack={self.last_slack:.4f}")
             self.last_h_ddot = (
                 self.last_h_ddot_base
                 + self.last_lhs_a_coeff * float(a.value)
