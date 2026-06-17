@@ -1,11 +1,10 @@
 from pathlib import Path
-import os
 
 from setuptools import find_packages, setup
 
 package_name = 'crsf_ros2'
 submodules = 'crsf_ros2/submodules'
-hil_source = Path(__file__).resolve().parents[3] / 'hil'
+hil_source = Path(__file__).resolve().parents[2] / 'hil'
 setup_dir = Path(__file__).resolve().parent
 
 
@@ -25,7 +24,7 @@ hil_package_paths = [
 ]
 hil_packages = [hil_package_name(package) for package in hil_package_paths]
 package_dir = {
-    hil_package_name(package): os.path.relpath(package, setup_dir)
+    hil_package_name(package): str(package)
     for package in hil_package_paths
 }
 

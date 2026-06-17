@@ -148,8 +148,11 @@ class ArucoTrackFollower(Node):
     def make_detector_parameters(self):
         """Create ArUco detector parameters across OpenCV API variants."""
         if hasattr(cv2.aruco, 'DetectorParameters'):
-            return cv2.aruco.DetectorParameters()
-        return cv2.aruco.DetectorParameters_create()
+            params = cv2.aruco.DetectorParameters()
+        else:
+            params = cv2.aruco.DetectorParameters_create()
+        params.adaptiveThreshWinSizeStep = 15
+        return params
 
     def image_callback(self, image_msg):
         """Process one camera frame and update the latest RC command."""
@@ -1034,7 +1037,8 @@ class ArucoTrackFollower(Node):
         deadline = time.monotonic() + duration
         while time.monotonic() < deadline:
             self.command_pub.publish(self.neutral_message())
-            rclpy.spin_once(self, timeout_sec=0.0)
+            if self.executor is None:
+                rclpy.spin_once(self, timeout_sec=0.0)
             time.sleep(1.0 / UPDATE_RATE_HZ)
 
     def set_armed(self, armed):
@@ -1044,7 +1048,12 @@ class ArucoTrackFollower(Node):
         request = CommandBool.Request()
         request.value = armed
         future = self.arming_client.call_async(request)
-        rclpy.spin_until_future_complete(self, future, timeout_sec=2.0)
+        if self.executor is not None:
+            deadline = time.monotonic() + 2.0
+            while not future.done() and time.monotonic() < deadline:
+                time.sleep(0.01)
+        else:
+            rclpy.spin_until_future_complete(self, future, timeout_sec=2.0)
         if not future.done() or future.result() is None:
             raise RuntimeError('arming service did not respond')
         self.armed = armed

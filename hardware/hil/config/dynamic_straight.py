@@ -124,19 +124,19 @@ def parse_args(args=None):
     parser.add_argument(
         '--process-width',
         type=int,
-        default=960,
+        default=640,
         help='Downscale image to this width before ArUco detection; 0 disables.',
     )
     parser.add_argument(
         '--max-frame-age',
         type=float,
-        default=0.2,
+        default=0.08,
         help='Drop stamped images older than this many seconds; 0 disables.',
     )
     parser.add_argument(
         '--preview-width',
         type=int,
-        default=1600,
+        default=0,
         help='Resize debug preview to this width; 0 shows full size.',
     )
     parser.add_argument(

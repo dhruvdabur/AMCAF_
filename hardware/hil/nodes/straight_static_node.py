@@ -78,6 +78,7 @@ class ArucoTrackFollower(Node):
         self.pending_preview = None
         self.preview_lock = threading.Lock()
         self.preview_window_ready = False
+        self.preview_window_size_initialized = False
         self.preview_text_controls_ready = False
         self.output_enabled = False
         self.armed = False
@@ -182,8 +183,11 @@ class ArucoTrackFollower(Node):
     def make_detector_parameters(self):
         """Create ArUco detector parameters across OpenCV API variants."""
         if hasattr(cv2.aruco, 'DetectorParameters'):
-            return cv2.aruco.DetectorParameters()
-        return cv2.aruco.DetectorParameters_create()
+            params = cv2.aruco.DetectorParameters()
+        else:
+            params = cv2.aruco.DetectorParameters_create()
+        params.adaptiveThreshWinSizeStep = 15
+        return params
 
     def image_callback(self, image_msg):
         """Process one camera frame and update the latest RC command."""
@@ -1077,13 +1081,16 @@ class ArucoTrackFollower(Node):
         )
 
     def resize_preview_window(self, preview):
-        """Force the preview window to the requested display size."""
+        """Set the initial preview window size without fighting user/window-manager resizes."""
+        if self.preview_window_size_initialized:
+            return
         height, width = preview.shape[:2]
         target_width = width
         if self.config.preview_width > 0:
             target_width = max(width, self.config.preview_width)
         target_height = int(round(height * target_width / max(1, width)))
         cv2.resizeWindow(PREVIEW_WINDOW, target_width, target_height)
+        self.preview_window_size_initialized = True
 
     def draw_virtual_vehicle(self, preview):
         """Draw the synthetic vehicle body and heading vector."""
@@ -1912,7 +1919,12 @@ class ArucoTrackFollower(Node):
         request = CommandBool.Request()
         request.value = armed
         future = self.arming_client.call_async(request)
-        rclpy.spin_until_future_complete(self, future, timeout_sec=2.0)
+        if self.executor is not None:
+            deadline = time.monotonic() + 2.0
+            while not future.done() and time.monotonic() < deadline:
+                time.sleep(0.01)
+        else:
+            rclpy.spin_until_future_complete(self, future, timeout_sec=2.0)
         if not future.done() or future.result() is None:
             raise RuntimeError('arming service did not respond')
         self.armed = armed

@@ -594,8 +594,7 @@ class EllipseStaticController:
         """Return either stopped throttle or a minimum actuating forward PWM."""
         throttle_pwm = float(throttle_pwm)
         neutral = float(self.config.neutral_throttle_pwm)
-        min_forward = float(self.config.min_forward_pwm)
-        if throttle_pwm < min_forward:
+        if throttle_pwm < neutral:
             return int(round(neutral))
         return int(round(throttle_pwm))
 
@@ -953,7 +952,14 @@ class EllipseStaticController:
                 self.config.min_forward_pwm,
                 self.config.max_forward_pwm,
             )
-        return float(self.config.neutral_throttle_pwm)
+        min_accel = min(-1e-6, self.config.qp_min_accel)
+        ratio = bounded(1.0 - (accel / min_accel), 0.0, 1.0)
+        return bounded(
+            self.config.neutral_throttle_pwm
+            + ratio * (self.config.min_forward_pwm - self.config.neutral_throttle_pwm),
+            self.config.neutral_throttle_pwm,
+            self.config.min_forward_pwm,
+        )
 
     def roll_pwm_to_qp_delta(self, roll_pwm):
         """Map steering PWM into QP steering angle limits."""
