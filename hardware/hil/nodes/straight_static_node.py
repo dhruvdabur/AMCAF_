@@ -335,7 +335,7 @@ class ArucoTrackFollower(Node):
         no_gap = 1.0
         target_angle_rate = nan
         
-        ftg_debug = getattr(self, 'latest_ftg_debug', None)
+        ftg_debug = getattr(self.controller, 'latest_ftg_debug', None)
         if ftg_debug is not None:
             ftg_solve = float(ftg_debug.get('solve_time_ms', nan))
             t_dist = ftg_debug.get('target_dist', 0.0)
@@ -806,9 +806,6 @@ class ArucoTrackFollower(Node):
         height = self.config.virtual_height
         self.virtual_road_tile_index = 0
         self.controller.build_track_scene(width, height)
-        # ponytail: Auto-enable random obstacles for unlimited path runs
-        if self.config.virtual_unlimited_path:
-            self.config.random_static_obstacles = True
         if self.config.random_static_obstacles:
             self.random_static_obstacles = self.make_random_static_obstacles()
             self.detected_random_obstacles = []
@@ -1148,51 +1145,10 @@ class ArucoTrackFollower(Node):
         return obstacles
 
     def update_detected_random_obstacles(self, center):
-        """Prune passed obstacles, dynamically spawn new ones ahead, and mark visibility."""
+        """Reveal random obstacles only when the virtual sensor can see them."""
+        detected = []
         heading = self.virtual_vehicle_state['heading']
         forward = np.array([math.cos(heading), math.sin(heading)], dtype=np.float32)
-        
-        # 1. Filter out obstacles that are far behind the vehicle (150px)
-        pruned_obstacles = []
-        for obstacle in self.random_static_obstacles:
-            delta = obstacle['center'] - center
-            ahead = float(np.dot(delta, forward))
-            if ahead >= -150.0:
-                pruned_obstacles.append(obstacle)
-        self.random_static_obstacles = pruned_obstacles
-
-        # 2. Spawn new random obstacles ahead if count drops below target count
-        target_count = self.config.random_obstacle_count
-        if len(self.random_static_obstacles) < target_count:
-            rng = np.random.default_rng()
-            nearest_index = self.current_virtual_nearest_index()
-            current_progress = (nearest_index / len(self.track_points)) if nearest_index is not None else 0.5
-            
-            while len(self.random_static_obstacles) < target_count:
-                # Spawn between 30% and 60% progress ahead along the looping track
-                new_progress = (current_progress + rng.uniform(0.3, 0.6)) % 1.0
-                lateral_fraction = float(rng.uniform(-0.58, 0.58))
-                length_px = float(rng.uniform(25.0, 45.0))
-                width_px = float(rng.uniform(15.0, 30.0))
-                spec = {
-                    'progress': new_progress,
-                    'length_px': length_px,
-                    'width_px': width_px,
-                    'offset': lateral_fraction,
-                }
-                obstacle = make_laneless_static_obstacle(
-                    spec,
-                    self.track_points,
-                    self.road_tangents,
-                    self.road_normals,
-                    self.config,
-                )
-                obstacle['random_index'] = len(self.random_static_obstacles)
-                obstacle['detected'] = False
-                self.random_static_obstacles.append(obstacle)
-
-        # 3. Check visibility of all current obstacles
-        detected = []
         for obstacle in self.random_static_obstacles:
             delta = obstacle['center'] - center
             ahead = float(np.dot(delta, forward))

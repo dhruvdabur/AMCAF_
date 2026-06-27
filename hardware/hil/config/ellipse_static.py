@@ -346,6 +346,11 @@ def parse_args(args=None):
         help='Enable target-laps stopping from startup.',
     )
     parser.add_argument(
+        '--include-road-boundary-walls',
+        action='store_true',
+        help='Include road boundaries as physical obstacles/walls.',
+    )
+    parser.add_argument(
         '--dry-run',
         action='store_true',
         help='Detect marker and preview without publishing or arming.',

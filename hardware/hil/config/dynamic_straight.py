@@ -373,6 +373,18 @@ def parse_args(args=None):
         help='Optional CBF-QP slack penalty. 0 disables slack.',
     )
     parser.add_argument(
+        '--clf-alpha',
+        type=float,
+        default=0.1,
+        help='DCLF convergence rate alpha.',
+    )
+    parser.add_argument(
+        '--clf-slack-weight',
+        type=float,
+        default=500.0,
+        help='DCLF convergence slack weight penalty.',
+    )
+    parser.add_argument(
         '--qp-max-obstacles',
         type=int,
         default=QP_MAX_OBSTACLES,

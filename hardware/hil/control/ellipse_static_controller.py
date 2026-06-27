@@ -510,6 +510,8 @@ class EllipseStaticController:
             obstacle for obstacle in scene['obstacles']
             if not self.is_road_boundary_obstacle(obstacle)
         ]
+        if getattr(self.config, 'include_road_boundary_walls', False):
+            self.static_obstacles.extend(self.road_boundary_obstacles)
         self.latest_free_space_target = None
         self.latest_free_space_interval = None
         self.latest_free_space_lateral_target_px = 0.0
@@ -1038,24 +1040,9 @@ class EllipseStaticController:
             lidar_points,
             key=lambda point: point.distance_px,
         )
-        if not closest_points:
-            self.nominal_throttle = self.config.forward_pwm
-            self.nominal_roll = roll_pwm
-            self.cbf_qp_status = 'no_x_obs'
-            self.cbf_qp_accel = 0.0
-            self.cbf_qp_delta = self.roll_pwm_to_qp_delta(roll_pwm)
-            self.reset_cbf_qp_debug()
-            self.cbf_qp_solve_time_ms = 0.0
-            self.cbf_qp_slack = 0.0
-            self.cbf_scale = 1.0
-            self.cbf_active = False
-            self.velocity_controller.apply_throttle_anti_windup(
-                throttle_pwm,
-                self.config.forward_pwm,
-                self.speed_error_pps,
-            )
-            return float(self.config.forward_pwm), roll_pwm
         is_dclf = (self.config.controller_mode == PID_VELOCITY_DCLF_DCBF)
+        
+        # 1. Add closest lidar points
         for point in closest_points:
             obstacle_velocity = self.lidar_point_obstacle_velocity(point)
             if is_dclf:
@@ -1072,6 +1059,75 @@ class EllipseStaticController:
                     vx=obstacle_velocity[0],
                     vy=obstacle_velocity[1],
                 ))
+                
+        # 2. Add road boundary wall obstacles if enabled
+        if getattr(self.config, 'include_road_boundary_walls', False) and self.track_points is not None and self.road_normals is not None:
+            idx = self.latest_nearest_index
+            if idx is None:
+                center_np = np.array([car.x, car.y], dtype=np.float32)
+                dists = np.linalg.norm(self.track_points - center_np, axis=1)
+                idx = int(np.argmin(dists))
+            
+            closed = 'ellipse' in str(self.__class__.__name__).lower()
+            
+            # Add boundary points at offsets (0, 8) for current and lookahead projection (4 points total)
+            for offset in (0, 8):
+                i = idx + offset
+                if closed:
+                    i = i % len(self.track_points)
+                else:
+                    i = max(0, min(i, len(self.track_points) - 1))
+                
+                pt = self.track_points[i]
+                normal = self.road_normals[i]
+                left_pt = pt - normal * self.road_half_width_px
+                right_pt = pt + normal * self.road_half_width_px
+                
+                if is_dclf:
+                    obstacles.append(DCLF_DCBFPointObstacle(
+                        x=float(left_pt[0]),
+                        y=float(left_pt[1]),
+                        vx=0.0,
+                        vy=0.0
+                    ))
+                    obstacles.append(DCLF_DCBFPointObstacle(
+                        x=float(right_pt[0]),
+                        y=float(right_pt[1]),
+                        vx=0.0,
+                        vy=0.0
+                    ))
+                else:
+                    obstacles.append(PointObstacle(
+                        x=float(left_pt[0]),
+                        y=float(left_pt[1]),
+                        vx=0.0,
+                        vy=0.0
+                    ))
+                    obstacles.append(PointObstacle(
+                        x=float(right_pt[0]),
+                        y=float(right_pt[1]),
+                        vx=0.0,
+                        vy=0.0
+                    ))
+
+        # 3. If no obstacles to filter, return nominal controls
+        if not obstacles:
+            self.nominal_throttle = self.config.forward_pwm
+            self.nominal_roll = roll_pwm
+            self.cbf_qp_status = 'no_x_obs'
+            self.cbf_qp_accel = 0.0
+            self.cbf_qp_delta = self.roll_pwm_to_qp_delta(roll_pwm)
+            self.reset_cbf_qp_debug()
+            self.cbf_qp_solve_time_ms = 0.0
+            self.cbf_qp_slack = 0.0
+            self.cbf_scale = 1.0
+            self.cbf_active = False
+            self.velocity_controller.apply_throttle_anti_windup(
+                throttle_pwm,
+                self.config.forward_pwm,
+                self.speed_error_pps,
+            )
+            return float(self.config.forward_pwm), roll_pwm
         accel_ref = self.throttle_pwm_to_qp_accel(throttle_pwm)
         delta_ref = self.roll_pwm_to_qp_delta(roll_pwm)
         try:

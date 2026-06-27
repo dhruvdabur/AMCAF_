@@ -124,11 +124,17 @@ class PIDController:
 
 
 class VirtualLidar:
-    """Image-space lidar inspired by the av_control_guide ray-casting sensor."""
+    """Image-space forward lidar inspired by the av_control_guide ray-casting sensor."""
 
-    def __init__(self, max_range_px=500.0, resolution_rad=math.radians(3.0)):
+    def __init__(
+        self,
+        max_range_px=500.0,
+        resolution_rad=math.radians(3.0),
+        front_view_rad=math.radians(120.0),
+    ):
         self.max_range_px = max_range_px
         self.resolution_rad = resolution_rad
+        self.front_view_rad = front_view_rad
         self._contour_steps = 24
         self.cluster_gap_threshold_px = 30.0
         self.cluster_min_points = 3
@@ -137,19 +143,21 @@ class VirtualLidar:
         self.latest_clusters = []
 
     def scan(self, origin_px, heading_rad, obstacles):
-        """Return nearest polygon surface hits from ray-cast lidar beams."""
+        """Return nearest polygon surface hits from front-sector ray-cast beams."""
         if not obstacles:
             self.latest_points = []
             self.latest_clusters = []
             return []
 
-        bin_count = int(math.floor((2.0 * math.pi) / self.resolution_rad)) + 1
+        front_view_rad = float(self.front_view_rad)
+        half_view_rad = 0.5 * max(0.0, min(2.0 * math.pi, front_view_rad))
+        bin_count = int(math.floor((2.0 * half_view_rad) / self.resolution_rad)) + 1
         origin_x = float(origin_px[0])
         origin_y = float(origin_px[1])
         points = []
 
         for bin_id in range(bin_count):
-            angle = -math.pi + bin_id * self.resolution_rad
+            angle = -half_view_rad + bin_id * self.resolution_rad
             ray_angle = heading_rad + angle
             hit = self._nearest_obstacle_hit(
                 origin_x,

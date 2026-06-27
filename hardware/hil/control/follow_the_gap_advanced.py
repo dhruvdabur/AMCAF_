@@ -7,11 +7,60 @@ import re
 import numpy as np
 
 
-DEFAULT_BUBBLE_RADIUS = 211.354
-DEFAULT_MAX_RANGE_CAP = 493.601
+DEFAULT_BUBBLE_RADIUS = 95.7812
+DEFAULT_MAX_RANGE_CAP = 222.024
 DEFAULT_DEEP_CLUSTER_RATIO = 0.95
 DEFAULT_OBSTACLE_EPSILON = 1.0
 FORWARD_VIEW_RAD = math.radians(120.0)
+
+
+_prev_angle = 0.0
+_f1tenth_prev_angle = 0.0
+
+
+def extend_disparities(ranges, angles, vehicle_width=38.125):
+    """Draw a virtual safety radius around depth disparities to clear vehicle width."""
+    ranges = np.asarray(ranges, dtype=np.float32)
+    angles = np.asarray(angles, dtype=np.float32)
+    extended_ranges = np.copy(ranges)
+    
+    # Auto-detect scale: if max range is < 10, assume meters (F1Tenth), else pixels
+    is_meters = np.max(ranges) < 10.0
+    threshold = 0.5 if is_meters else 25.0
+    width = 0.35 if is_meters else float(vehicle_width)
+    
+    for i in range(1, len(ranges)):
+        diff = abs(ranges[i] - ranges[i - 1])
+        if diff > threshold:
+            closer_idx = i if ranges[i] < ranges[i - 1] else i - 1
+            closer_dist = ranges[closer_idx]
+            alpha = abs(angles[i] - angles[i - 1])
+            if closer_dist * alpha > 0:
+                num_indices = int(width / (closer_dist * alpha))
+                start = max(0, closer_idx - num_indices)
+                end = min(len(ranges), closer_idx + num_indices + 1)
+                for j in range(start, end):
+                    if j < len(extended_ranges) and extended_ranges[j] > closer_dist:
+                        extended_ranges[j] = closer_dist
+    return extended_ranges
+
+
+def select_best_gap_index(gaps, ranges, angles, goal_angle=0.0):
+    """Evaluate all gaps using a cost function balancing depth and heading error."""
+    best_idx = -1
+    min_cost = float('inf')
+    for start, end in gaps:
+        for i in range(start, end + 1):
+            depth = float(ranges[i])
+            heading_error = abs(angles[i] - goal_angle)
+            # Scaling depth index based on units
+            is_meters = np.max(ranges) < 10.0
+            depth_scale = 1.0 if is_meters else 100.0
+            cost = (depth_scale / (depth + 1e-5)) + (2.0 * heading_error)
+            if cost < min_cost:
+                min_cost = cost
+                best_idx = i
+    return best_idx
 
 
 def calculate_follow_the_gap_point(
@@ -60,8 +109,9 @@ def calculate_follow_the_gap_debug(
     if max_range_cap is not None:
         max_range = min(float(max_range), float(max_range_cap))
     ranges, angles = build_forward_scan(lidar_points, max_range, resolution)
+    extended_ranges = extend_disparities(ranges, angles, vehicle_width=bubble_radius)
     safe_ranges, bubble_center = apply_safety_bubble(
-        ranges,
+        extended_ranges,
         angles,
         bubble_radius,
         max_range,
@@ -72,7 +122,7 @@ def calculate_follow_the_gap_debug(
         bubble_radius,
         safe_ranges=safe_ranges,
     )
-    nearest_angle, nearest_dist = nearest_obstacle_point(ranges, angles, max_range=max_range)
+    nearest_angle, nearest_dist = nearest_obstacle_point(extended_ranges, angles, max_range=max_range)
     target = None
     if target_dist > 0.0:
         global_angle = heading + target_angle
@@ -154,6 +204,7 @@ def calculate_follow_the_gap_target(
     safe_ranges=None,
 ):
     """Return the safest target angle and distance from a LiDAR scan."""
+    global _prev_angle
     ranges = np.asarray(ranges, dtype=np.float32)
     angles = np.asarray(angles, dtype=np.float32)
     if ranges.size == 0 or angles.size == 0 or ranges.size != angles.size:
@@ -166,8 +217,9 @@ def calculate_follow_the_gap_target(
         return 0.0, 0.0
 
     if safe_ranges is None:
+        extended_ranges = extend_disparities(ranges, angles, vehicle_width=bubble_radius)
         safe_ranges, _bubble_center = apply_safety_bubble(
-            ranges,
+            extended_ranges,
             angles,
             bubble_radius,
         )
@@ -175,39 +227,33 @@ def calculate_follow_the_gap_target(
         safe_ranges = np.asarray(safe_ranges, dtype=np.float32)
 
     current_start = -1
-    best_start = -1
-    best_length = 0
-
+    gaps = []
     for i in range(len(safe_ranges)):
         if safe_ranges[i] > 0.0:
             if current_start == -1:
                 current_start = i
         else:
             if current_start != -1:
-                current_length = i - current_start
-                if current_length > best_length:
-                    best_length = current_length
-                    best_start = current_start
+                gaps.append((current_start, i - 1))
                 current_start = -1
+    if current_start != -1:
+        gaps.append((current_start, len(safe_ranges) - 1))
 
-    final_length = len(safe_ranges) - current_start
-    if current_start != -1 and final_length > best_length:
-        best_length = final_length
-        best_start = current_start
-
-    if best_length == 0:
+    if not gaps:
         return 0.0, 0.0
 
-    best_end = best_start + best_length
-    gap_ranges = safe_ranges[best_start:best_end]
-    max_gap_dist = np.max(gap_ranges)
-    depth_threshold = max_gap_dist * float(deep_cluster_ratio)
-    deep_cluster_indices = np.where(gap_ranges >= depth_threshold)[0]
-    furthest_idx_in_gap = int(np.mean(deep_cluster_indices))
+    best_gap_idx = select_best_gap_index(gaps, safe_ranges, angles, goal_angle=0.0)
+    if best_gap_idx == -1:
+        return 0.0, 0.0
 
-    target_idx = best_start + furthest_idx_in_gap
-    target_angle = float(angles[target_idx])
-    target_dist = float(safe_ranges[target_idx])
+    target_angle = float(angles[best_gap_idx])
+    target_dist = float(safe_ranges[best_gap_idx])
+
+    # Smooth the target steering heading with a low-pass filter
+    alpha = 0.25
+    smoothed_angle = (alpha * target_angle) + ((1.0 - alpha) * _prev_angle)
+    _prev_angle = smoothed_angle
+    target_angle = smoothed_angle
 
     return target_angle, target_dist
 
@@ -511,6 +557,7 @@ def run_tuning_panel():
 
 
 def f1tenth_follow_the_gap(raw_ranges, angle_min, angle_increment, car_width=0.3): # Define the core function taking raw ROS LiDAR data
+    global _f1tenth_prev_angle
     # --- 1. PREPROCESSING ---
     ranges = np.array(raw_ranges) # Convert the raw ROS tuple into a mutable numpy array
     
@@ -528,14 +575,18 @@ def f1tenth_follow_the_gap(raw_ranges, angle_min, angle_increment, car_width=0.3
     max_range_cap = 3.0 # Define the physical distance cutoff in meters
     cropped_ranges = np.clip(cropped_ranges, 0.0, max_range_cap) # Force any value above 3.0 down to exactly 3.0
     
+    # Calculate cropped angles for disparity extension
+    cropped_angles = np.array([angle_min + (start_idx + i) * angle_increment for i in range(len(cropped_ranges))])
+    
+    # Apply disparity extension (safety bubble expansion)
+    cropped_ranges = extend_disparities(cropped_ranges, cropped_angles, vehicle_width=car_width)
+    
     # --- 2. FIND CLOSEST THREAT & APPLY BUBBLE ---
     closest_idx = np.argmin(cropped_ranges) # Find the array index of the closest physical object
     
     # --- DYNAMIC BUBBLE SIZING PATCH ---
     car_width = 0.35 # Define the physical width of your F1Tenth chassis in meters plus a tiny safety margin
-    
     closest_dist = cropped_ranges[closest_idx] # Extract the exact physical distance to the detected threat in meters
-    
     safe_dist = max(0.1, closest_dist) # Prevent divide-by-zero math errors if the obstacle is touching the sensor
     
     # Use trigonometry (ArcSine) to find the angular width of the car at this specific distance
@@ -552,39 +603,36 @@ def f1tenth_follow_the_gap(raw_ranges, angle_min, angle_increment, car_width=0.3
     cropped_ranges[bubble_start:bubble_end] = 0.0 # Overwrite the entire bubble area to 0.0 (creating a virtual wall)
     
     # --- 3. FIND THE MAX GAP ---
-    # Find all contiguous sequences of non-zero elements in the masked array
-    non_zero_indices = np.where(cropped_ranges > 0.0)[0] # Get an array of all indices that are greater than zero
-    
-    if len(non_zero_indices) == 0: # Check the extreme edge case where the bubble wiped out the entire field of view
-        return 0.0, 0.0 # Return zero steering and zero speed to trigger emergency braking
+    # Find all contiguous gaps
+    current_start = -1
+    gaps = []
+    for i in range(len(cropped_ranges)):
+        if cropped_ranges[i] > 0.0:
+            if current_start == -1:
+                current_start = i
+        else:
+            if current_start != -1:
+                gaps.append((current_start, i - 1))
+                current_start = -1
+    if current_start != -1:
+        gaps.append((current_start, len(cropped_ranges) - 1))
         
-    # Group the non-zero indices into separate continuous chunks (gaps)
-    # np.diff calculates the step between indices; a step > 1 means a break in the gap
-    gap_splits = np.split(non_zero_indices, np.where(np.diff(non_zero_indices) > 1)[0] + 1) # Split into a list of arrays
-    
-    # Find the largest gap by checking the length of each chunk
-    widest_gap = max(gap_splits, key=len) # Extract the specific array chunk that contains the most consecutive rays
-    
+    if not gaps:
+        return 0.0, 0.0
+        
     # --- 4. FIND TARGET SETPOINT ---
-    gap_start = widest_gap[0] # Get the first index of the widest gap
-    gap_end = widest_gap[-1] # Get the last index of the widest gap
+    # Choose target index using the Cost-Based Gap Selector
+    target_idx = select_best_gap_index(gaps, cropped_ranges, cropped_angles, goal_angle=0.0)
+    if target_idx == -1:
+        return 0.0, 0.0
+        
+    target_angle = float(cropped_angles[target_idx])
     
-    # --- CENTROID TARGETING PATCH ---
-    gap_slice = cropped_ranges[gap_start:gap_end + 1] # Extract just the distance values physically located inside the winning gap
-    
-    max_depth = np.max(gap_slice) # Find the absolute maximum distance registered anywhere in this gap
-    
-    depth_threshold = max_depth * 0.95 # Calculate a 95% cutoff threshold to group all equally deep laser rays
-    
-    deep_indices = np.where(gap_slice >= depth_threshold)[0] # Extract an array of the local indices that pass the depth test
-    
-    deepest_idx_in_gap = int(np.mean(deep_indices)) # Calculate the mathematical center of the deep cluster to stabilize steering
-    # --- END PATCH ---
-    
-    target_idx = gap_start + deepest_idx_in_gap # Map the local gap index back to the cropped array index
-    
-    # Convert the array index back into a physical steering angle in radians
-    target_angle = (target_idx + start_idx) * angle_increment + angle_min # Re-add the start_idx to map back to the global ROS angle
+    # Smooth the target steering heading with a low-pass filter
+    alpha = 0.25
+    smoothed_angle = (alpha * target_angle) + ((1.0 - alpha) * _f1tenth_prev_angle)
+    _f1tenth_prev_angle = smoothed_angle
+    target_angle = smoothed_angle
     
     # --- 5. VELOCITY PROFILING ---
     # Calculate how fast to drive based on how sharp the target angle is

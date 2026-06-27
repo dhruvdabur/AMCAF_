@@ -31,6 +31,8 @@ class StraightStaticController(EllipseStaticController):
             obstacle for obstacle in scene['obstacles']
             if not is_road_boundary_obstacle(obstacle)
         ]
+        if getattr(self.config, 'include_road_boundary_walls', False):
+            self.static_obstacles.extend(self.road_boundary_obstacles)
         self.latest_free_space_target = None
         self.latest_free_space_interval = None
         self.latest_free_space_lateral_target_px = 0.0

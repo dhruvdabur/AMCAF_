@@ -445,6 +445,11 @@ def parse_args(args=None):
         help='Add static obstacle walls at the start and end of the road.',
     )
     parser.add_argument(
+        '--include-road-boundary-walls',
+        action='store_true',
+        help='Include road boundaries as physical obstacles/walls.',
+    )
+    parser.add_argument(
         '--dry-run',
         action='store_true',
         help='Detect marker and preview without publishing or arming.',
