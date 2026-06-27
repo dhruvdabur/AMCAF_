@@ -16,7 +16,7 @@ ARMING_SERVICE = '/drone/cmd/arming'
 NEUTRAL_VALUE = 1500
 UPDATE_RATE_HZ = 50.0
 SETTLE_DURATION = 0.5
-PID_WINDOW = 'Dynamic Straight Tuning'
+PID_WINDOW = 'Tuning Panel'
 PID_SCALE = 1000
 HEADING_SCALE = 10
 VELOCITY_SCALE = 10
@@ -75,6 +75,12 @@ def parse_args(args=None):
         action='store_true',
         help='Disable live tuning telemetry topics.',
     )
+    parser.add_argument(
+        '--telemetry-max-fps',
+        type=float,
+        default=10.0,
+        help='Maximum tuning telemetry publish rate; 0 publishes every frame.',
+    )
     parser.add_argument('--marker-id', type=int, default=0)
     parser.add_argument('--marker-dict', default='DICT_4X4_50')
     parser.add_argument(
@@ -116,6 +122,12 @@ def parse_args(args=None):
     parser.add_argument('--lookahead-points', type=int, default=10)
     parser.add_argument('--road-half-width-px', type=float, default=250.0)
     parser.add_argument(
+        '--lidar-heading-offset-rad',
+        type=float,
+        default=0.0,
+        help='Rotate the virtual lidar/FTG sensing frame relative to marker heading.',
+    )
+    parser.add_argument(
         '--static-obstacles',
         default='',
         help=(
@@ -129,6 +141,12 @@ def parse_args(args=None):
         type=int,
         default=640,
         help='Downscale image to this width before ArUco detection; 0 disables.',
+    )
+    parser.add_argument(
+        '--aruco-fallback-full-res',
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help='Retry ArUco detection on the full frame when the resized pass misses.',
     )
     parser.add_argument(
         '--max-frame-age',
@@ -381,13 +399,15 @@ def parse_args(args=None):
     parser.add_argument(
         '--preview-max-fps',
         type=float,
-        default=20.0,
+        default=12.0,
         help='Maximum OpenCV preview refresh rate; control still runs every frame.',
     )
     parser.add_argument(
+        '--no-tuning-panel',
         '--no-pid-panel',
+        dest='no_pid_panel',
         action='store_true',
-        help='Do not open the live PID tuning slider panel.',
+        help='Do not open the live controller tuning slider panel.',
     )
     parser.add_argument(
         '--debug-commands',
@@ -398,6 +418,12 @@ def parse_args(args=None):
         '--debug-visuals',
         action='store_true',
         help='Add dense control, safety, and planner overlays to preview.',
+    )
+    parser.add_argument(
+        '--debug-print-interval-s',
+        type=float,
+        default=1.0,
+        help='Minimum seconds between console debug prints.',
     )
     parser.add_argument(
         '--debug-trail-length',

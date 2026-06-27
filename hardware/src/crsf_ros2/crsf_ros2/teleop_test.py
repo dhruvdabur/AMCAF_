@@ -20,11 +20,12 @@ COMMAND_TOPIC = '/drone/rc_command'
 ARMING_SERVICE = '/drone/cmd/arming'
 NEUTRAL_VALUE = 1500
 STEERING_NEUTRAL_VALUE = 1500
+FORWARD_THROTTLE = 1587
 MAX_FORWARD_THROTTLE = 1600
+REVERSE_THROTTLE = NEUTRAL_VALUE - (FORWARD_THROTTLE - NEUTRAL_VALUE)
 MAX_REVERSE_THROTTLE = 1400
-MAX_LEFT_ROLL = 1700
-MAX_RIGHT_ROLL = 1300
-THROTTLE_STEP = 1
+MAX_LEFT_ROLL = 1300
+MAX_RIGHT_ROLL = 1700
 ROLL_STEP = 20
 UPDATE_RATE_HZ = 100.0
 SETTLE_DURATION = 0.5
@@ -79,17 +80,13 @@ class TeleopTest(Node):
     def handle_key(self, key):
         """Update the command from one terminal key; return false to quit."""
         if key == 'w':
-            self.throttle = min(
-                self.throttle + THROTTLE_STEP, MAX_FORWARD_THROTTLE
-            )
+            self.throttle = FORWARD_THROTTLE
         elif key == 's':
-            self.throttle = max(
-                self.throttle - THROTTLE_STEP, MAX_REVERSE_THROTTLE
-            )
+            self.throttle = REVERSE_THROTTLE
         elif key == 'a':
-            self.roll = min(self.roll + ROLL_STEP, MAX_LEFT_ROLL)
+            self.roll = max(self.roll - ROLL_STEP, MAX_LEFT_ROLL)
         elif key == 'd':
-            self.roll = max(self.roll - ROLL_STEP, MAX_RIGHT_ROLL)
+            self.roll = min(self.roll + ROLL_STEP, MAX_RIGHT_ROLL)
         elif key == 'c':
             self.roll = STEERING_NEUTRAL_VALUE
         elif key == ' ':
@@ -145,7 +142,8 @@ def parse_args(args=None):
 def print_controls():
     """Display key bindings and all configured command bounds."""
     print(
-        'W/S: throttle +/-5 '
+        f'W/S: throttle fixed to {FORWARD_THROTTLE} forward or '
+        f'{REVERSE_THROTTLE} reverse '
         f'({MAX_REVERSE_THROTTLE}=max reverse, {NEUTRAL_VALUE}=stop, '
         f'{MAX_FORWARD_THROTTLE}=max forward)'
     )

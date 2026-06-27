@@ -38,6 +38,7 @@ class StraightStaticController(EllipseStaticController):
         self.latest_free_space_intervals = []
         self.smoothed_free_space_lateral_target_px = None
         self.track_points = scene['centerline']
+        self.mpc_controller.update_track(self.track_points)
 
     def closed_road_scene_enabled(self):
         """Return whether the road scene should wrap around as a loop."""

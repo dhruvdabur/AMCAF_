@@ -1,5 +1,7 @@
 """Reusable controller core for the closed-ellipse ArUco follower."""
 
+UPDATE_RATE_HZ = 50.0
+
 from dataclasses import dataclass
 import heapq
 import math
@@ -16,6 +18,13 @@ from ..controllers import PID_CBF
 from ..controllers import PID_VELOCITY
 from ..controllers import PID_VELOCITY_CBF
 from ..controllers import PID_VELOCITY_CBF_QP_ELLIPSE
+from ..controllers import PID_VELOCITY_DCLF_DCBF
+from ..controllers import MPC_CBF
+from ..controllers import MPCController
+from ..controllers import MPCConfig
+from ..controllers import DCLF_DCBFConfig
+from ..controllers import DCLF_DCBFSafetyFilter
+from ..controllers import DCLF_DCBFPointObstacle
 from ..controllers import PIDController
 from ..controllers import PIDVelocityCBFController
 from ..controllers import PointObstacle
@@ -116,6 +125,36 @@ class EllipseStaticController:
                 slack_weight=getattr(config, 'qp_slack_weight', 0.0),
             )
         )
+        self.dclf_dcbf_filter = DCLF_DCBFSafetyFilter(
+            DCLF_DCBFConfig(
+                a_ell=config.cbf_a_ell,
+                b_ell=config.cbf_b_ell,
+                wheelbase=config.qp_wheelbase_px,
+                gamma1=config.cbf_gamma1,
+                gamma2=config.cbf_gamma2,
+                gamma3=config.cbf_gamma3,
+                min_accel=config.qp_min_accel,
+                max_accel=config.qp_max_accel,
+                min_delta=config.qp_min_delta,
+                max_delta=config.qp_max_delta,
+                solver=config.qp_solver,
+                slack_weight=getattr(config, 'qp_slack_weight', 0.0),
+                clf_alpha=getattr(config, 'clf_alpha', 0.1),
+                clf_slack_weight=getattr(config, 'clf_slack_weight', 500.0),
+            )
+        )
+        self.mpc_controller = MPCController(
+            MPCConfig(
+                wheelbase=config.qp_wheelbase_px,
+                delta_t=1.0 / UPDATE_RATE_HZ,
+                max_steer=config.qp_max_delta,
+                min_steer=config.qp_min_delta,
+                max_accel=config.qp_max_accel,
+                min_accel=config.qp_min_accel,
+                v_min=0.0,
+                v_max=2000.0,
+            )
+        )
         self.target_track_speed_pps = config.target_track_speed_pps
         self.effective_target_track_speed_pps = config.target_track_speed_pps
         self.cbf_stop_error_px = config.cbf_stop_error_px
@@ -153,6 +192,7 @@ class EllipseStaticController:
         self.metrics_file_path = unique_metrics_path(config.metrics_file)
         self.lap_limit_enabled = config.enable_lap_limit
         self.target_laps = max(0, config.target_laps)
+        self.last_pid_debug_print_time = 0.0
 
     @staticmethod
     def is_road_boundary_obstacle(obstacle):
@@ -279,6 +319,7 @@ class EllipseStaticController:
         self.last_marker_seen = False
         self.pid.reset()
         self.velocity_controller.reset()
+        self.mpc_controller.reset()
         self.last_progress_index = None
         self.last_progress_time = None
         self.last_vehicle_center = None
@@ -310,6 +351,7 @@ class EllipseStaticController:
         self.last_command_time = None
         self.pid.reset()
         self.velocity_controller.reset()
+        self.mpc_controller.reset()
         self.latest_lidar_points = []
         self.cbf_qp_accel = 0.0
         self.cbf_qp_delta = 0.0
@@ -435,6 +477,22 @@ class EllipseStaticController:
             solver=self.config.qp_solver,
             slack_weight=getattr(self.config, 'qp_slack_weight', 0.0),
         )
+        self.dclf_dcbf_filter.config = DCLF_DCBFConfig(
+            a_ell=self.config.cbf_a_ell,
+            b_ell=self.config.cbf_b_ell,
+            wheelbase=self.config.qp_wheelbase_px,
+            gamma1=self.config.cbf_gamma1,
+            gamma2=self.config.cbf_gamma2,
+            gamma3=self.config.cbf_gamma3,
+            min_accel=self.config.qp_min_accel,
+            max_accel=self.config.qp_max_accel,
+            min_delta=self.config.qp_min_delta,
+            max_delta=self.config.qp_max_delta,
+            solver=self.config.qp_solver,
+            slack_weight=getattr(self.config, 'qp_slack_weight', 0.0),
+            clf_alpha=getattr(self.config, 'clf_alpha', 0.1),
+            clf_slack_weight=getattr(self.config, 'clf_slack_weight', 500.0),
+        )
 
     def build_track_scene(self, width, height):
         """Create the laneless elliptical road scene for the current image size."""
@@ -459,6 +517,7 @@ class EllipseStaticController:
         self.latest_free_space_intervals = []
         self.smoothed_free_space_lateral_target_px = None
         self.track_points = scene['centerline']
+        self.mpc_controller.update_track(self.track_points)
 
     def road_scene_enabled(self):
         """Return whether the current track uses road-scene planning."""
@@ -538,9 +597,7 @@ class EllipseStaticController:
             origin = self.latest_vehicle_center
             if origin is None:
                 origin = np.asarray(self.track_points[path_index], dtype=np.float32)
-            heading = getattr(self, 'last_marker_heading', 0.0)
-            if heading is None:
-                heading = 0.0
+            heading = self.lidar_heading_rad()
             max_range = getattr(
                 self.config,
                 'ftg_max_range_px',
@@ -596,8 +653,14 @@ class EllipseStaticController:
             self.config.left_pwm,
         )
         if getattr(self.config, 'debug_visuals', False):
-            d_error = 0.0 if self.pid.previous_error is None or self.pid.previous_time is None or now == self.pid.previous_time else (lateral_error_px - self.pid.previous_error) / (now - self.pid.previous_time)
-            print(f"[PID_STEER_DEBUG] cte={lateral_error_px:.1f}px | head_err={heading_error_rad:.3f}rad | p_term={self.pid.kp*lateral_error_px:.2f} | i_term={self.pid.ki*self.pid.integral:.2f} | d_term={self.pid.kd*d_error:.2f} | heading_term={heading_term:.2f} | roll_pwm={bounded_roll}")
+            debug_interval = max(
+                0.0,
+                float(getattr(self.config, 'debug_print_interval_s', 1.0)),
+            )
+            if now - self.last_pid_debug_print_time >= debug_interval:
+                self.last_pid_debug_print_time = now
+                d_error = 0.0 if self.pid.previous_error is None or self.pid.previous_time is None or now == self.pid.previous_time else (lateral_error_px - self.pid.previous_error) / (now - self.pid.previous_time)
+                print(f"[PID_STEER_DEBUG] cte={lateral_error_px:.1f}px | head_err={heading_error_rad:.3f}rad | p_term={self.pid.kp*lateral_error_px:.2f} | i_term={self.pid.ki*self.pid.integral:.2f} | d_term={self.pid.kd*d_error:.2f} | heading_term={heading_term:.2f} | roll_pwm={bounded_roll}")
         if (
             (roll > self.config.left_pwm and lateral_error_px < 0.0)
             or (roll < self.config.right_pwm and lateral_error_px > 0.0)
@@ -657,7 +720,7 @@ class EllipseStaticController:
                 now,
             )
 
-        if self.config.controller_mode == PID_VELOCITY_CBF_QP_ELLIPSE:
+        if self.config.controller_mode in (PID_VELOCITY_CBF_QP_ELLIPSE, PID_VELOCITY_DCLF_DCBF):
             target_speed = self.target_track_speed_pps
             target_speed *= self.cbf_velocity_scale(
                 center,
@@ -683,6 +746,51 @@ class EllipseStaticController:
                 center,
                 nominal_throttle,
                 self.roll,
+            )
+            self.cbf_scale = min(cbf_scale_before_qp, self.cbf_scale)
+            self.cbf_active = self.cbf_active or self.cbf_scale < 0.999
+            throttle, roll = self.apply_ftg_stuck_repulsion(throttle, roll)
+            self.roll = round(roll)
+            return self.command_throttle_pwm(throttle)
+
+        if self.config.controller_mode == MPC_CBF:
+            spacing = 1.0
+            if self.track_points is not None and len(self.track_points) > 1:
+                spacing = float(np.linalg.norm(self.track_points[1] - self.track_points[0]))
+
+            target_speed = self.target_track_speed_pps
+            target_speed *= self.cbf_velocity_scale(
+                center,
+                lateral_error_px,
+                heading_error_rad,
+                now,
+            )
+            self.effective_target_track_speed_pps = target_speed
+            target_speed_px = target_speed * spacing
+            current_speed_px = float(self.track_speed_pps) * spacing
+
+            px = float(center[0])
+            py = float(center[1])
+            yaw = float(self.lidar_heading_rad())
+
+            accel, steer = self.mpc_controller.step(
+                px=px,
+                py=py,
+                yaw=yaw,
+                vel=current_speed_px,
+                target_speed=target_speed_px,
+            )
+
+            nominal_throttle = self.qp_accel_to_throttle_pwm(accel)
+            nominal_roll = self.qp_delta_to_roll_pwm(steer)
+
+            self.speed_error_pps = target_speed - self.track_speed_pps
+
+            cbf_scale_before_qp = self.cbf_scale
+            throttle, roll = self.apply_cbf_qp(
+                center,
+                nominal_throttle,
+                nominal_roll,
             )
             self.cbf_scale = min(cbf_scale_before_qp, self.cbf_scale)
             self.cbf_active = self.cbf_active or self.cbf_scale < 0.999
@@ -910,13 +1018,13 @@ class EllipseStaticController:
         car = Car(
             x=float(center[0]),
             y=float(center[1]),
-            psi=float(self.last_marker_heading),
+            psi=float(self.lidar_heading_rad()),
             v=max(0.0, float(self.track_speed_pps) * spacing),
             v_cmd=max(0.0, float(self.track_speed_pps) * spacing),
         )
         lidar_points = self.virtual_lidar.scan(
             center,
-            self.last_marker_heading,
+            self.lidar_heading_rad(),
             self.static_obstacles,
         )
         self.latest_lidar_points = self.virtual_lidar.latest_points
@@ -947,48 +1055,64 @@ class EllipseStaticController:
                 self.speed_error_pps,
             )
             return float(self.config.forward_pwm), roll_pwm
+        is_dclf = (self.config.controller_mode == PID_VELOCITY_DCLF_DCBF)
         for point in closest_points:
             obstacle_velocity = self.lidar_point_obstacle_velocity(point)
-            obstacles.append(PointObstacle(
-                x=float(point.x_px),
-                y=float(point.y_px),
-                vx=obstacle_velocity[0],
-                vy=obstacle_velocity[1],
-            ))
+            if is_dclf:
+                obstacles.append(DCLF_DCBFPointObstacle(
+                    x=float(point.x_px),
+                    y=float(point.y_px),
+                    vx=obstacle_velocity[0],
+                    vy=obstacle_velocity[1],
+                ))
+            else:
+                obstacles.append(PointObstacle(
+                    x=float(point.x_px),
+                    y=float(point.y_px),
+                    vx=obstacle_velocity[0],
+                    vy=obstacle_velocity[1],
+                ))
         accel_ref = self.throttle_pwm_to_qp_accel(throttle_pwm)
         delta_ref = self.roll_pwm_to_qp_delta(roll_pwm)
         try:
             a_ell_px, b_ell_px = self.cbf_ellipse_axes_px()
-            self.cbf_qp_ellipse_filter.config.a_ell = a_ell_px
-            self.cbf_qp_ellipse_filter.config.b_ell = b_ell_px
-            accel, delta = self.cbf_qp_ellipse_filter.solve(
-                car,
-                obstacles,
-                accel_ref,
-                delta_ref,
-            )
-            self.cbf_qp_status = (
-                self.cbf_qp_ellipse_filter.last_status or 'unknown'
-            )
-            self.cbf_qp_h = self.cbf_qp_ellipse_filter.last_h
-            self.cbf_qp_h_dot = self.cbf_qp_ellipse_filter.last_h_dot
-            self.cbf_qp_h_ddot = self.cbf_qp_ellipse_filter.last_h_ddot
-            self.cbf_qp_lhs_a = self.cbf_qp_ellipse_filter.last_lhs_a_coeff
-            self.cbf_qp_lhs_delta = self.cbf_qp_ellipse_filter.last_lhs_delta_coeff
-            self.cbf_qp_rhs = self.cbf_qp_ellipse_filter.last_rhs
-            self.cbf_qp_solve_time_ms = (
-                self.cbf_qp_ellipse_filter.last_solve_time_ms
-            )
-            self.cbf_qp_slack = self.cbf_qp_ellipse_filter.last_slack
-            self.cbf_qp_brake_gate_active = (
-                self.cbf_qp_ellipse_filter.last_brake_gate_active
-            )
-            self.cbf_qp_obstacle_x = self.cbf_qp_ellipse_filter.last_obstacle_x
-            self.cbf_qp_obstacle_y = self.cbf_qp_ellipse_filter.last_obstacle_y
+            if is_dclf:
+                self.dclf_dcbf_filter.config.a_ell = a_ell_px
+                self.dclf_dcbf_filter.config.b_ell = b_ell_px
+                accel, delta = self.dclf_dcbf_filter.solve(
+                    car,
+                    obstacles,
+                    accel_ref,
+                    delta_ref,
+                )
+                active_filter = self.dclf_dcbf_filter
+            else:
+                self.cbf_qp_ellipse_filter.config.a_ell = a_ell_px
+                self.cbf_qp_ellipse_filter.config.b_ell = b_ell_px
+                accel, delta = self.cbf_qp_ellipse_filter.solve(
+                    car,
+                    obstacles,
+                    accel_ref,
+                    delta_ref,
+                )
+                active_filter = self.cbf_qp_ellipse_filter
+
+            self.cbf_qp_status = active_filter.last_status or 'unknown'
+            self.cbf_qp_h = active_filter.last_h
+            self.cbf_qp_h_dot = active_filter.last_h_dot
+            self.cbf_qp_h_ddot = active_filter.last_h_ddot
+            self.cbf_qp_lhs_a = active_filter.last_lhs_a_coeff
+            self.cbf_qp_lhs_delta = active_filter.last_lhs_delta_coeff
+            self.cbf_qp_rhs = active_filter.last_rhs
+            self.cbf_qp_solve_time_ms = active_filter.last_solve_time_ms
+            self.cbf_qp_slack = active_filter.last_slack
+            self.cbf_qp_brake_gate_active = getattr(active_filter, 'last_brake_gate_active', False)
+            self.cbf_qp_obstacle_x = active_filter.last_obstacle_x
+            self.cbf_qp_obstacle_y = active_filter.last_obstacle_y
         except RuntimeError as exc:
             self.cbf_qp_status = 'unavailable'
             raise RuntimeError(
-                'controller-mode pid_velocity_cbf_qp_ellipse requires cvxpy and a '
+                f'controller-mode {self.config.controller_mode} requires cvxpy and a '
                 f'working QP solver ({self.config.qp_solver})'
             ) from exc
 
@@ -1144,10 +1268,10 @@ class EllipseStaticController:
         if roll_pwm <= center:
             span = max(1.0, center - self.config.right_pwm)
             ratio = bounded((center - roll_pwm) / span, 0.0, 1.0)
-            return ratio * self.config.qp_min_delta
+            return ratio * self.config.qp_max_delta
         span = max(1.0, self.config.left_pwm - center)
         ratio = bounded((roll_pwm - center) / span, 0.0, 1.0)
-        return ratio * self.config.qp_max_delta
+        return ratio * self.config.qp_min_delta
 
     def qp_delta_to_roll_pwm(self, delta):
         """Map QP steering angle back to steering PWM."""
@@ -1155,13 +1279,13 @@ class EllipseStaticController:
         if delta >= 0.0:
             ratio = bounded(delta / max(1e-6, self.config.qp_max_delta), 0.0, 1.0)
             return bounded(
-                center + ratio * (self.config.left_pwm - center),
+                center - ratio * (center - self.config.right_pwm),
                 self.config.right_pwm,
                 self.config.left_pwm,
             )
         ratio = bounded(delta / min(-1e-6, self.config.qp_min_delta), 0.0, 1.0)
         return bounded(
-            center - ratio * (center - self.config.right_pwm),
+            center + ratio * (self.config.left_pwm - center),
             self.config.right_pwm,
             self.config.left_pwm,
         )
@@ -1174,13 +1298,21 @@ class EllipseStaticController:
             return
         self.virtual_lidar.scan(
             center,
-            self.last_marker_heading,
+            self.lidar_heading_rad(),
             self.static_obstacles,
         )
         self.latest_lidar_points = self.virtual_lidar.latest_points
         self.nearest_static_clearance_px = self.virtual_lidar.nearest_clearance_px(
             self.config.cbf_h_px
         )
+
+    def lidar_heading_rad(self):
+        """Return marker heading plus the configured virtual lidar frame offset."""
+        heading = getattr(self, 'last_marker_heading', 0.0)
+        if heading is None:
+            heading = 0.0
+        offset = float(getattr(self.config, 'lidar_heading_offset_rad', 0.0))
+        return wrap_angle(float(heading) + offset)
 
     def update_track_speed(self, nearest_index, now):
         """Estimate progress speed in track-points per second."""
@@ -1340,6 +1472,8 @@ class EllipseStaticController:
         self.heading_kp = values.get('heading_kp', self.heading_kp)
         self.config.heading_kp = self.heading_kp
         self.config.forward_pwm = values.get('forward_pwm', self.config.forward_pwm)
+        if 'lookahead_points' in values:
+            self.config.lookahead_points = max(1, int(values['lookahead_points']))
         self.target_track_speed_pps = values.get(
             'target_track_speed_pps',
             self.target_track_speed_pps,
@@ -1352,6 +1486,25 @@ class EllipseStaticController:
             'track_speed_slew_rate_pps2',
             self.config.track_speed_slew_rate_pps2,
         )
+        self.config.road_half_width_px = values.get(
+            'road_half_width_px',
+            self.config.road_half_width_px,
+        )
+        self.config.obstacle_margin_px = values.get(
+            'obstacle_margin_px',
+            self.config.obstacle_margin_px,
+        )
+        self.config.lidar_heading_offset_rad = values.get(
+            'lidar_heading_offset_rad',
+            getattr(self.config, 'lidar_heading_offset_rad', 0.0),
+        )
+        for key in (
+            'preview_max_fps',
+            'telemetry_max_fps',
+            'debug_print_interval_s',
+        ):
+            if key in values and hasattr(self.config, key):
+                setattr(self.config, key, values[key])
         for key in (
             'ftg_stuck_speed_pps',
             'ftg_stuck_forward_pwm',
@@ -1402,6 +1555,10 @@ class EllipseStaticController:
             'qp_slack_weight',
             self.config.qp_slack_weight,
         )
+        if 'clf_alpha' in values:
+            self.config.clf_alpha = float(values['clf_alpha'])
+        if 'clf_slack_weight' in values:
+            self.config.clf_slack_weight = float(values['clf_slack_weight'])
         if 'qp_max_obstacles' in values and hasattr(self.config, 'qp_max_obstacles'):
             self.config.qp_max_obstacles = max(1, int(values['qp_max_obstacles']))
         self.refresh_cbf_qp_config()

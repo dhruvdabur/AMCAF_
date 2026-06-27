@@ -5,12 +5,19 @@ from .cbf_qp_ellipse import EllipseCBFQPConfig
 from .cbf_qp_ellipse import EllipseCBFQPSafetyFilter
 from .cbf_qp_ellipse import PointObstacle
 from .cbf_qp_ellipse import VehicleState
+from .DCLF_DCBF import DCLF_DCBFConfig
+from .DCLF_DCBF import DCLF_DCBFSafetyFilter
+from .DCLF_DCBF import DCLF_DCBFPointObstacle
+from .mpc_cbf import MPCConfig
+from .mpc_cbf import MPCController
 from .modes import CONTROLLER_MODES
 from .modes import PID
 from .modes import PID_CBF
 from .modes import PID_VELOCITY
 from .modes import PID_VELOCITY_CBF
 from .modes import PID_VELOCITY_CBF_QP_ELLIPSE
+from .modes import PID_VELOCITY_DCLF_DCBF
+from .modes import MPC_CBF
 from .pid import BarrierState
 from .pid import LidarCluster
 from .pid import PIDController
@@ -23,6 +30,11 @@ __all__ = [
     'Car',
     'EllipseCBFQPConfig',
     'EllipseCBFQPSafetyFilter',
+    'DCLF_DCBFConfig',
+    'DCLF_DCBFSafetyFilter',
+    'DCLF_DCBFPointObstacle',
+    'MPCConfig',
+    'MPCController',
     'LidarCluster',
     'PID',
     'PID_CBF',
@@ -31,6 +43,8 @@ __all__ = [
     'PID_VELOCITY',
     'PID_VELOCITY_CBF',
     'PID_VELOCITY_CBF_QP_ELLIPSE',
+    'PID_VELOCITY_DCLF_DCBF',
+    'MPC_CBF',
     'PointObstacle',
     'VehicleState',
     'VirtualLidar',

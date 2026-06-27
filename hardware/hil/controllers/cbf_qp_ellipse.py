@@ -73,6 +73,7 @@ class EllipseCBFQPSafetyFilter:
         self.last_obstacle_x = None
         self.last_obstacle_y = None
         self.last_brake_gate_active = False
+        self.last_debug_print_time = 0.0
 
     def solve(self, car, obstacles, accel_ref, delta_ref):
         """Return safe acceleration and steering commands."""
@@ -201,7 +202,9 @@ class EllipseCBFQPSafetyFilter:
                 self.last_slack = float(selected_slack.value)
             else:
                 self.last_slack = 0.0
-            if self.last_rhs > 0.0:
+            now = time.monotonic()
+            if self.last_rhs > 0.0 and now - self.last_debug_print_time >= 1.0:
+                self.last_debug_print_time = now
                 print(f"[CBF_QP_DEBUG] status={problem.status} | rhs={self.last_rhs:.3f} | h={self.last_h:.3f} | lhs_a={self.last_lhs_a_coeff:.4f} | lhs_delta={self.last_lhs_delta_coeff:.4f} | accel_ref={accel_ref:.3f} | delta_ref={delta_ref:.3f} | solved_a={a.value:.3f} | solved_delta={delta.value:.3f} | slack={self.last_slack:.4f}")
             self.last_h_ddot = (
                 self.last_h_ddot_base

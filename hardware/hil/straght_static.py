@@ -44,7 +44,7 @@ ARMING_SERVICE = '/drone/cmd/arming'
 NEUTRAL_VALUE = 1500
 UPDATE_RATE_HZ = 50.0
 SETTLE_DURATION = 0.5
-PID_WINDOW = 'Aruco PID Tuning'
+PID_WINDOW = 'Tuning Panel'
 PID_SCALE = 1000
 HEADING_SCALE = 10
 VELOCITY_SCALE = 10
@@ -316,9 +316,11 @@ def parse_args(args=None):
         help='Show OpenCV debug preview with marker, track, and target.',
     )
     parser.add_argument(
+        '--no-tuning-panel',
         '--no-pid-panel',
+        dest='no_pid_panel',
         action='store_true',
-        help='Do not open the live PID tuning slider panel.',
+        help='Do not open the live controller tuning slider panel.',
     )
     parser.add_argument(
         '--debug-commands',
@@ -373,6 +375,16 @@ class ArucoTrackFollower(Node):
         super().__init__('aruco_track_follower')
         cv2.setUseOptimized(True)
         self.config = config
+        mode = getattr(config, 'controller_mode', 'pid')
+        if mode == 'pid_velocity_dclf_dcbf':
+            mode_title = 'DCLF-DCBF'
+        elif mode == 'mpc_cbf':
+            mode_title = 'MPC-CBF'
+        elif mode == 'pid_velocity_cbf_qp_ellipse':
+            mode_title = 'CBF-QP'
+        else:
+            mode_title = mode.replace('_', '-').upper()
+        self.window_name = f"Tuning Panel ({mode_title})"
         self.bridge = CvBridge()
         self.command_pub = self.create_publisher(
             RCMessage,
@@ -941,122 +953,154 @@ class ArucoTrackFollower(Node):
             self.debug_command(command, 'marker lost')
 
     def create_pid_panel(self):
-        """Open live PID sliders for field tuning."""
-        cv2.namedWindow(PID_WINDOW, cv2.WINDOW_NORMAL)
-        cv2.resizeWindow(PID_WINDOW, 520, 280)
+        """Open live sliders for controller tuning."""
+        cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(self.window_name, 520, 400)
+        cv2.createTrackbar(
+            'CBF slack wt',
+            self.window_name,
+            int(getattr(self.config, 'qp_slack_weight', 2000)),
+            5000,
+            noop,
+        )
+        cv2.createTrackbar(
+            'CLF slack wt',
+            self.window_name,
+            int(getattr(self.config, 'clf_slack_weight', 500)),
+            2000,
+            noop,
+        )
+        cv2.createTrackbar(
+            'Lookahead pts',
+            self.window_name,
+            self.config.lookahead_points,
+            50,
+            noop,
+        )
+        cv2.createTrackbar(
+            'CLF alpha x100',
+            self.window_name,
+            int(round(getattr(self.config, 'clf_alpha', 0.1) * 100)),
+            100,
+            noop,
+        )
         cv2.createTrackbar(
             'Kp x1000',
-            PID_WINDOW,
+            self.window_name,
             int(round(self.config.steering_kp_px * PID_SCALE)),
             5000,
             noop,
         )
         cv2.createTrackbar(
             'Ki x1000',
-            PID_WINDOW,
+            self.window_name,
             int(round(self.config.steering_ki_px * PID_SCALE)),
             2000,
             noop,
         )
         cv2.createTrackbar(
             'Kd x1000',
-            PID_WINDOW,
+            self.window_name,
             int(round(self.config.steering_kd_px * PID_SCALE)),
             5000,
             noop,
         )
         cv2.createTrackbar(
             'Heading x10',
-            PID_WINDOW,
+            self.window_name,
             int(round(self.config.heading_kp * HEADING_SCALE)),
             3000,
             noop,
         )
         cv2.createTrackbar(
             'Throttle',
-            PID_WINDOW,
+            self.window_name,
             self.config.forward_pwm,
             self.config.max_forward_pwm,
             noop,
         )
         cv2.createTrackbar(
             'Target pps x10',
-            PID_WINDOW,
+            self.window_name,
             int(round(self.config.target_track_speed_pps * VELOCITY_SCALE)),
             1200,
             noop,
         )
         cv2.createTrackbar(
             'VelKp x10',
-            PID_WINDOW,
+            self.window_name,
             int(round(self.config.velocity_kp_pwm * VELOCITY_SCALE)),
             200,
             noop,
         )
         cv2.createTrackbar(
             'CBF stop px',
-            PID_WINDOW,
+            self.window_name,
             int(round(self.config.cbf_stop_error_px / CBF_ERROR_SCALE)),
             400,
             noop,
         )
         cv2.createTrackbar(
             'CBF h px',
-            PID_WINDOW,
+            self.window_name,
             int(round(self.config.cbf_h_px)),
             300,
             noop,
         )
         cv2.createTrackbar(
             'CBF alpha x100',
-            PID_WINDOW,
+            self.window_name,
             int(round(self.config.cbf_alpha * CBF_ALPHA_SCALE)),
             500,
             noop,
         )
         cv2.createTrackbar(
             'Lap limit',
-            PID_WINDOW,
+            self.window_name,
             1 if self.lap_limit_enabled else 0,
             1,
             noop,
         )
         cv2.createTrackbar(
             'Target laps',
-            PID_WINDOW,
+            self.window_name,
             self.target_laps,
             20,
             noop,
         )
         if self.config.forward_pwm < self.config.min_forward_pwm:
-            cv2.setTrackbarPos('Throttle', PID_WINDOW, self.config.min_forward_pwm)
+            cv2.setTrackbarPos('Throttle', self.window_name, self.config.min_forward_pwm)
 
     def read_panel_values(self):
         """Read live slider values without mutating controller state."""
         values = {
-            'steering_kp_px': cv2.getTrackbarPos('Kp x1000', PID_WINDOW)
+            'steering_kp_px': cv2.getTrackbarPos('Kp x1000', self.window_name)
             / PID_SCALE,
-            'steering_ki_px': cv2.getTrackbarPos('Ki x1000', PID_WINDOW)
+            'steering_ki_px': cv2.getTrackbarPos('Ki x1000', self.window_name)
             / PID_SCALE,
-            'steering_kd_px': cv2.getTrackbarPos('Kd x1000', PID_WINDOW)
+            'steering_kd_px': cv2.getTrackbarPos('Kd x1000', self.window_name)
             / PID_SCALE,
-            'heading_kp': cv2.getTrackbarPos('Heading x10', PID_WINDOW)
+            'heading_kp': cv2.getTrackbarPos('Heading x10', self.window_name)
             / HEADING_SCALE,
-            'forward_pwm': int(cv2.getTrackbarPos('Throttle', PID_WINDOW)),
+            'forward_pwm': int(cv2.getTrackbarPos('Throttle', self.window_name)),
             'target_track_speed_pps': cv2.getTrackbarPos(
                 'Target pps x10',
-                PID_WINDOW,
+                self.window_name,
             )
             / VELOCITY_SCALE,
-            'velocity_kp_pwm': cv2.getTrackbarPos('VelKp x10', PID_WINDOW)
+            'velocity_kp_pwm': cv2.getTrackbarPos('VelKp x10', self.window_name)
             / VELOCITY_SCALE,
-            'cbf_stop_error_px': cv2.getTrackbarPos('CBF stop px', PID_WINDOW)
+            'cbf_stop_error_px': cv2.getTrackbarPos('CBF stop px', self.window_name)
             * CBF_ERROR_SCALE,
-            'cbf_h_px': float(cv2.getTrackbarPos('CBF h px', PID_WINDOW)),
-            'cbf_alpha': cv2.getTrackbarPos('CBF alpha x100', PID_WINDOW)
+            'cbf_h_px': float(cv2.getTrackbarPos('CBF h px', self.window_name)),
+            'cbf_alpha': cv2.getTrackbarPos('CBF alpha x100', self.window_name)
             / CBF_ALPHA_SCALE,
-            'lap_limit_enabled': bool(cv2.getTrackbarPos('Lap limit', PID_WINDOW)),
-            'target_laps': int(cv2.getTrackbarPos('Target laps', PID_WINDOW)),
+            'lap_limit_enabled': bool(cv2.getTrackbarPos('Lap limit', self.window_name)),
+            'target_laps': int(cv2.getTrackbarPos('Target laps', self.window_name)),
+            'lookahead_points': int(cv2.getTrackbarPos('Lookahead pts', self.window_name)),
+            'clf_alpha': cv2.getTrackbarPos('CLF alpha x100', self.window_name) / 100.0,
+            'qp_slack_weight': float(cv2.getTrackbarPos('CBF slack wt', self.window_name)),
+            'clf_slack_weight': float(cv2.getTrackbarPos('CLF slack wt', self.window_name)),
         }
         values['forward_pwm'] = int(
             bounded(
@@ -1085,6 +1129,14 @@ class ArucoTrackFollower(Node):
         self.cbf_stop_error_px = values['cbf_stop_error_px']
         self.config.cbf_h_px = values['cbf_h_px']
         self.config.cbf_alpha = values['cbf_alpha']
+        if 'lookahead_points' in values:
+            self.config.lookahead_points = max(1, int(values['lookahead_points']))
+        if 'clf_alpha' in values:
+            self.config.clf_alpha = float(values['clf_alpha'])
+        if 'qp_slack_weight' in values:
+            self.config.qp_slack_weight = float(values['qp_slack_weight'])
+        if 'clf_slack_weight' in values:
+            self.config.clf_slack_weight = float(values['clf_slack_weight'])
         self.lap_limit_enabled = values.get(
             'lap_limit_enabled',
             self.lap_limit_enabled,
@@ -1104,7 +1156,7 @@ class ArucoTrackFollower(Node):
         )
 
     def update_pid_from_panel(self):
-        """Read live PID sliders and update controller gains."""
+        """Read live sliders and update controller gains."""
         if not self.pid_panel_enabled:
             return
         self.apply_tuning_values(self.read_panel_values())

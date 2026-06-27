@@ -1,0 +1,419 @@
+/* Modern Robotics Observability Engineering Theme CSS */
+
+:root {
+    --bg-base: #0a0a0f;
+    --bg-surface: rgba(20, 20, 30, 0.6);
+    --bg-surface-solid: #14141e;
+    --border-color: rgba(255, 255, 255, 0.08);
+    
+    --text-primary: #f0f0f5;
+    --text-secondary: #9090b0;
+    
+    --accent-red: #ff3355;
+    --accent-orange: #ff9933;
+    --accent-cyan: #33ccff;
+    --accent-purple: #9933ff;
+    --accent-green: #33ff99;
+    
+    --shadow-red: 0 0 15px rgba(255, 51, 85, 0.25);
+    --shadow-orange: 0 0 15px rgba(255, 153, 51, 0.25);
+    --shadow-cyan: 0 0 15px rgba(51, 204, 255, 0.25);
+    --shadow-purple: 0 0 15px rgba(153, 51, 255, 0.25);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'Outfit', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+}
+
+/* App Header */
+.app-header {
+    background: rgba(10, 10, 15, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.logo-area {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--accent-cyan);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent-cyan);
+    animation: pulse 1.8s infinite alternate;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.9); opacity: 0.5; }
+    100% { transform: scale(1.3); opacity: 1; }
+}
+
+.logo-area h1 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, #ffffff 30%, var(--text-secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-left: 1px solid var(--border-color);
+    padding-left: 0.8rem;
+}
+
+/* Primary Button Styling */
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent-cyan) 0%, #1a73e8 100%);
+    border: none;
+    border-radius: 6px;
+    color: #fff;
+    padding: 0.6rem 1.2rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: var(--shadow-cyan);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(51, 204, 255, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+/* Dashboard Layout Grid */
+.dashboard-grid {
+    flex: 1;
+    padding: 2rem;
+    max-width: 1600px;
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Cards System styling */
+.card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(8px);
+    transition: border-color 0.3s ease;
+}
+
+.card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.card-header {
+    margin-bottom: 1.2rem;
+}
+
+.card-header h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.card-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Statistics row */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+}
+
+.red-glowing {
+    border-color: rgba(255, 51, 85, 0.3);
+    box-shadow: var(--shadow-red);
+    color: var(--accent-red);
+}
+
+.orange-glowing {
+    border-color: rgba(255, 153, 51, 0.3);
+    box-shadow: var(--shadow-orange);
+    color: var(--accent-orange);
+}
+
+.cyan-glowing {
+    border-color: rgba(51, 204, 255, 0.3);
+    box-shadow: var(--shadow-cyan);
+    color: var(--accent-cyan);
+}
+
+.purple-glowing {
+    border-color: rgba(153, 51, 255, 0.3);
+    box-shadow: var(--shadow-purple);
+    color: var(--accent-purple);
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.stat-value {
+    font-size: 1.4rem;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+}
+
+/* Time Series Charts section */
+.charts-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(580px, 1fr));
+    gap: 1.8rem;
+}
+
+@media (max-width: 768px) {
+    .charts-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.chart-container {
+    position: relative;
+    height: 380px;
+    width: 100%;
+}
+
+/* Telemetry comparison table */
+.table-card {
+    width: 100%;
+}
+
+.table-container {
+    overflow-x: auto;
+    margin-top: 1rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+th, td {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+th {
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+}
+
+tr:hover td {
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.text-danger {
+    color: var(--accent-red);
+    font-weight: 600;
+}
+
+.text-success {
+    color: var(--accent-green);
+    font-weight: 600;
+}
+
+.diagnostic-recommendation {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.code-hl {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--accent-cyan);
+}
+
+/* App Footer styling */
+.app-footer {
+    border-top: 1px solid var(--border-color);
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-top: auto;
+}
+
+/* AutoDiag Findings styling */
+.diagnosis-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.diagnosis-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.diagnosis-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.diagnosis-title-area {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.diagnosis-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.diagnosis-badge {
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-error {
+    background: rgba(255, 51, 85, 0.15);
+    border: 1px solid var(--accent-red);
+    color: var(--accent-red);
+    box-shadow: var(--shadow-red);
+}
+
+.badge-warn {
+    background: rgba(255, 153, 51, 0.15);
+    border: 1px solid var(--accent-orange);
+    color: var(--accent-orange);
+    box-shadow: var(--shadow-orange);
+}
+
+.badge-ok {
+    background: rgba(51, 255, 153, 0.15);
+    border: 1px solid var(--accent-green);
+    color: var(--accent-green);
+}
+
+.diagnosis-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.2rem;
+    font-size: 0.85rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 0.8rem;
+}
+
+.detail-col h4 {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.4rem;
+}
+
+.detail-col ul {
+    list-style-type: none;
+}
+
+.detail-col li {
+    margin-bottom: 0.3rem;
+    position: relative;
+    padding-left: 0.8rem;
+    color: var(--text-primary);
+}
+
+.detail-col li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: var(--accent-cyan);
+}
+
+.detail-col.evidence-col li::before {
+    color: var(--accent-orange);
+}
+
+.detail-col.causes-col li::before {
+    color: var(--accent-red);
+}
+
+.detail-col.fixes-col li::before {
+    color: var(--accent-green);
+}
+

@@ -8,6 +8,8 @@ from ..controllers import CONTROLLER_MODES
 from ..controllers import EllipseCBFQPConfig
 from ..controllers import PID
 from ..controllers import PID_VELOCITY_CBF_QP_ELLIPSE
+from ..controllers import PID_VELOCITY_DCLF_DCBF
+from ..controllers import MPC_CBF
 from ..road import parse_static_obstacle_specs
 
 IMAGE_TOPIC = '/image_raw'
@@ -16,7 +18,7 @@ ARMING_SERVICE = '/drone/cmd/arming'
 NEUTRAL_VALUE = 1500
 UPDATE_RATE_HZ = 50.0
 SETTLE_DURATION = 0.5
-PID_WINDOW = 'Aruco PID Tuning'
+PID_WINDOW = 'Tuning Panel'
 PID_SCALE = 1000
 HEADING_SCALE = 10
 VELOCITY_SCALE = 10
@@ -72,6 +74,12 @@ def parse_args(args=None):
         action='store_true',
         help='Disable live tuning telemetry topics.',
     )
+    parser.add_argument(
+        '--telemetry-max-fps',
+        type=float,
+        default=10.0,
+        help='Maximum tuning telemetry publish rate; 0 publishes every frame.',
+    )
     parser.add_argument('--marker-id', type=int, default=0)
     parser.add_argument('--marker-dict', default='DICT_4X4_50')
     parser.add_argument(
@@ -109,6 +117,12 @@ def parse_args(args=None):
     parser.add_argument('--lookahead-points', type=int, default=10)
     parser.add_argument('--road-half-width-px', type=float, default=150.0)
     parser.add_argument(
+        '--lidar-heading-offset-rad',
+        type=float,
+        default=0.0,
+        help='Rotate the virtual lidar/FTG sensing frame relative to marker heading.',
+    )
+    parser.add_argument(
         '--static-obstacles',
         default='',
         help=(
@@ -122,6 +136,12 @@ def parse_args(args=None):
         type=int,
         default=640,
         help='Downscale image to this width before ArUco detection; 0 disables.',
+    )
+    parser.add_argument(
+        '--aruco-fallback-full-res',
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help='Retry ArUco detection on the full frame when the resized pass misses.',
     )
     parser.add_argument(
         '--max-frame-age',
@@ -216,6 +236,18 @@ def parse_args(args=None):
         default=QP_SLACK_WEIGHT,
         help='Optional CBF-QP slack penalty. 0 disables slack.',
     )
+    parser.add_argument(
+        '--clf-alpha',
+        type=float,
+        default=0.1,
+        help='DCLF convergence rate alpha.',
+    )
+    parser.add_argument(
+        '--clf-slack-weight',
+        type=float,
+        default=500.0,
+        help='DCLF convergence slack weight penalty.',
+    )
     parser.add_argument('--forward-pwm', type=int, default=1590)
     parser.add_argument('--min-forward-pwm', type=int, default=1585)
     parser.add_argument('--neutral-throttle-pwm', type=int, default=1500)
@@ -235,9 +267,11 @@ def parse_args(args=None):
         help='Show OpenCV debug preview with marker, track, and target.',
     )
     parser.add_argument(
+        '--no-tuning-panel',
         '--no-pid-panel',
+        dest='no_pid_panel',
         action='store_true',
-        help='Do not open the live PID tuning slider panel.',
+        help='Do not open the live controller tuning slider panel.',
     )
     parser.add_argument(
         '--debug-commands',
@@ -248,6 +282,12 @@ def parse_args(args=None):
         '--debug-visuals',
         action='store_true',
         help='Add dense control, safety, and planner overlays to preview.',
+    )
+    parser.add_argument(
+        '--debug-print-interval-s',
+        type=float,
+        default=1.0,
+        help='Minimum seconds between console debug prints.',
     )
     parser.add_argument(
         '--debug-trail-length',
@@ -364,6 +404,10 @@ def validate_config(config):
         raise SystemExit('cbf-h-px must be positive')
     if config.cbf_alpha <= 0.0:
         raise SystemExit('cbf-alpha must be positive')
+    if config.clf_alpha < 0.0:
+        raise SystemExit('clf-alpha must be non-negative')
+    if config.clf_slack_weight < 0.0:
+        raise SystemExit('clf-slack-weight must be non-negative')
     if config.cbf_gamma1 <= 0.0:
         raise SystemExit('cbf-gamma1 must be positive')
     if config.cbf_gamma2 <= 0.0:
@@ -384,7 +428,7 @@ def validate_config(config):
         raise SystemExit('qp-slack-weight must be non-negative')
     if config.aruco_marker_size_cm <= 0.0:
         raise SystemExit('aruco-marker-size-cm must be positive')
-    if config.controller_mode == PID_VELOCITY_CBF_QP_ELLIPSE:
+    if config.controller_mode in (PID_VELOCITY_CBF_QP_ELLIPSE, PID_VELOCITY_DCLF_DCBF, MPC_CBF):
         try:
             import cvxpy  # noqa: F401
         except ImportError as exc:
@@ -453,7 +497,7 @@ def print_config(config):
         f'neutral={config.neutral_throttle_pwm} '
         f'channel={config.drive_channel}'
     )
-    if config.controller_mode == PID_VELOCITY_CBF_QP_ELLIPSE:
+    if config.controller_mode in (PID_VELOCITY_CBF_QP_ELLIPSE, PID_VELOCITY_DCLF_DCBF, MPC_CBF):
         print(
             'qp-cbf: '
             f'a_ell={config.cbf_a_ell:.2f} '
