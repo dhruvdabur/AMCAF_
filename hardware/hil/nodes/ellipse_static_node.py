@@ -683,16 +683,21 @@ class ArucoTrackFollower(Node):
         if self.preview_window_ready:
             return
         cv2.namedWindow(PREVIEW_WINDOW, cv2.WINDOW_NORMAL)
+        cv2.moveWindow(PREVIEW_WINDOW, 50, 50)
         self.preview_window_ready = True
 
     def resize_preview_window(self, preview):
-        """Force the preview window to the requested display size."""
+        """Force the preview window to the requested display size once."""
+        if getattr(self, 'preview_window_size_initialized', False):
+            return
         height, width = preview.shape[:2]
         target_width = width
         if self.config.preview_width > 0:
             target_width = max(width, self.config.preview_width)
         target_height = int(round(height * target_width / max(1, width)))
         cv2.resizeWindow(PREVIEW_WINDOW, target_width, target_height)
+        cv2.moveWindow(PREVIEW_WINDOW, 50, 50)
+        self.preview_window_size_initialized = True
 
     def draw_road_scene(self, preview):
         """Draw the road scene and static obstacle field."""

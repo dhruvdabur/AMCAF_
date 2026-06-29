@@ -59,6 +59,7 @@ setup(
             'dyanmic_straight = crsf_ros2.hil.dynamic_straight:main',
             'follow_the_gap_dynamic_straight = crsf_ros2.hil.dynamic_straight:main',
             'ftg_dynamic_straight = crsf_ros2.hil.dynamic_straight:main',
+            'virtual_vehicle = crsf_ros2.hil.simulation.virtual_vehicle:main',
             'mentor_demo_benchmark = crsf_ros2.hil.mentor_demo_benchmark:main',
             'straight_random_static_test = crsf_ros2.hil.random_static_test:main',
             'straght_static = crsf_ros2.hil.straght_static:main',

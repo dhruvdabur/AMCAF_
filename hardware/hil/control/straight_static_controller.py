@@ -44,10 +44,14 @@ class StraightStaticController(EllipseStaticController):
 
     def closed_road_scene_enabled(self):
         """Return whether the road scene should wrap around as a loop."""
+        if getattr(self.config, 'use_safe_control_env', False):
+            return True
         return False
 
     def track_error(self, center, heading):
         """Find an open-road lookahead target and signed steering error."""
+        if getattr(self.config, 'use_safe_control_env', False):
+            return super().track_error(center, heading)
         self.track_points = self.select_free_space_path(center)
         distances = np.linalg.norm(self.track_points - center, axis=1)
         nearest_index = int(np.argmin(distances))

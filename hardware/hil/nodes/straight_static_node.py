@@ -58,6 +58,15 @@ class ArucoTrackFollower(Node):
             pass
         cv2.setUseOptimized(True)
         self.config = config
+        if config.virtual_vehicle_test:
+            zoom_out_factor = 0.55
+            config.road_half_width_px = config.road_half_width_px * zoom_out_factor
+            config.obstacle_margin_px = config.obstacle_margin_px * zoom_out_factor
+            config.target_track_speed_pps = config.target_track_speed_pps * zoom_out_factor
+            config.virtual_start_speed_pps = config.virtual_start_speed_pps * zoom_out_factor
+            if getattr(config, 'ftg_bubble_radius_px', 0.0) > 0.0:
+                config.ftg_bubble_radius_px = config.ftg_bubble_radius_px * zoom_out_factor
+            config.ftg_max_range_px = getattr(config, 'ftg_max_range_px', 500.0) * zoom_out_factor
         self.bridge = CvBridge()
         self.control_callback_group = MutuallyExclusiveCallbackGroup()
         self.command_callback_group = ReentrantCallbackGroup()
@@ -81,6 +90,8 @@ class ArucoTrackFollower(Node):
         self.aruco_parameters = self.make_detector_parameters()
         self.detector = self.make_detector()
         self.controller = self.make_controller(config)
+        if config.virtual_vehicle_test and hasattr(self.controller, 'virtual_lidar'):
+            self.controller.virtual_lidar.max_range_px = 500.0 * 0.55
         self.telemetry_publishers = self.create_tuning_telemetry_publishers()
         self.tuning = StraightStaticTuning(
             config,
@@ -852,10 +863,15 @@ class ArucoTrackFollower(Node):
         )
         self.publish_tuning_telemetry(result, marker_seen=True)
         previous_center = center.copy()
+        if not hasattr(self, 'virtual_vehicle_trail'):
+            self.virtual_vehicle_trail = []
+        self.virtual_vehicle_trail.append(center.copy())
+        if len(self.virtual_vehicle_trail) > 120:
+            self.virtual_vehicle_trail.pop(0)
         self.advance_virtual_vehicle(dt)
         self.debug_command(self.drive_message(), 'virtual')
         preview_target = result.target
-        if self.config.virtual_unlimited_path:
+        if self.config.virtual_unlimited_path and not getattr(self.config, 'use_safe_control_env', False):
             scene_delta = self.advance_virtual_road_window(previous_center)
             preview_target = result.target + scene_delta
         elif self.config.virtual_stop_at_end and self.virtual_reached_road_end():
@@ -1010,11 +1026,14 @@ class ArucoTrackFollower(Node):
     def translate_virtual_scene(self, delta):
         """Translate road geometry and obstacle polygons by an image-space delta."""
         delta = np.asarray(delta, dtype=np.float32)
-        self.controller.track_points = self.track_points + delta
+        if self.track_points is not None:
+            self.track_points = self.track_points + delta
+            self.controller.track_points = self.track_points
         if self.road_boundaries:
-            self.controller.road_boundaries = [
+            self.road_boundaries = [
                 boundary + delta for boundary in self.road_boundaries
             ]
+            self.controller.road_boundaries = self.road_boundaries
         for obstacle in self.virtual_scene_obstacles():
             obstacle['center'] = obstacle['center'] + delta
             obstacle['polygon'] = obstacle['polygon'] + delta
@@ -1026,6 +1045,10 @@ class ArucoTrackFollower(Node):
             self.controller.latest_target_center = (
                 self.controller.latest_target_center + delta
             )
+        if hasattr(self, 'virtual_vehicle_trail'):
+            self.virtual_vehicle_trail = [
+                pt + delta for pt in self.virtual_vehicle_trail
+            ]
         ftg_debug = getattr(self.controller, 'latest_ftg_debug', None)
         if ftg_debug is not None:
             for key in ('target', 'nearest_point', 'origin', 'scaled_target'):
@@ -1126,6 +1149,9 @@ class ArucoTrackFollower(Node):
             # ponytail: Spawn smaller virtual obstacles (length 25-45px, width 15-30px)
             length_px = float(rng.uniform(25.0, 45.0))
             width_px = float(rng.uniform(15.0, 30.0))
+            if self.config.virtual_vehicle_test:
+                length_px *= 0.55
+                width_px *= 0.55
             spec = {
                 'progress': progress,
                 'length_px': length_px,
@@ -1199,25 +1225,26 @@ class ArucoTrackFollower(Node):
             )
         if self.config.debug_visuals or self.config.virtual_vehicle_test:
             self.draw_debug_visuals(preview, center, target, tangent)
-        put_status(
-            preview,
-            self.config.controller_mode,
-            self.throttle,
-            self.roll,
-            self.command_is_fresh(),
-            self.track_speed_pps,
-            self.effective_target_track_speed_pps,
-            self.speed_error_pps,
-            self.velocity_delta_pwm,
-            self.cbf_scale,
-            self.metrics.summary(),
-            self.lap_limit_enabled,
-            self.target_laps,
-            self.nearest_static_clearance_px,
-            self.cbf_qp_status,
-            self.cbf_qp_accel,
-            self.cbf_qp_delta,
-        )
+        if not self.config.virtual_vehicle_test:
+            put_status(
+                preview,
+                self.config.controller_mode,
+                self.throttle,
+                self.roll,
+                self.command_is_fresh(),
+                self.track_speed_pps,
+                self.effective_target_track_speed_pps,
+                self.speed_error_pps,
+                self.velocity_delta_pwm,
+                self.cbf_scale,
+                self.metrics.summary(),
+                self.lap_limit_enabled,
+                self.target_laps,
+                self.nearest_static_clearance_px,
+                self.cbf_qp_status,
+                self.cbf_qp_accel,
+                self.cbf_qp_delta,
+            )
         preview = resize_for_preview(preview, self.config.preview_width)
         self.latest_preview_frame = preview.copy()
         self.prepare_preview_window(preview)
@@ -1245,6 +1272,7 @@ class ArucoTrackFollower(Node):
         if self.preview_window_ready:
             return
         cv2.namedWindow(PREVIEW_WINDOW, cv2.WINDOW_NORMAL)
+        cv2.moveWindow(PREVIEW_WINDOW, 50, 50)
         self.create_preview_text_controls()
         self.preview_window_ready = True
 
@@ -1278,6 +1306,7 @@ class ArucoTrackFollower(Node):
             target_width = max(width, self.config.preview_width)
         target_height = int(round(height * target_width / max(1, width)))
         cv2.resizeWindow(PREVIEW_WINDOW, target_width, target_height)
+        cv2.moveWindow(PREVIEW_WINDOW, 50, 50)
         self.preview_window_size_initialized = True
 
     def draw_virtual_vehicle(self, preview):
@@ -1291,6 +1320,16 @@ class ArucoTrackFollower(Node):
         right = np.array([-math.sin(heading), math.cos(heading)], dtype=np.float32)
         half_length = 34.0
         half_width = 18.0
+        cabin_scale = 1.0
+        wheel_scale = 1.0
+        wheel_radius = 4
+        if self.config.virtual_vehicle_test:
+            half_length *= 0.55
+            half_width *= 0.55
+            cabin_scale *= 0.55
+            wheel_scale *= 0.55
+            wheel_radius = 2
+
         polygon = np.array(
             [
                 center + forward * half_length + right * half_width,
@@ -1300,36 +1339,36 @@ class ArucoTrackFollower(Node):
             ],
             dtype=np.int32,
         )
-        shadow = polygon + np.array([4, 5], dtype=np.int32)
+        shadow = polygon + np.array([2, 3], dtype=np.int32)
         cv2.fillConvexPoly(preview, shadow, (185, 185, 185))
-        cv2.fillConvexPoly(preview, polygon, (24, 134, 245))
+        cv2.fillConvexPoly(preview, polygon, (188, 114, 0))
         cv2.polylines(preview, [polygon], True, (18, 42, 74), 2, cv2.LINE_AA)
         cabin = np.array(
             [
-                center + forward * 10.0 + right * 11.0,
-                center - forward * 14.0 + right * 10.0,
-                center - forward * 14.0 - right * 10.0,
-                center + forward * 10.0 - right * 11.0,
+                center + forward * (10.0 * cabin_scale) + right * (11.0 * cabin_scale),
+                center - forward * (14.0 * cabin_scale) + right * (10.0 * cabin_scale),
+                center - forward * (14.0 * cabin_scale) - right * (10.0 * cabin_scale),
+                center + forward * (10.0 * cabin_scale) - right * (11.0 * cabin_scale),
             ],
             dtype=np.int32,
         )
         cv2.fillConvexPoly(preview, cabin, (255, 224, 166))
         cv2.polylines(preview, [cabin], True, (95, 85, 65), 1, cv2.LINE_AA)
         for wheel_offset in (
-            forward * 19.0 + right * 19.0,
-            forward * 19.0 - right * 19.0,
-            -forward * 21.0 + right * 19.0,
-            -forward * 21.0 - right * 19.0,
+            forward * (19.0 * wheel_scale) + right * (19.0 * wheel_scale),
+            forward * (19.0 * wheel_scale) - right * (19.0 * wheel_scale),
+            -forward * (21.0 * wheel_scale) + right * (19.0 * wheel_scale),
+            -forward * (21.0 * wheel_scale) - right * (19.0 * wheel_scale),
         ):
             wheel_center = center + wheel_offset
-            cv2.circle(preview, tuple(wheel_center.astype(int)), 4, (32, 32, 32), -1)
-        nose = center + forward * (half_length + 18.0)
+            cv2.circle(preview, tuple(wheel_center.astype(int)), wheel_radius, (32, 32, 32), -1)
+        nose = center + forward * (half_length + 10.0 * wheel_scale)
         cv2.arrowedLine(
             preview,
             tuple(center.astype(int)),
             tuple(nose.astype(int)),
             (0, 58, 220),
-            3,
+            2,
             cv2.LINE_AA,
             tipLength=0.26,
         )
@@ -1360,6 +1399,8 @@ class ArucoTrackFollower(Node):
                 cv2.LINE_AA,
             )
             self.draw_progress_ticks(preview)
+        if self.unlimited_virtual_road_enabled():
+            return
         obstacles = list(self.random_static_obstacles or self.static_obstacles)
         if (
             self.config.random_static_obstacles
@@ -1392,10 +1433,12 @@ class ArucoTrackFollower(Node):
             and self.road_boundaries
             and len(self.road_boundaries) >= 2
             and len(self.track_points) >= 2
+            and not getattr(self.config, 'use_safe_control_env', False)
         )
 
     def draw_virtual_road_tiles(self, preview):
         """Draw repeated road tiles so unlimited virtual tests never show an end."""
+        static_obstacles = self.virtual_tile_static_obstacles()
         for delta in self.virtual_road_tile_offsets(preview):
             shifted_boundaries = [
                 boundary + delta for boundary in self.road_boundaries
@@ -1424,6 +1467,56 @@ class ArucoTrackFollower(Node):
                 cv2.LINE_AA,
             )
             self.draw_progress_ticks_for(preview, shifted_track)
+
+            # Draw repeated obstacles and boundary walls for this tile
+            for obstacle in static_obstacles:
+                if self.config.random_static_obstacles and not obstacle.get('detected'):
+                    fill_color = (174, 174, 174)
+                elif str(obstacle.get('kind', '')).startswith('road_boundary_wall'):
+                    fill_color = (88, 92, 96)
+                elif obstacle.get('kind') == 'dynamic' or 'dynamic_index' in obstacle:
+                    fill_color = (54, 100, 230)
+                else:
+                    fill_color = (66, 66, 196)
+                shifted_poly = obstacle['polygon'] + delta
+                shadow = shifted_poly.astype(np.int32) + np.array([3, 4])
+                cv2.fillConvexPoly(preview, shadow, (188, 188, 188))
+                cv2.fillConvexPoly(
+                    preview,
+                    shifted_poly.astype(np.int32),
+                    fill_color,
+                )
+        for obstacle in self.virtual_tile_dynamic_obstacles():
+            fill_color = (54, 100, 230)
+            polygon = obstacle['polygon'].astype(np.int32)
+            shadow = polygon + np.array([3, 4])
+            cv2.fillConvexPoly(preview, shadow, (188, 188, 188))
+            cv2.fillConvexPoly(preview, polygon, fill_color)
+            cv2.polylines(preview, [polygon], True, (30, 30, 30), 1, cv2.LINE_AA)
+
+    def virtual_tile_static_obstacles(self):
+        """Return only scenery that should repeat with each virtual road tile."""
+        if self.config.random_static_obstacles:
+            obstacles = list(self.random_static_obstacles)
+            if getattr(self.config, 'include_road_boundary_walls', False):
+                obstacles.extend(getattr(self.controller, 'road_boundary_obstacles', []))
+            return obstacles
+        if hasattr(self, 'static_scene_obstacles'):
+            obstacles = list(getattr(self, 'static_scene_obstacles') or [])
+        else:
+            obstacles = list(self.static_obstacles)
+        if getattr(self.config, 'include_road_boundary_walls', False):
+            obstacles.extend(getattr(self.controller, 'road_boundary_obstacles', []))
+        return [
+            obstacle for obstacle in obstacles
+            if obstacle.get('kind') != 'dynamic' and 'dynamic_index' not in obstacle
+        ]
+
+    def virtual_tile_dynamic_obstacles(self):
+        """Return moving traffic that should be drawn only once on the active tile."""
+        if hasattr(self, 'dynamic_obstacles'):
+            return list(getattr(self, 'dynamic_obstacles') or [])
+        return []
 
     def virtual_road_tile_offsets(self, preview):
         """Return tile offsets that cover the current preview frame."""
@@ -1572,7 +1665,10 @@ class ArucoTrackFollower(Node):
 
     def draw_debug_visuals(self, preview, center, target, tangent):
         """Draw a simplified perception/safety overlay."""
-        self.draw_marker_trail(preview)
+        if self.config.virtual_vehicle_test:
+            self.draw_virtual_vehicle_trail(preview)
+        else:
+            self.draw_marker_trail(preview)
         is_dclf = (self.config.controller_mode == 'pid_velocity_dclf_dcbf')
         if is_dclf:
             self.draw_dclf_dcbf_visuals(preview, center, target)
@@ -1584,9 +1680,13 @@ class ArucoTrackFollower(Node):
                 px_pred, py_pred = opt_traj
                 points = [tuple(map(int, [x, y])) for x, y in zip(px_pred, py_pred)]
                 for i in range(len(points) - 1):
-                    cv2.line(preview, points[i], points[i+1], (0, 255, 0), 2, cv2.LINE_AA)
+                    # Red line matching the red dashed trajectory in test_drift
+                    cv2.line(preview, points[i], points[i+1], (0, 0, 255), 2, cv2.LINE_AA)
         self.draw_lidar_feedback(preview, center)
-        self.draw_controller_debug_panel(preview)
+        if self.config.virtual_vehicle_test:
+            self.draw_drift_style_hud(preview)
+        else:
+            self.draw_controller_debug_panel(preview)
         self.draw_free_space_interval(preview)
         self.draw_ftg_debug(preview, center)
 
@@ -1694,6 +1794,83 @@ class ArucoTrackFollower(Node):
                 2,
                 cv2.LINE_AA,
             )
+
+    def draw_virtual_vehicle_trail(self, preview):
+        """Draw recent virtual vehicle centers with fading intensity."""
+        if not hasattr(self, 'virtual_vehicle_trail') or len(self.virtual_vehicle_trail) < 2:
+            return
+        count = len(self.virtual_vehicle_trail)
+        for index in range(1, count):
+            ratio = index / float(max(1, count - 1))
+            # Beautiful deep blue trail to match test_drift body/path style
+            color = (int(188 * ratio), int(114 * ratio), int(0 * ratio))
+            cv2.line(
+                preview,
+                tuple(self.virtual_vehicle_trail[index - 1].astype(int)),
+                tuple(self.virtual_vehicle_trail[index].astype(int)),
+                color,
+                2,
+                cv2.LINE_AA,
+            )
+
+    def draw_drift_style_hud(self, preview):
+        """Draw clean, modern HUD indicators mimicking the test_drift style."""
+        height, width = preview.shape[:2]
+        
+        # 1. Semi-transparent background box at the top left
+        hud_width = 320
+        hud_height = 95
+        hx = max(12, width - hud_width - 12)
+        hy = 12
+        overlay = preview.copy()
+        cv2.rectangle(overlay, (hx, hy), (hx + hud_width, hy + hud_height), (30, 30, 30), -1)
+        cv2.addWeighted(overlay, 0.65, preview, 0.35, 0.0, preview)
+        cv2.rectangle(preview, (hx, hy), (hx + hud_width, hy + hud_height), (100, 100, 100), 1, cv2.LINE_AA)
+
+        # 2. Get current state metrics
+        speed = self.track_speed_pps
+        target_speed = self.effective_target_track_speed_pps
+        
+        # Calculate safety/barrier ratio (h / h_px)
+        h_val = getattr(self, 'cbf_qp_h', 1.0)
+        h_threshold = getattr(self.config, 'cbf_h_px', 42.0)
+        h_ratio = np.clip(h_val / max(1.0, h_threshold), 0.0, 1.0)
+        
+        # Mode title
+        is_shield_active = getattr(self, 'cbf_active', False) or getattr(self, 'cbf_qp_brake_gate_active', False)
+        mode_str = "SAFE SHIELD" if is_shield_active else "NOMINAL"
+        mode_color = (0, 0, 255) if is_shield_active else (0, 255, 0)
+        
+        # Collision status
+        collisions = getattr(self.metrics, 'collision_samples', 0)
+        coll_str = "COLLISION!" if collisions > 0 else "CLEAN"
+        coll_color = (0, 0, 255) if collisions > 0 else (0, 255, 0)
+
+        # 3. Draw text lines
+        # Line 1: Mode & Collision Status
+        draw_label(preview, (hx + 10, hy + 20), f"MODE: ", (255, 255, 255), scale=0.42)
+        draw_label(preview, (hx + 60, hy + 20), mode_str, mode_color, scale=0.42)
+        draw_label(preview, (hx + 180, hy + 20), f"COLL: ", (255, 255, 255), scale=0.42)
+        draw_label(preview, (hx + 230, hy + 20), coll_str, coll_color, scale=0.42)
+        
+        # 4. Draw Velocity Indicator Bar
+        vel_ratio = np.clip(speed / max(1.0, target_speed), 0.0, 1.0)
+        cv2.putText(preview, "V:", (hx + 10, hy + 45), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 255, 255), 1, cv2.LINE_AA)
+        # Bar background
+        cv2.rectangle(preview, (hx + 70, hy + 36), (hx + hud_width - 15, hy + 46), (60, 60, 60), -1)
+        # Filled bar (BGR blue-green matching drifting_car body_color)
+        fill_w = int(vel_ratio * (hud_width - 85))
+        if fill_w > 0:
+            cv2.rectangle(preview, (hx + 70, hy + 36), (hx + 70 + fill_w, hy + 46), (188, 114, 0), -1)
+
+        # 5. Draw Safety Margin (CBF h) Indicator Bar
+        cv2.putText(preview, "Safety:", (hx + 10, hy + 75), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.rectangle(preview, (hx + 70, hy + 66), (hx + hud_width - 15, hy + 76), (60, 60, 60), -1)
+        # Fill color transitions from green to red based on ratio
+        cbf_color = (0, int(255 * h_ratio), int(255 * (1.0 - h_ratio)))
+        fill_h_w = int(h_ratio * (hud_width - 85))
+        if fill_h_w > 0:
+            cv2.rectangle(preview, (hx + 70, hy + 66), (hx + 70 + fill_h_w, hy + 76), cbf_color, -1)
 
     def draw_heading_debug(self, preview, center):
         """Draw marker heading and signed vehicle-right steering axis."""
@@ -1846,7 +2023,7 @@ class ArucoTrackFollower(Node):
         )
 
     def draw_ftg_debug(self, preview, center):
-        """Draw Follow-the-Gap specific debug geometry (safety bubble and threat)."""
+        """Draw Follow-the-Gap specific debug geometry (safety bubble, threat, and costmap)."""
         ftg_debug = getattr(self.controller, 'latest_ftg_debug', None)
         if not ftg_debug or center is None:
             return
@@ -1856,6 +2033,46 @@ class ArucoTrackFollower(Node):
             origin = center
         origin = np.asarray(origin, dtype=np.float32)
         heading = float(ftg_debug.get('heading', self.last_marker_heading))
+
+        # Draw the costmap if available
+        costs = ftg_debug.get('costs')
+        ranges = ftg_debug.get('ranges')
+        angles = ftg_debug.get('angles')
+        if costs is not None and ranges is not None and angles is not None:
+            valid_costs = costs[np.isfinite(costs)]
+            if len(valid_costs) > 0:
+                min_cost = float(np.min(valid_costs))
+                max_cost = float(np.max(valid_costs))
+                cost_range = max_cost - min_cost if max_cost > min_cost else 1.0
+
+                for i in range(len(ranges)):
+                    angle = angles[i]
+                    rng = ranges[i]
+                    cost = costs[i]
+
+                    # Compute BGR color based on cost
+                    if not np.isfinite(cost):
+                        color = (0, 0, 200)  # Red for blocked
+                    else:
+                        t = (cost - min_cost) / cost_range
+                        if t < 0.5:
+                            u = t * 2.0
+                            color = (0, 255, int(u * 255))  # Green to Yellow
+                        else:
+                            u = (t - 0.5) * 2.0
+                            color = (0, int((1.0 - u) * 255), 255)  # Yellow to Red
+
+                    # Calculate end point of the lidar ray
+                    global_angle = heading + angle
+                    ray_end = origin + rng * np.array([math.cos(global_angle), math.sin(global_angle)], dtype=np.float32)
+                    rx, ry = int(round(ray_end[0])), int(round(ray_end[1]))
+                    ox, oy = int(round(origin[0])), int(round(origin[1]))
+
+                    # Draw a thin line representing the lidar ray
+                    cv2.line(preview, (ox, oy), (rx, ry), color, 1, cv2.LINE_AA)
+                    # Draw a small dot at the end of the ray
+                    cv2.circle(preview, (rx, ry), 2, color, -1, cv2.LINE_AA)
+
         nearest_point = ftg_debug.get('nearest_point')
         if nearest_point is not None:
             nx, ny = int(round(nearest_point[0])), int(round(nearest_point[1]))
@@ -1899,9 +2116,13 @@ class ArucoTrackFollower(Node):
         target_angle = math.degrees(float(ftg_debug.get('target_angle', 0.0)))
         target_dist = float(ftg_debug.get('target_dist', 0.0))
         max_range = float(ftg_debug.get('max_range_cap', 0.0))
+        if self.config.virtual_vehicle_test:
+            text_origin = np.array([16, preview.shape[0] - 18], dtype=np.int32)
+        else:
+            text_origin = origin.astype(int) + np.array([10, 36])
         draw_label(
             preview,
-            tuple(origin.astype(int) + np.array([10, 36])),
+            tuple(text_origin),
             f'ang={target_angle:.1f}deg dist={target_dist:.0f}px range={max_range:.0f}px',
             (255, 180, 60),
             scale=0.42,

@@ -7,26 +7,39 @@ import re
 import numpy as np
 
 
-DEFAULT_BUBBLE_RADIUS = 95.7812
-DEFAULT_MAX_RANGE_CAP = 222.024
-DEFAULT_DEEP_CLUSTER_RATIO = 0.95
+DEFAULT_BUBBLE_RADIUS = 34.75
+DEFAULT_MAX_RANGE_CAP = 353.571
+DEFAULT_DEEP_CLUSTER_RATIO = 0.952381
 DEFAULT_OBSTACLE_EPSILON = 1.0
-FORWARD_VIEW_RAD = math.radians(120.0)
+FORWARD_VIEW_RAD = math.radians(180)
+
+# Disparity Extension parameters
+DEFAULT_DISPARITY_THRESHOLD = 42.0143
+DEFAULT_DISPARITY_WIDTH = 49.3333
+
+# Cost function weights
+DEFAULT_DEPTH_SCALE = 103.905
+DEFAULT_HEADING_WEIGHT = 3.57143
+
+# Steering output smoothing
+DEFAULT_SMOOTHING_ALPHA = 0.952857
 
 
 _prev_angle = 0.0
 _f1tenth_prev_angle = 0.0
 
 
-def extend_disparities(ranges, angles, vehicle_width=38.125):
+def extend_disparities(ranges, angles, vehicle_width=None):
     """Draw a virtual safety radius around depth disparities to clear vehicle width."""
+    if vehicle_width is None:
+        vehicle_width = DEFAULT_DISPARITY_WIDTH
     ranges = np.asarray(ranges, dtype=np.float32)
     angles = np.asarray(angles, dtype=np.float32)
     extended_ranges = np.copy(ranges)
     
     # Auto-detect scale: if max range is < 10, assume meters (F1Tenth), else pixels
     is_meters = np.max(ranges) < 10.0
-    threshold = 0.5 if is_meters else 25.0
+    threshold = 0.5 if is_meters else DEFAULT_DISPARITY_THRESHOLD
     width = 0.35 if is_meters else float(vehicle_width)
     
     for i in range(1, len(ranges)):
@@ -55,8 +68,8 @@ def select_best_gap_index(gaps, ranges, angles, goal_angle=0.0):
             heading_error = abs(angles[i] - goal_angle)
             # Scaling depth index based on units
             is_meters = np.max(ranges) < 10.0
-            depth_scale = 1.0 if is_meters else 100.0
-            cost = (depth_scale / (depth + 1e-5)) + (2.0 * heading_error)
+            depth_scale = 1.0 if is_meters else DEFAULT_DEPTH_SCALE
+            cost = (depth_scale / (depth + 1e-5)) + (DEFAULT_HEADING_WEIGHT * heading_error)
             if cost < min_cost:
                 min_cost = cost
                 best_idx = i
@@ -149,6 +162,17 @@ def calculate_follow_the_gap_debug(
                 dtype=np.float32,
             )
         )
+
+    # Compute cost for each index to construct the costmap
+    costs = np.full(ranges.size, float('inf'), dtype=np.float32)
+    is_meters = np.max(ranges) < 10.0
+    depth_scale = 1.0 if is_meters else DEFAULT_DEPTH_SCALE
+    for i in range(ranges.size):
+        if safe_ranges[i] > 0.0:
+            depth = float(safe_ranges[i])
+            heading_error = abs(angles[i])
+            costs[i] = (depth_scale / (depth + 1e-5)) + (DEFAULT_HEADING_WEIGHT * heading_error)
+
     return {
         'target': target,
         'target_angle': target_angle,
@@ -163,6 +187,7 @@ def calculate_follow_the_gap_debug(
         'angles': angles,
         'bubble_center': bubble_center,
         'bubble_points': bubble_points,
+        'costs': costs,
     }
 
 
@@ -250,7 +275,7 @@ def calculate_follow_the_gap_target(
     target_dist = float(safe_ranges[best_gap_idx])
 
     # Smooth the target steering heading with a low-pass filter
-    alpha = 0.25
+    alpha = DEFAULT_SMOOTHING_ALPHA
     smoothed_angle = (alpha * target_angle) + ((1.0 - alpha) * _prev_angle)
     _prev_angle = smoothed_angle
     target_angle = smoothed_angle
@@ -365,38 +390,65 @@ def generate_fake_lidar():
     return angles, ranges
 
 
-def save_tuned_values(bubble_radius, max_range_cap, file_path=None):
+def save_tuned_values(
+    bubble_radius,
+    max_range_cap,
+    deep_cluster_ratio,
+    forward_view_rad,
+    disparity_threshold,
+    disparity_width,
+    depth_scale,
+    heading_weight,
+    smoothing_alpha,
+    file_path=None
+):
     """Persist tuned Follow-the-Gap values into this module."""
     path = Path(__file__) if file_path is None else Path(file_path)
     source = path.read_text(encoding='utf-8')
     replacements = {
         'DEFAULT_BUBBLE_RADIUS': float(bubble_radius),
         'DEFAULT_MAX_RANGE_CAP': float(max_range_cap),
+        'DEFAULT_DEEP_CLUSTER_RATIO': float(deep_cluster_ratio),
+        'FORWARD_VIEW_RAD': f"math.radians({math.degrees(forward_view_rad):.6g})",
+        'DEFAULT_DISPARITY_THRESHOLD': float(disparity_threshold),
+        'DEFAULT_DISPARITY_WIDTH': float(disparity_width),
+        'DEFAULT_DEPTH_SCALE': float(depth_scale),
+        'DEFAULT_HEADING_WEIGHT': float(heading_weight),
+        'DEFAULT_SMOOTHING_ALPHA': float(smoothing_alpha),
     }
     for name, value in replacements.items():
-        source = re.sub(
-            rf'^{name} = .*$',
-            f'{name} = {value:.6g}',
-            source,
-            count=1,
-            flags=re.MULTILINE,
-        )
+        if name == 'FORWARD_VIEW_RAD':
+            source = re.sub(
+                rf'^{name} = .*$',
+                f'{name} = {value}',
+                source,
+                count=1,
+                flags=re.MULTILINE,
+            )
+        else:
+            source = re.sub(
+                rf'^{name} = .*$',
+                f'{name} = {value:.6g}',
+                source,
+                count=1,
+                flags=re.MULTILINE,
+            )
     path.write_text(source, encoding='utf-8')
 
 
 def run_tuning_panel():
-    """Launch an interactive Follow-the-Gap tuning panel."""
+    """Launch an interactive Follow-the-Gap tuning panel with 9 parameters."""
     import matplotlib.pyplot as plt
     from matplotlib.widgets import Button
     from matplotlib.widgets import Slider
 
-    fig = plt.figure(figsize=(12.0, 7.0))
-    ax = fig.add_axes([0.06, 0.27, 0.58, 0.66], projection='polar')
-    info_ax = fig.add_axes([0.68, 0.27, 0.28, 0.66])
+    fig = plt.figure(figsize=(14.0, 9.0))
+    ax = fig.add_axes([0.06, 0.32, 0.58, 0.62], projection='polar')
+    info_ax = fig.add_axes([0.68, 0.32, 0.28, 0.62])
     info_ax.axis('off')
 
-    angles, ranges_raw = generate_fake_lidar()
-    raw_plot = ax.scatter(angles, ranges_raw, c='tab:blue', s=10, label='Clipped scan')
+    angles_raw, ranges_raw = generate_fake_lidar()
+    raw_plot = ax.scatter(angles_raw, ranges_raw, c='tab:blue', s=10, label='Clipped scan')
     safe_plot = ax.scatter(
         [],
         [],
@@ -454,9 +506,6 @@ def run_tuning_panel():
             'Orange X: nearest obstacle\n'
             'Orange circle: safety bubble\n'
             'Red star: chosen FTG target\n\n'
-            'Tuning\n'
-            'Bubble Radius: clears rays near obstacle\n'
-            'Max Range Cap: farthest usable distance\n\n'
             'Readout\n'
             'target: steering direction and distance\n'
             'nearest: obstacle angle and distance\n'
@@ -468,65 +517,123 @@ def run_tuning_panel():
         linespacing=1.35,
     )
 
-    ax_bubble = fig.add_axes([0.18, 0.16, 0.56, 0.035])
-    ax_cap = fig.add_axes([0.18, 0.09, 0.56, 0.035])
-    ax_save = fig.add_axes([0.80, 0.07, 0.12, 0.06])
+    # 2-column layout for the 9 sliders
+    # Column 1 Sliders
+    ax_bubble = fig.add_axes([0.15, 0.22, 0.30, 0.03])
+    ax_cap = fig.add_axes([0.15, 0.17, 0.30, 0.03])
+    ax_cluster = fig.add_axes([0.15, 0.12, 0.30, 0.03])
+    ax_view = fig.add_axes([0.15, 0.07, 0.30, 0.03])
+    ax_alpha = fig.add_axes([0.15, 0.02, 0.30, 0.03])
+
+    # Column 2 Sliders
+    ax_disp_thresh = fig.add_axes([0.58, 0.22, 0.30, 0.03])
+    ax_disp_width = fig.add_axes([0.58, 0.17, 0.30, 0.03])
+    ax_depth_scale = fig.add_axes([0.58, 0.12, 0.30, 0.03])
+    ax_heading_weight = fig.add_axes([0.58, 0.07, 0.30, 0.03])
+
+    # Save button
+    ax_save = fig.add_axes([0.90, 0.02, 0.08, 0.06])
 
     slider_bubble = Slider(
-        ax_bubble,
-        'Bubble Radius',
-        5.0,
-        250.0,
-        valinit=DEFAULT_BUBBLE_RADIUS,
+        ax_bubble, 'Bubble Rad', 5.0, 250.0, valinit=DEFAULT_BUBBLE_RADIUS
     )
     slider_cap = Slider(
-        ax_cap,
-        'Max Range Cap',
-        100.0,
-        600.0,
-        valinit=DEFAULT_MAX_RANGE_CAP,
+        ax_cap, 'Max Cap', 100.0, 600.0, valinit=DEFAULT_MAX_RANGE_CAP
     )
+    slider_cluster = Slider(
+        ax_cluster, 'Cluster Ratio', 0.5, 1.0, valinit=DEFAULT_DEEP_CLUSTER_RATIO
+    )
+    slider_view = Slider(
+        ax_view, 'View Arc (deg)', 30.0, 180.0, valinit=math.degrees(FORWARD_VIEW_RAD)
+    )
+    slider_alpha = Slider(
+        ax_alpha, 'Alpha', 0.01, 1.0, valinit=DEFAULT_SMOOTHING_ALPHA
+    )
+
+    slider_disp_thresh = Slider(
+        ax_disp_thresh, 'Disp Thresh', 1.0, 100.0, valinit=DEFAULT_DISPARITY_THRESHOLD
+    )
+    slider_disp_width = Slider(
+        ax_disp_width, 'Disp Width', 5.0, 100.0, valinit=DEFAULT_DISPARITY_WIDTH
+    )
+    slider_depth_scale = Slider(
+        ax_depth_scale, 'Depth Scale', 10.0, 300.0, valinit=DEFAULT_DEPTH_SCALE
+    )
+    slider_heading_weight = Slider(
+        ax_heading_weight, 'Heading Wt', 0.0, 10.0, valinit=DEFAULT_HEADING_WEIGHT
+    )
+
     save_button = Button(ax_save, 'Save')
 
     def update(_val):
         bubble_r = slider_bubble.val
         cap_val = slider_cap.val
+        deep_cluster_ratio = slider_cluster.val
+        forward_view_rad = math.radians(slider_view.val)
+        disp_thresh = slider_disp_thresh.val
+        disp_width = slider_disp_width.val
+        depth_scale = slider_depth_scale.val
+        heading_weight = slider_heading_weight.val
+        alpha = slider_alpha.val
+
+        # Temporarily override global parameters in the module namespace for evaluation
+        global DEFAULT_BUBBLE_RADIUS, DEFAULT_MAX_RANGE_CAP, DEFAULT_DEEP_CLUSTER_RATIO
+        global FORWARD_VIEW_RAD, DEFAULT_DISPARITY_THRESHOLD, DEFAULT_DISPARITY_WIDTH
+        global DEFAULT_DEPTH_SCALE, DEFAULT_HEADING_WEIGHT, DEFAULT_SMOOTHING_ALPHA
+
+        DEFAULT_BUBBLE_RADIUS = bubble_r
+        DEFAULT_MAX_RANGE_CAP = cap_val
+        DEFAULT_DEEP_CLUSTER_RATIO = deep_cluster_ratio
+        FORWARD_VIEW_RAD = forward_view_rad
+        DEFAULT_DISPARITY_THRESHOLD = disp_thresh
+        DEFAULT_DISPARITY_WIDTH = disp_width
+        DEFAULT_DEPTH_SCALE = depth_scale
+        DEFAULT_HEADING_WEIGHT = heading_weight
+        DEFAULT_SMOOTHING_ALPHA = alpha
+
+        # Re-generate scan angles based on forward view arc
+        min_angle = -0.5 * forward_view_rad
+        max_angle = 0.5 * forward_view_rad
+        scan_angles = np.linspace(min_angle, max_angle, len(ranges_raw))
         ranges_capped = np.clip(ranges_raw, 0.0, cap_val)
+
+        extended_ranges = extend_disparities(ranges_capped, scan_angles, vehicle_width=disp_width)
         safe_ranges, bubble_center = apply_safety_bubble(
-            ranges_capped,
-            angles,
+            extended_ranges,
+            scan_angles,
             bubble_r,
             cap_val,
         )
         target_angle, target_dist = calculate_follow_the_gap_target(
             ranges_capped,
-            angles,
+            scan_angles,
             bubble_r,
+            deep_cluster_ratio=deep_cluster_ratio,
             safe_ranges=safe_ranges,
         )
-        min_angle, min_dist = nearest_obstacle_point(
+        min_angle_obs, min_dist_obs = nearest_obstacle_point(
             ranges_capped,
-            angles,
+            scan_angles,
             max_range=cap_val,
         )
         bubble_angles, bubble_ranges = bubble_outline(
-            min_angle,
-            min_dist,
+            min_angle_obs,
+            min_dist_obs,
             bubble_r,
         )
         bubble_plot.set_data(bubble_angles, bubble_ranges)
-        if min_dist is not None:
-            threat_plot.set_offsets(np.c_[min_angle, min_dist])
+        if min_dist_obs is not None:
+            threat_plot.set_offsets(np.c_[min_angle_obs, min_dist_obs])
         else:
             threat_plot.set_offsets(np.empty((0, 2)))
         if target_dist > 0.0:
             target_plot.set_offsets(np.c_[target_angle, target_dist])
         else:
             target_plot.set_offsets(np.empty((0, 2)))
-        raw_plot.set_offsets(np.c_[angles, ranges_capped])
+        raw_plot.set_offsets(np.c_[scan_angles, ranges_capped])
         safe_mask = safe_ranges > 0.0
         if np.any(safe_mask):
-            safe_plot.set_offsets(np.c_[angles[safe_mask], safe_ranges[safe_mask]])
+            safe_plot.set_offsets(np.c_[scan_angles[safe_mask], safe_ranges[safe_mask]])
         else:
             safe_plot.set_offsets(np.empty((0, 2)))
         zeroed = int(np.count_nonzero(~safe_mask))
@@ -535,7 +642,7 @@ def run_tuning_panel():
         if bubble_center is not None:
             obstacle_text = f'{math.degrees(bubble_center[0]):.1f}deg/{bubble_center[1]:.1f}px'
         status_text.set_text(
-            'Live FTG\n'
+            'Live FTG Tuning\n'
             f'target : {target_deg:6.1f} deg, {target_dist:6.1f} px\n'
             f'nearest: {obstacle_text}\n'
             f'masked : {zeroed}/{len(safe_ranges)} rays'
@@ -544,12 +651,23 @@ def run_tuning_panel():
         fig.canvas.draw_idle()
 
     def save(_event):
-        save_tuned_values(slider_bubble.val, slider_cap.val)
-        fig.suptitle('Saved tuned Follow-the-Gap values')
+        save_tuned_values(
+            slider_bubble.val,
+            slider_cap.val,
+            slider_cluster.val,
+            math.radians(slider_view.val),
+            slider_disp_thresh.val,
+            slider_disp_width.val,
+            slider_depth_scale.val,
+            slider_heading_weight.val,
+            slider_alpha.val,
+        )
+        fig.suptitle('Saved all 9 tuned FTG values to file!')
         fig.canvas.draw_idle()
 
-    slider_bubble.on_changed(update)
-    slider_cap.on_changed(update)
+    for sl in (slider_bubble, slider_cap, slider_cluster, slider_view, slider_alpha,
+               slider_disp_thresh, slider_disp_width, slider_depth_scale, slider_heading_weight):
+        sl.on_changed(update)
     save_button.on_clicked(save)
 
     update(0)
@@ -629,7 +747,7 @@ def f1tenth_follow_the_gap(raw_ranges, angle_min, angle_increment, car_width=0.3
     target_angle = float(cropped_angles[target_idx])
     
     # Smooth the target steering heading with a low-pass filter
-    alpha = 0.25
+    alpha = DEFAULT_SMOOTHING_ALPHA
     smoothed_angle = (alpha * target_angle) + ((1.0 - alpha) * _f1tenth_prev_angle)
     _f1tenth_prev_angle = smoothed_angle
     target_angle = smoothed_angle
@@ -646,6 +764,112 @@ def f1tenth_follow_the_gap(raw_ranges, angle_min, angle_increment, car_width=0.3
         target_velocity = 1.0 # Command slow speed to prevent drifting (e.g., 1.0 m/s)
         
     return target_angle, target_velocity # Return the final Ackerman drive commands for the VESC
+
+
+def select_advanced_free_space_target(controller, path_index):
+    """Compute follow-the-gap target with dynamic centerline cost evaluation."""
+    import time
+    import math
+    
+    config = controller.config
+    origin = controller.latest_vehicle_center
+    if origin is None:
+        origin = np.asarray(controller.track_points[path_index], dtype=np.float32)
+    heading = controller.lidar_heading_rad()
+    max_range = getattr(
+        config,
+        'ftg_max_range_px',
+        getattr(controller.virtual_lidar, 'max_range_px', 500.0),
+    )
+    resolution = getattr(controller.virtual_lidar, 'resolution_rad', 0.052359877)
+    bubble_radius = float(getattr(config, 'ftg_bubble_radius_px', 0.0))
+    if bubble_radius <= 0.0:
+        bubble_radius = follow_the_gap_bubble_radius(config)
+    
+    obstacle_source = getattr(controller, 'gap_planner_obstacles', None)
+    if obstacle_source is None:
+        obstacles = getattr(controller, 'static_obstacles', [])
+    else:
+        obstacles = obstacle_source()
+
+    # Refresh lidar scan with current combined obstacles
+    controller.virtual_lidar.scan(origin, heading, obstacles)
+    lidar_points = controller.virtual_lidar.latest_points
+    
+    t0 = time.perf_counter()
+    ftg_debug = calculate_follow_the_gap_debug(
+        lidar_points=lidar_points,
+        origin=origin,
+        heading=heading,
+        max_range=max_range,
+        resolution=resolution,
+        bubble_radius=bubble_radius,
+    )
+    ftg_solve_time = (time.perf_counter() - t0) * 1000.0
+    ftg_debug['solve_time_ms'] = ftg_solve_time
+    target_angle = ftg_debug['target_angle']
+    target_dist = ftg_debug['target_dist']
+    ftg_debug['origin'] = np.asarray(origin, dtype=np.float32)
+    ftg_debug['heading'] = float(heading)
+    ftg_debug['scan_ranges'] = ftg_debug.get('ranges')
+    raw_target = ftg_debug.get('target')
+    controller.latest_ftg_debug = ftg_debug
+
+    # Dynamic centerline-based lookahead search using the costmap
+    # Disabled by default so that the advanced planner uses the true follow-the-gap target rather than snapping to the centerline.
+    use_centerline_search = getattr(config, 'ftg_use_centerline_search', False)
+    if use_centerline_search:
+        nearest_idx = getattr(controller, 'latest_nearest_index', path_index)
+        best_cand_target = None
+        best_cand_cost = float('inf')
+        best_cand_index = path_index
+
+        # Scan candidate centerline points in a sliding lookahead window
+        for offset in range(4, 30):
+            cand_idx = (nearest_idx + offset) % len(controller.track_points)
+            cand_point = controller.track_points[cand_idx]
+            delta_vec = cand_point - origin
+            d = np.linalg.norm(delta_vec)
+            ang = math.atan2(delta_vec[1], delta_vec[0]) - heading
+            ang = (ang + math.pi) % (2.0 * math.pi) - math.pi
+
+            if abs(ang) <= math.radians(60.0):
+                bin_idx = int(np.argmin(np.abs(ftg_debug['angles'] - ang)))
+                safe_r = ftg_debug['safe_ranges'][bin_idx]
+                
+                if safe_r > 0.0 and d < safe_r:
+                    is_meters = np.max(ftg_debug['ranges']) < 10.0
+                    depth_scale = 1.0 if is_meters else DEFAULT_DEPTH_SCALE
+                    cost = (depth_scale / (d + 1e-5)) + DEFAULT_HEADING_WEIGHT * abs(ang)
+                    
+                    if cost < best_cand_cost:
+                        best_cand_cost = cost
+                        best_cand_target = cand_point
+                        best_cand_index = cand_idx
+
+        if best_cand_target is not None:
+            ftg_debug['target'] = best_cand_target
+            delta_vec = best_cand_target - origin
+            target_dist = float(np.linalg.norm(delta_vec))
+            target_angle = float(math.atan2(delta_vec[1], delta_vec[0]) - heading)
+            target_angle = (target_angle + math.pi) % (2.0 * math.pi) - math.pi
+
+            # Apply low-pass steering angle smoothing
+            global _prev_angle
+            alpha = DEFAULT_SMOOTHING_ALPHA
+            smoothed_angle = (alpha * target_angle) + ((1.0 - alpha) * _prev_angle)
+            _prev_angle = smoothed_angle
+            target_angle = smoothed_angle
+
+            ftg_debug['target_angle'] = target_angle
+            ftg_debug['target_dist'] = target_dist
+            controller.latest_target_index = best_cand_index
+            raw_target = best_cand_target
+
+    if raw_target is not None:
+        controller.latest_free_space_target = raw_target
+        return raw_target
+    return controller.track_points[path_index]
 
 
 if __name__ == '__main__':

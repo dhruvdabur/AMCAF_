@@ -2,4 +2,10 @@
 
 Reusable, ROS-free controller logic for HIL scenarios.
 
-`ellipse_static_controller.py` owns the shared follower state machine, PID steering, QP-CBF filtering, virtual-lidar safety reporting, and metrics updates. `straight_static_controller.py` reuses that core with open-road straight geometry. `dynamic_straight_controller.py` extends the straight-road controller with explicit static, detected-random, and moving-obstacle layers for dynamic-straight scenarios. ROS nodes and simulators should feed detections or simulator poses into the controller `process_detection(...)` method and then publish the returned PWM commands through their own transport layer.
+`dynamic_straight_controller.py` is the active controller entrypoint. It sits on
+top of `straight_static_controller.py`, which in turn reuses the shared logic in
+`ellipse_static_controller.py` for follower state, PID steering, QP-CBF
+filtering, virtual-lidar safety reporting, and metrics updates. The dynamic
+layer adds explicit static, detected-random, and moving-obstacle obstacle
+groups so ROS nodes and simulators can feed poses into `process_detection(...)`
+and publish the resulting PWM commands through their own transport layer.

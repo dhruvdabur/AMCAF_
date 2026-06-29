@@ -1,0 +1,16 @@
+{
+  "samples": 1259,
+  "duration_s": 52.005827119995956,
+  "laps_completed": 0,
+  "mean_abs_cte_px": 2.4328229127716603,
+  "rmse_cte_px": 14.753436785947445,
+  "max_abs_cte_px": 305.8777160644531,
+  "mean_abs_heading_error_deg": 82.24179960008412,
+  "mean_abs_speed_error_pps": 0.0,
+  "steering_effort_pwm_s": 612.389780370162,
+  "throttle_effort_pwm_s": 4674.453883769747,
+  "min_obstacle_clearance_px": -198.59718371340713,
+  "collision_samples": 1259,
+  "cbf_interventions": 1259,
+  "marker_lost_events": 0
+}

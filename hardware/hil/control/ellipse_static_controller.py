@@ -596,46 +596,7 @@ class EllipseStaticController:
 
         if getattr(self.config, 'gap_planner_mode', 'stable_free_space') == 'follow_the_gap_advanced':
             from . import follow_the_gap_advanced
-            origin = self.latest_vehicle_center
-            if origin is None:
-                origin = np.asarray(self.track_points[path_index], dtype=np.float32)
-            heading = self.lidar_heading_rad()
-            max_range = getattr(
-                self.config,
-                'ftg_max_range_px',
-                getattr(self.virtual_lidar, 'max_range_px', 500.0),
-            )
-            resolution = getattr(self.virtual_lidar, 'resolution_rad', 0.052359877)
-            bubble_radius = float(getattr(self.config, 'ftg_bubble_radius_px', 0.0))
-            if bubble_radius <= 0.0:
-                bubble_radius = follow_the_gap_advanced.follow_the_gap_bubble_radius(self.config)
-            
-            # Refresh lidar scan with current combined obstacles
-            self.virtual_lidar.scan(origin, heading, self.static_obstacles)
-            lidar_points = self.virtual_lidar.latest_points
-            
-            t0 = time.perf_counter()
-            ftg_debug = follow_the_gap_advanced.calculate_follow_the_gap_debug(
-                lidar_points=lidar_points,
-                origin=origin,
-                heading=heading,
-                max_range=max_range,
-                resolution=resolution,
-                bubble_radius=bubble_radius,
-            )
-            ftg_solve_time = (time.perf_counter() - t0) * 1000.0
-            ftg_debug['solve_time_ms'] = ftg_solve_time
-            target_angle = ftg_debug['target_angle']
-            target_dist = ftg_debug['target_dist']
-            ftg_debug['origin'] = np.asarray(origin, dtype=np.float32)
-            ftg_debug['heading'] = float(heading)
-            ftg_debug['scan_ranges'] = ftg_debug.get('ranges')
-            raw_target = ftg_debug.get('target')
-            self.latest_ftg_debug = ftg_debug
-            if raw_target is not None:
-                self.latest_free_space_target = raw_target
-                return raw_target
-            return self.track_points[path_index]
+            return follow_the_gap_advanced.select_advanced_free_space_target(self, path_index)
 
         return gap_planner.free_space_target(self, path_index)
 

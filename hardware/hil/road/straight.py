@@ -10,6 +10,8 @@ from .ellipse import path_tangents_normals
 
 def make_straight_road_scene(width, height, config):
     """Create an open laneless straight road scene."""
+    if getattr(config, 'use_safe_control_env', False):
+        return make_safe_control_road_scene(width, height, config)
     point_count = 220
     road_length = bounded(config.road_length_x, 0.25, 0.98) * width
     start_x = config.track_center_x * width - road_length * 0.5
@@ -127,3 +129,100 @@ def make_straight_road_end_walls(centerline, tangents, normals, config):
             }
         )
     return walls
+
+
+def make_safe_control_road_scene(width, height, config):
+    """Create the safe_control square closed-loop road scene with obstacles."""
+    # Scale factors from 14x14 meter environment to pixel width x height
+    scale_x = float(width) / 14.0
+    scale_y = float(height) / 14.0
+
+    def map_coords(x, y):
+        return [float(x) * scale_x, float(height) - float(y) * scale_y]
+
+    waypoints = np.array([
+        map_coords(2.0, 2.0),
+        map_coords(2.0, 12.0),
+        map_coords(12.0, 12.0),
+        map_coords(12.0, 2.0),
+        map_coords(2.0, 2.0)
+    ], dtype=np.float32)
+
+    # Interpolate waypoints to get a smooth centerline
+    segment_points = 55
+    centerline = []
+    for i in range(len(waypoints) - 1):
+        start = waypoints[i]
+        end = waypoints[i+1]
+        for t in np.linspace(0.0, 1.0, segment_points, endpoint=False):
+            centerline.append(start + t * (end - start))
+    centerline = np.array(centerline, dtype=np.float32)
+
+    # Calculate tangents and normals
+    tangents, normals = path_tangents_normals(centerline, closed=True)
+
+    # Create road boundaries
+    road_half_width_px = float(config.road_half_width_px)
+    boundaries = [
+        (centerline - normals * road_half_width_px).astype(np.float32),
+        (centerline + normals * road_half_width_px).astype(np.float32),
+    ]
+
+    # Create the circular/octagonal obstacles from safe_control
+    known_obs = [
+        [2.2, 5.0, 0.2],
+        [3.0, 5.0, 0.2],
+        [4.0, 9.0, 0.3],
+        [1.5, 10.0, 0.5],
+        [9.0, 11.0, 1.0],
+        [7.0, 7.0, 3.0],
+        [4.0, 3.5, 1.5],
+        [10.0, 7.3, 0.4],
+        [6.0, 13.0, 0.7],
+        [5.0, 10.0, 0.6],
+        [11.0, 5.0, 0.8],
+        [13.5, 11.0, 0.6],
+        [2.0, 7.0, 0.7],
+        [2.0, 8.0, 0.5]
+    ]
+
+    obstacles = []
+    for i, obs in enumerate(known_obs):
+        ox, oy, radius = obs
+        cx, cy = map_coords(ox, oy)
+        
+        # Scale the radius using scale_x
+        rad_px = float(radius) * scale_x
+        
+        # Build an 8-sided polygon to represent the circle
+        theta_vals = np.linspace(0.0, 2.0 * np.pi, 8, endpoint=False)
+        polygon = np.array([
+            [cx + rad_px * np.cos(t), cy + rad_px * np.sin(t)]
+            for t in theta_vals
+        ], dtype=np.float32)
+
+        # Estimate closest progress on centerline
+        dists = np.linalg.norm(centerline - np.array([cx, cy]), axis=1)
+        closest_idx = int(np.argmin(dists))
+        progress = float(closest_idx) / len(centerline)
+
+        obstacles.append({
+            'center': np.array([cx, cy], dtype=np.float32),
+            'tangent': tangents[closest_idx],
+            'normal': normals[closest_idx],
+            'half_length': rad_px,
+            'half_width': rad_px,
+            'polygon': polygon,
+            'lateral_offset_px': float(np.dot(np.array([cx, cy]) - centerline[closest_idx], normals[closest_idx])),
+            'progress': progress,
+            'kind': f'circle_obstacle_{i}',
+        })
+
+    return {
+        'centerline': centerline,
+        'boundaries': boundaries,
+        'tangents': tangents,
+        'normals': normals,
+        'road_half_width_px': road_half_width_px,
+        'obstacles': obstacles,
+    }

@@ -4,8 +4,8 @@ Image-space road geometry and obstacle helpers.
 
 | File | Purpose |
 | --- | --- |
-| `ellipse.py` | Builds the closed laneless elliptical road, static obstacle polygons, tangent/normal vectors, free lateral intervals, and obstacle clearances. |
-| `straight.py` | Builds the open laneless straight road and optional end-wall obstacles. |
+| `straight.py` | Builds the active open laneless straight road, safe-control-inspired scene, and optional end-wall obstacles. |
+| `ellipse.py` | Older closed-road geometry plus shared obstacle, tangent/normal, and clearance helpers. |
 
 This package has no ROS dependencies; it operates on numbers and NumPy arrays
 so it is easy to test separately from hardware.

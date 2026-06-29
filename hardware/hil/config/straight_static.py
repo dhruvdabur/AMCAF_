@@ -185,6 +185,11 @@ def parse_args(args=None):
         help='Wrap the virtual vehicle back to the road start at the road end.',
     )
     parser.add_argument(
+        '--use-safe-control-env',
+        action='store_true',
+        help='Use the safe_control tracking/gatekeeper simulation environment layout.',
+    )
+    parser.add_argument(
         '--random-static-obstacles',
         action='store_true',
         help='Spawn random virtual obstacles that are not known at startup.',

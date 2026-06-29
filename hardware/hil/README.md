@@ -1,17 +1,18 @@
 # hil ArUco Followers
 
-Hardware-in-the-loop follower experiments live here. These nodes use the same
-ROS 2 camera and RC command interfaces as the main `crsf_ros2` follower, but
-are kept separate so hil-specific track layouts can change without disturbing
-the general ArUco follower.
+Hardware-in-the-loop follower experiments live here. The active HIL path is now
+the dynamic straight-road stack, with one reusable controller core, one dynamic
+ROS node, and one ROS-free virtual simulation entrypoint.
 
 ## Package Layout
 
 | Path | What it does |
 | --- | --- |
 | `straght_static.py` | Legacy straight-road ArUco follower entry point. |
-| `straight_static.py` | Compatibility launcher for the organized straight-road follower. |
-| `ellipse_static.py` | Compatibility launcher for the closed-ellipse follower. The implementation is split across the packages below. |
+| `straight_static.py` | Compatibility launcher for the older organized straight-road follower. |
+| `ellipse_static.py` | Compatibility launcher for the older closed-ellipse follower. |
+| `dynamic_straight.py` | Compatibility launcher for the active dynamic straight-road follower. |
+| `simulation/` | ROS-free simulation harnesses and experiment assets. |
 | `nodes/` | ROS 2 node classes and executable `main()` functions. |
 | `config/` | CLI arguments, defaults, validation, and startup config printing. |
 | `road/` | Image-space road geometry, obstacle polygons, free-space intervals, and clearances. |
@@ -47,14 +48,14 @@ installing console-script wrappers:
 
 ```bash
 cd hardware/src/crsf_ros2
-python3 -m crsf_ros2.hil.ellipse_static \
+python3 -m crsf_ros2.hil.dynamic_straight \
   --dry-run \
   --preview
 ```
 
 `--dry-run` keeps the node from publishing RC commands or arming anything, and
-`--preview` opens the OpenCV debug window. Use module launch instead of running
-`ellipse_static.py` as a raw path because the HIL packages use relative imports.
+`--preview` opens the OpenCV preview window. Use module launch instead of running
+`dynamic_straight.py` as a raw path because the HIL packages use relative imports.
 
 ## ROS 2 Launch
 
@@ -67,49 +68,52 @@ colcon build --packages-select crsf_ros2
 source install/setup.bash
 ```
 
-Then launch the hil straight-road follower:
+Then launch the active HIL follower:
 
 ```bash
-ros2 run crsf_ros2 straight_static \
+ros2 run crsf_ros2 dynamic_straight \
   --dry-run \
   --preview \
   --no-pid-panel
 ```
 
-Launch the ellipse-road follower the same way:
-
-```bash
-ros2 run crsf_ros2 ellipse_static \
-  --dry-run \
-  --preview \
-  --no-pid-panel
-```
-
-The legacy misspelled executable `straght_static` is still present, but new runs
-should use `straight_static`.
+The legacy misspelled executable `straght_static` is still present, and the
+older `straight_static` and `ellipse_static` launchers still exist for
+compatibility, but new runs should use `dynamic_straight`.
 
 ## Virtual Controller Test
 
-Use `--virtual-vehicle-test` to test the straight-road controller without a
-camera frame or ArUco marker. The node drops a synthetic image-space vehicle at
-the start of the road, feeds that pose into the same controller, advances the
-vehicle with a simple kinematic model, and shows the usual preview/metrics:
+Use the standalone virtual vehicle visualization when you want a drift-car-style
+dynamic straight-road scene without camera input, ROS transport, ArUco
+detection, or a controller loop:
 
 ```bash
-ros2 run crsf_ros2 straight_static \
+python3 hardware/hil/simulation/virtual_vehicle.py \
+  --duration-s 20 \
+  --dt 0.05 \
+  --preview
+```
+
+This virtual path builds a straight-road scene, advances a simple open-loop
+kinematic vehicle, and optionally animates the result with the same
+Matplotlib-style view used by the safe_control drift-car examples.
+
+Useful virtual-test knobs are `--virtual-start-lateral-offset-px`,
+`--virtual-start-heading-deg`, `--virtual-start-speed-pps`,
+`--virtual-max-accel-pps2`, `--virtual-max-brake-pps2`, `--duration-s`,
+`--dt`, `--dynamic-count`, and `--dynamic-speed-pps`.
+
+If you want the older ROS-node-based synthetic pose path, it still exists in
+`dynamic_straight_node.py` behind `--virtual-vehicle-test`:
+
+```bash
+ros2 run crsf_ros2 dynamic_straight \
   --dry-run \
   --preview \
   --no-pid-panel \
   --controller-mode pid_velocity_cbf_qp_ellipse \
   --virtual-vehicle-test
 ```
-
-Useful virtual-test knobs are `--virtual-start-lateral-offset-px`,
-`--virtual-start-heading-deg`, `--virtual-start-speed-pps`,
-`--virtual-max-accel-pps2`, `--virtual-max-brake-pps2`, and
-`--virtual-stop-at-end`. Add `--virtual-unlimited-path` when you want the
-synthetic straight road to scroll in an ego-follow frame instead of stopping at
-the generated path end.
 
 For a surprise-obstacle test where the controller does not receive a prior
 obstacle map, use:
@@ -118,7 +122,7 @@ obstacle map, use:
 ros2 run crsf_ros2 straight_random_static_test
 ```
 
-This launches `straight_static` with randomized hidden obstacles. They are drawn
+This launches the straight-road compatibility path with randomized hidden obstacles. They are drawn
 gray while unknown and turn red once the virtual sensor reveals them to the
 controller. Override the scenario with options such as
 `--random-obstacle-count`, `--random-obstacle-seed`, and
@@ -126,12 +130,12 @@ controller. Override the scenario with options such as
 
 ## Static Obstacles
 
-The straight and ellipse followers share the same laneless static-obstacle
-format. Add virtual obstacles with JSON when you want to test avoidance behavior
-inside the road:
+The straight-road HIL paths share the same laneless static-obstacle format. Add
+virtual obstacles with JSON when you want to test avoidance behavior inside the
+road:
 
 ```bash
-ros2 run crsf_ros2 straight_static \
+ros2 run crsf_ros2 dynamic_straight \
   --dry-run \
   --preview \
   --controller-mode pid_velocity_cbf_qp_ellipse \
@@ -158,14 +162,14 @@ Each obstacle can set:
 | `--marker-dict DICT_4X4_50` | ArUco dictionary used by the marker. |
 | `--aruco-parallax-factor 0.0` | Shifts the detected marker control point along the configured front edge by a fraction of marker size. Try small values such as `0.2` or `-0.2` when an angled camera makes the marker center look offset. |
 | `--track-center-y 0.55` | Vertical placement of the straight road in the image. |
-| `--track-radius-x 0.20` | Horizontal ellipse radius as a fraction of image width for `ellipse_static.py`. |
-| `--track-radius-y 0.24` | Vertical ellipse radius as a fraction of image height for `ellipse_static.py`. |
-| `--road-length-x 0.82` | Fraction of image width used by `straight_static.py`. |
+| `--road-length-x 0.82` | Fraction of image width used by the straight-road scene. |
 | `--road-half-width-px 150` | Half-width of the virtual laneless road. |
-| `--add-road-end-walls` | Adds static obstacle walls at the start and end of `straight_static.py`. |
-| `--virtual-vehicle-test` | Runs the straight-road controller against a synthetic vehicle instead of camera detections. |
-| `--virtual-unlimited-path` | Scrolls and recycles the synthetic straight-road window for endless virtual tests. |
+| `--add-road-end-walls` | Adds static obstacle walls at the start and end of the straight road. |
+| `--virtual-vehicle-test` | Runs the node-based straight-road controller against a synthetic vehicle instead of camera detections. |
+| `--virtual-unlimited-path` | Scrolls and recycles the synthetic straight-road window for endless node-based virtual tests. |
 | `--random-static-obstacles` | Spawns virtual obstacles that are hidden from the controller until detected. |
+| `--traffic-scenario free_flow` | Selects the preset moving-obstacle scenario used by `dynamic_straight`. |
+| `--dynamic-obstacle-count 6` | Number of moving obstacles for the dynamic straight scenarios. |
 | `--controller-mode pid_velocity_cbf_qp_ellipse` | Enables car-centered elliptical QP-CBF filtering around lidar-detected obstacle corners. |
 | `--cbf-h-px 42` | CBF obstacle barrier distance in pixels. Larger values keep more lidar clearance from obstacles and walls. Also available as `CBF h px` in the tuning panel. |
 | `--cbf-alpha 1.0` | CBF aggressiveness. Lower values slow earlier; higher values allow more speed closer to limits. Also available as `CBF alpha x100` in the tuning panel. |
@@ -178,7 +182,7 @@ bridge is running:
 
 ```bash
 ros2 run crsf_ros2 crsf_ros
-ros2 run crsf_ros2 straight_static \
+ros2 run crsf_ros2 dynamic_straight \
   --confirm-propulsion-safe \
   --preview \
   --controller-mode pid_velocity_cbf_qp_ellipse
@@ -191,7 +195,7 @@ The node refuses to send RC output unless `--confirm-propulsion-safe` is passed.
 Launch the follower with telemetry enabled, which is the default:
 
 ```bash
-ros2 run crsf_ros2 ellipse_static \
+ros2 run crsf_ros2 dynamic_straight \
   --dry-run \
   --preview
 ```

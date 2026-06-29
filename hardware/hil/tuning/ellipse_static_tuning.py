@@ -35,7 +35,9 @@ class EllipseStaticTuning:
     def create_pid_panel(self):
         """Open live sliders for controller tuning."""
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-        cv2.resizeWindow(self.window_name, 520, 440)
+        cv2.resizeWindow(self.window_name, 720, 620)
+        preview_width = getattr(self.config, 'virtual_width', 960) or 640
+        cv2.moveWindow(self.window_name, 50 + int(preview_width) + 20, 50)
         cv2.createTrackbar(
             'CBF slack wt',
             self.window_name,
