@@ -163,7 +163,11 @@ class GazeboMpcControllerNode(Node):
         self.declare_parameter('odom_topic', '/model/prius/odometry')
         self.declare_parameter('cmd_topic', '/model/prius/cmd_vel')
         self.declare_parameter('enable_tuning', True)
-        self.declare_parameter('use_sim_time', True)
+        # Set pre-declared use_sim_time parameter to True
+        try:
+            self.set_parameters([rclpy.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)])
+        except Exception:
+            pass
 
         self.trajectory_file = self.get_parameter('trajectory_file').value
         self.tuning_file = self.get_parameter('tuning_file').value
