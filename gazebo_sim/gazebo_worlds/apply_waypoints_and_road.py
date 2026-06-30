@@ -62,15 +62,6 @@ for i, row in enumerate(waypoints):
         </material>
       </visual>
       
-      <!-- Collision -->
-      <collision name="collision_{i}">
-        <pose>0 0 0.002 0 0 0</pose>
-        <geometry>
-          <box>
-            <size>2.0 6.0 0.02</size>
-          </box>
-        </geometry>
-      </collision>
     </link>"""
 
 road_links_xml += "\n    </model>"
