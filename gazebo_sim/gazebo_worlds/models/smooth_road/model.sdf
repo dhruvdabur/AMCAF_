@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<sdf version="1.7">
+  <model name="smooth_road">
+    <static>true</static>
+    <link name="road_surface">
+      <collision name="smooth_asphalt_collision">
+        <pose>0 0 0.026 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>meshes/asphalt.obj</uri>
+          </mesh>
+        </geometry>
+      </collision>
+      <visual name="continuous_yellow_border">
+        <pose>0 0 0.026 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>meshes/yellow_border.obj</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>1.0 0.78 0.0 1.0</ambient>
+          <diffuse>1.0 0.78 0.0 1.0</diffuse>
+          <specular>0.08 0.08 0.06 1.0</specular>
+        </material>
+      </visual>
+      <visual name="continuous_asphalt">
+        <pose>0 0 0.029 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>meshes/asphalt.obj</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.13 0.13 0.13 1.0</ambient>
+          <diffuse>0.13 0.13 0.13 1.0</diffuse>
+          <specular>0.035 0.035 0.035 1.0</specular>
+        </material>
+      </visual>
+      <visual name="center_lane_line">
+        <pose>0 0 0.033 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>meshes/center_line.obj</uri>
+          </mesh>
+        </geometry>
+        <material>
+          <ambient>0.95 0.95 0.9 1.0</ambient>
+          <diffuse>0.95 0.95 0.9 1.0</diffuse>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

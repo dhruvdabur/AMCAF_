@@ -1,0 +1,21 @@
+# Large binaries
+agy
+car_demo/agy
+
+# IDE and Editor configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python caching
+__pycache__/
+*.pyc
+
+# C/C++ build artifacts
+build/
+devel/
+install/
+log/
+*.so
+*.o

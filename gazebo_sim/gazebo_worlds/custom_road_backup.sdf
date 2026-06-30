@@ -1,0 +1,5487 @@
+<?xml version="1.0" ?>
+<sdf version='1.7'>
+  <world name='custom_road_world'>
+    <scene>
+      <ambient>1.0 1.0 1.0</ambient>
+      <background>0.8 0.8 0.8</background>
+      <sky></sky>
+    </scene>
+    <plugin
+      filename="ignition-gazebo-physics-system"
+      name="ignition::gazebo::systems::Physics">
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-sensors-system"
+      name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-user-commands-system"
+      name="ignition::gazebo::systems::UserCommands">
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-scene-broadcaster-system"
+      name="ignition::gazebo::systems::SceneBroadcaster">
+    </plugin>
+
+    <!-- Ground Plane -->
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/openrobotics/models/Ground Plane</uri>
+    </include>
+
+    <!-- Lighting -->
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/openrobotics/models/Sun</uri>
+    </include>
+
+    <!-- Custom Elliptical Road Model -->
+    <model name="elliptical_road">
+      <static>true</static>
+      
+    <link name="seg_0">
+      <pose>29.970 0.628 0.01 0 0 1.618</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_0">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_0">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_0">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_1">
+      <pose>29.852 1.881 0.01 0 0 1.712</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_1">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_1">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_1">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_2">
+      <pose>29.616 3.127 0.01 0 0 1.804</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_2">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_2">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_2">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_3">
+      <pose>29.263 4.361 0.01 0 0 1.894</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_3">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_3">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_3">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_4">
+      <pose>28.795 5.577 0.01 0 0 1.982</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_4">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_4">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_4">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_5">
+      <pose>28.212 6.771 0.01 0 0 2.066</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_5">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_5">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_5">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_6">
+      <pose>27.519 7.939 0.01 0 0 2.147</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_6">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_6">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_6">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_7">
+      <pose>26.717 9.075 0.01 0 0 2.223</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_7">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_7">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_7">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_8">
+      <pose>25.810 10.176 0.01 0 0 2.296</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_8">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_8">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_8">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_9">
+      <pose>24.800 11.236 0.01 0 0 2.366</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_9">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_9">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_9">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_10">
+      <pose>23.693 12.252 0.01 0 0 2.432</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_10">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_10">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_10">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_11">
+      <pose>22.492 13.220 0.01 0 0 2.494</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_11">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_11">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_11">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_12">
+      <pose>21.203 14.135 0.01 0 0 2.554</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_12">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_12">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_12">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_13">
+      <pose>19.830 14.995 0.01 0 0 2.610</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_13">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_13">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_13">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_14">
+      <pose>18.378 15.795 0.01 0 0 2.664</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_14">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_14">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_14">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_15">
+      <pose>16.854 16.533 0.01 0 0 2.716</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_15">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_15">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_15">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_16">
+      <pose>15.264 17.206 0.01 0 0 2.766</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_16">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_16">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_16">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_17">
+      <pose>13.613 17.811 0.01 0 0 2.814</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_17">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_17">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_17">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_18">
+      <pose>11.909 18.346 0.01 0 0 2.861</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_18">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_18">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_18">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_19">
+      <pose>10.157 18.808 0.01 0 0 2.906</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_19">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_19">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_19">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_20">
+      <pose>8.366 19.196 0.01 0 0 2.950</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_20">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_20">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_20">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_21">
+      <pose>6.541 19.509 0.01 0 0 2.994</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_21">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_21">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_21">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_22">
+      <pose>4.691 19.744 0.01 0 0 3.036</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_22">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_22">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_22">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_23">
+      <pose>2.822 19.901 0.01 0 0 3.079</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_23">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_23">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_23">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_24">
+      <pose>0.942 19.980 0.01 0 0 3.121</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_24">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_24">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_24">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_25">
+      <pose>-0.942 19.980 0.01 0 0 -3.121</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_25">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_25">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_25">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_26">
+      <pose>-2.822 19.901 0.01 0 0 -3.079</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_26">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_26">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_26">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_27">
+      <pose>-4.691 19.744 0.01 0 0 -3.036</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_27">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_27">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_27">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_28">
+      <pose>-6.541 19.509 0.01 0 0 -2.994</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_28">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_28">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_28">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_29">
+      <pose>-8.366 19.196 0.01 0 0 -2.950</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_29">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_29">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_29">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_30">
+      <pose>-10.157 18.808 0.01 0 0 -2.906</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_30">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_30">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_30">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_31">
+      <pose>-11.909 18.346 0.01 0 0 -2.861</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_31">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_31">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_31">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_32">
+      <pose>-13.613 17.811 0.01 0 0 -2.814</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_32">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_32">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_32">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_33">
+      <pose>-15.264 17.206 0.01 0 0 -2.766</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_33">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_33">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_33">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_34">
+      <pose>-16.854 16.533 0.01 0 0 -2.716</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_34">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_34">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_34">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_35">
+      <pose>-18.378 15.795 0.01 0 0 -2.664</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_35">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_35">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_35">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_36">
+      <pose>-19.830 14.995 0.01 0 0 -2.610</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_36">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_36">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_36">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_37">
+      <pose>-21.203 14.135 0.01 0 0 -2.554</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_37">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_37">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_37">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_38">
+      <pose>-22.492 13.220 0.01 0 0 -2.494</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_38">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_38">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_38">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_39">
+      <pose>-23.693 12.252 0.01 0 0 -2.432</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_39">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_39">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_39">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_40">
+      <pose>-24.800 11.236 0.01 0 0 -2.366</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_40">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_40">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_40">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_41">
+      <pose>-25.810 10.176 0.01 0 0 -2.296</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_41">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_41">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_41">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_42">
+      <pose>-26.717 9.075 0.01 0 0 -2.223</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_42">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_42">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_42">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_43">
+      <pose>-27.519 7.939 0.01 0 0 -2.147</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_43">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_43">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_43">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_44">
+      <pose>-28.212 6.771 0.01 0 0 -2.066</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_44">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_44">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_44">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_45">
+      <pose>-28.795 5.577 0.01 0 0 -1.982</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_45">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_45">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_45">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_46">
+      <pose>-29.263 4.361 0.01 0 0 -1.894</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_46">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_46">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_46">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_47">
+      <pose>-29.616 3.127 0.01 0 0 -1.804</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_47">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_47">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_47">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_48">
+      <pose>-29.852 1.881 0.01 0 0 -1.712</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_48">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_48">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_48">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_49">
+      <pose>-29.970 0.628 0.01 0 0 -1.618</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_49">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_49">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_49">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_50">
+      <pose>-29.970 -0.628 0.01 0 0 -1.524</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_50">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_50">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_50">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_51">
+      <pose>-29.852 -1.881 0.01 0 0 -1.430</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_51">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_51">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_51">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_52">
+      <pose>-29.616 -3.127 0.01 0 0 -1.338</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_52">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_52">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_52">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_53">
+      <pose>-29.263 -4.361 0.01 0 0 -1.247</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_53">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_53">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_53">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_54">
+      <pose>-28.795 -5.577 0.01 0 0 -1.160</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_54">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_54">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_54">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_55">
+      <pose>-28.212 -6.771 0.01 0 0 -1.076</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_55">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_55">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_55">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_56">
+      <pose>-27.519 -7.939 0.01 0 0 -0.995</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_56">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_56">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_56">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_57">
+      <pose>-26.717 -9.075 0.01 0 0 -0.918</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_57">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_57">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_57">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_58">
+      <pose>-25.810 -10.176 0.01 0 0 -0.845</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_58">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_58">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_58">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_59">
+      <pose>-24.800 -11.236 0.01 0 0 -0.776</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_59">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_59">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_59">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_60">
+      <pose>-23.693 -12.252 0.01 0 0 -0.710</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_60">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_60">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_60">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_61">
+      <pose>-22.492 -13.220 0.01 0 0 -0.647</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_61">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_61">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_61">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_62">
+      <pose>-21.203 -14.135 0.01 0 0 -0.588</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_62">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_62">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_62">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_63">
+      <pose>-19.830 -14.995 0.01 0 0 -0.531</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_63">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_63">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_63">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_64">
+      <pose>-18.378 -15.795 0.01 0 0 -0.477</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_64">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_64">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_64">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_65">
+      <pose>-16.854 -16.533 0.01 0 0 -0.425</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_65">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_65">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_65">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_66">
+      <pose>-15.264 -17.206 0.01 0 0 -0.376</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_66">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_66">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_66">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_67">
+      <pose>-13.613 -17.811 0.01 0 0 -0.327</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_67">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_67">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_67">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_68">
+      <pose>-11.909 -18.346 0.01 0 0 -0.281</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_68">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_68">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_68">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_69">
+      <pose>-10.157 -18.808 0.01 0 0 -0.236</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_69">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_69">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_69">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_70">
+      <pose>-8.366 -19.196 0.01 0 0 -0.191</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_70">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_70">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_70">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_71">
+      <pose>-6.541 -19.509 0.01 0 0 -0.148</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_71">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_71">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_71">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_72">
+      <pose>-4.691 -19.744 0.01 0 0 -0.105</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_72">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_72">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_72">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_73">
+      <pose>-2.822 -19.901 0.01 0 0 -0.063</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_73">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_73">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_73">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_74">
+      <pose>-0.942 -19.980 0.01 0 0 -0.021</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_74">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_74">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_74">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_75">
+      <pose>0.942 -19.980 0.01 0 0 0.021</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_75">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_75">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_75">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.914 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_76">
+      <pose>2.822 -19.901 0.01 0 0 0.063</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_76">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_76">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_76">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.910 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_77">
+      <pose>4.691 -19.744 0.01 0 0 0.105</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_77">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_77">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_77">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.902 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_78">
+      <pose>6.541 -19.509 0.01 0 0 0.148</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_78">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_78">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_78">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.890 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_79">
+      <pose>8.366 -19.196 0.01 0 0 0.191</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_79">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_79">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_79">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.873 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_80">
+      <pose>10.157 -18.808 0.01 0 0 0.236</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_80">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_80">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_80">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.854 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_81">
+      <pose>11.909 -18.346 0.01 0 0 0.281</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_81">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_81">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_81">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.830 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_82">
+      <pose>13.613 -17.811 0.01 0 0 0.327</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_82">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_82">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_82">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.803 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_83">
+      <pose>15.264 -17.206 0.01 0 0 0.376</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_83">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_83">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_83">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.774 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_84">
+      <pose>16.854 -16.533 0.01 0 0 0.425</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_84">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_84">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_84">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.741 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_85">
+      <pose>18.378 -15.795 0.01 0 0 0.477</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_85">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_85">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_85">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.706 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_86">
+      <pose>19.830 -14.995 0.01 0 0 0.531</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_86">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_86">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_86">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.670 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_87">
+      <pose>21.203 -14.135 0.01 0 0 0.588</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_87">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_87">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_87">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.632 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_88">
+      <pose>22.492 -13.220 0.01 0 0 0.647</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_88">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_88">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_88">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.593 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_89">
+      <pose>23.693 -12.252 0.01 0 0 0.710</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_89">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_89">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_89">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.553 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_90">
+      <pose>24.800 -11.236 0.01 0 0 0.776</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_90">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_90">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_90">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.514 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_91">
+      <pose>25.810 -10.176 0.01 0 0 0.845</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_91">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_91">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_91">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.476 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_92">
+      <pose>26.717 -9.075 0.01 0 0 0.918</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_92">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_92">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_92">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.439 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_93">
+      <pose>27.519 -7.939 0.01 0 0 0.995</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_93">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_93">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_93">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.405 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_94">
+      <pose>28.212 -6.771 0.01 0 0 1.076</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_94">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_94">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_94">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.374 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_95">
+      <pose>28.795 -5.577 0.01 0 0 1.160</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_95">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_95">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_95">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.346 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_96">
+      <pose>29.263 -4.361 0.01 0 0 1.247</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_96">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_96">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_96">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.323 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_97">
+      <pose>29.616 -3.127 0.01 0 0 1.338</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_97">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_97">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_97">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.306 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_98">
+      <pose>29.852 -1.881 0.01 0 0 1.430</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_98">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_98">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_98">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.293 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    <link name="seg_99">
+      <pose>29.970 -0.628 0.01 0 0 1.524</pose>
+      
+      <!-- Yellow Border Base -->
+      <visual name="yellow_base_99">
+        <pose>0 0 0.001 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.4 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1.0 0.8 0.0 1.0</ambient>
+          <diffuse>1.0 0.8 0.0 1.0</diffuse>
+          <specular>0.1 0.1 0.1 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Asphalt top -->
+      <visual name="asphalt_top_99">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.0 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.15 0.15 0.15 1.0</ambient>
+          <diffuse>0.15 0.15 0.15 1.0</diffuse>
+          <specular>0.05 0.05 0.05 1.0</specular>
+        </material>
+      </visual>
+      
+      <!-- Collision -->
+      <collision name="collision_99">
+        <pose>0 0 0.002 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>1.287 6.0 0.02</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+    </model>
+
+
+    <!-- Smooth visual road overlay: hides the faceted/cut borders from the original box segments. -->
+    <model name="smooth_road_overlay">
+      <static>true</static>
+      <link name="road_visuals">
+        <visual name="continuous_yellow_border">
+          <pose>0 0 0.038 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>models/smooth_road/meshes/yellow_border.obj</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <ambient>1.0 0.78 0.0 1.0</ambient>
+            <diffuse>1.0 0.78 0.0 1.0</diffuse>
+            <specular>0.08 0.08 0.06 1.0</specular>
+          </material>
+        </visual>
+        <visual name="continuous_asphalt">
+          <pose>0 0 0.044 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>models/smooth_road/meshes/asphalt.obj</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <ambient>0.13 0.13 0.13 1.0</ambient>
+            <diffuse>0.13 0.13 0.13 1.0</diffuse>
+            <specular>0.035 0.035 0.035 1.0</specular>
+          </material>
+        </visual>
+        <visual name="center_lane_line">
+          <pose>0 0 0.052 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <uri>models/smooth_road/meshes/center_line.obj</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <ambient>0.95 0.95 0.9 1.0</ambient>
+            <diffuse>0.95 0.95 0.9 1.0</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Lightweight dynamic traffic: visual actors loop on the two lanes. -->
+
+    <actor name="traffic_car_blue">
+      <pose>0 0 0 0 0 0</pose>
+      <link name="body_link">
+        <visual name="body">
+          <pose>0 0 0.12 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>2.4 1.05 0.35</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.05 0.20 0.95 1</ambient>
+            <diffuse>0.05 0.20 0.95 1</diffuse>
+            <specular>0.45 0.45 0.45 1</specular>
+          </material>
+        </visual>
+        <visual name="cabin">
+          <pose>0.18 0 0.42 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>1.05 0.86 0.34</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.06 0.09 0.12 1</ambient>
+            <diffuse>0.08 0.12 0.16 1</diffuse>
+            <specular>0.4 0.4 0.45 1</specular>
+          </material>
+        </visual>
+        <visual name="front_marker">
+          <pose>1.23 0 0.22 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.82 0.12</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 0.95 0.72 1</ambient>
+            <diffuse>1 0.95 0.72 1</diffuse>
+          </material>
+        </visual>
+        <visual name="rear_marker">
+          <pose>-1.23 0 0.21 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.82 0.12</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.04 0.03 1</ambient>
+            <diffuse>0.8 0.04 0.03 1</diffuse>
+          </material>
+        </visual>
+        <visual name="left_wheels">
+          <pose>0 0.58 0.02 1.5708 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.22</radius>
+              <length>2.0</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.015 0.015 0.015 1</ambient>
+            <diffuse>0.015 0.015 0.015 1</diffuse>
+          </material>
+        </visual>
+        <visual name="right_wheels">
+          <pose>0 -0.58 0.02 1.5708 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.22</radius>
+              <length>2.0</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.015 0.015 0.015 1</ambient>
+            <diffuse>0.015 0.015 0.015 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <script>
+        <loop>true</loop>
+        <auto_start>true</auto_start>
+        <trajectory id="0" type="traffic_loop" tension="0.8">
+          <waypoint>
+            <time>0.000</time>
+            <pose>31.450 0.000 0.420 0 0 1.571</pose>
+          </waypoint>
+          <waypoint>
+            <time>0.885</time>
+            <pose>30.813 4.316 0.420 0 0 1.861</pose>
+          </waypoint>
+          <waypoint>
+            <time>1.771</time>
+            <pose>28.948 8.419 0.420 0 0 2.127</pose>
+          </waypoint>
+          <waypoint>
+            <time>2.656</time>
+            <pose>25.968 12.138 0.420 0 0 2.357</pose>
+          </waypoint>
+          <waypoint>
+            <time>3.541</time>
+            <pose>22.018 15.349 0.420 0 0 2.554</pose>
+          </waypoint>
+          <waypoint>
+            <time>4.427</time>
+            <pose>17.257 17.954 0.420 0 0 2.723</pose>
+          </waypoint>
+          <waypoint>
+            <time>5.312</time>
+            <pose>11.866 19.875 0.420 0 0 2.872</pose>
+          </waypoint>
+          <waypoint>
+            <time>6.197</time>
+            <pose>6.043 21.053 0.420 0 0 3.010</pose>
+          </waypoint>
+          <waypoint>
+            <time>7.083</time>
+            <pose>0.000 21.450 0.420 0 0 3.142</pose>
+          </waypoint>
+          <waypoint>
+            <time>7.968</time>
+            <pose>-6.043 21.053 0.420 0 0 -3.010</pose>
+          </waypoint>
+          <waypoint>
+            <time>8.853</time>
+            <pose>-11.866 19.875 0.420 0 0 -2.872</pose>
+          </waypoint>
+          <waypoint>
+            <time>9.739</time>
+            <pose>-17.257 17.954 0.420 0 0 -2.723</pose>
+          </waypoint>
+          <waypoint>
+            <time>10.624</time>
+            <pose>-22.018 15.349 0.420 0 0 -2.554</pose>
+          </waypoint>
+          <waypoint>
+            <time>11.510</time>
+            <pose>-25.968 12.138 0.420 0 0 -2.357</pose>
+          </waypoint>
+          <waypoint>
+            <time>12.395</time>
+            <pose>-28.948 8.419 0.420 0 0 -2.127</pose>
+          </waypoint>
+          <waypoint>
+            <time>13.280</time>
+            <pose>-30.813 4.316 0.420 0 0 -1.861</pose>
+          </waypoint>
+          <waypoint>
+            <time>14.166</time>
+            <pose>-31.450 0.000 0.420 0 0 -1.571</pose>
+          </waypoint>
+          <waypoint>
+            <time>15.051</time>
+            <pose>-30.813 -4.316 0.420 0 0 -1.281</pose>
+          </waypoint>
+          <waypoint>
+            <time>15.936</time>
+            <pose>-28.948 -8.419 0.420 0 0 -1.015</pose>
+          </waypoint>
+          <waypoint>
+            <time>16.822</time>
+            <pose>-25.968 -12.138 0.420 0 0 -0.784</pose>
+          </waypoint>
+          <waypoint>
+            <time>17.707</time>
+            <pose>-22.018 -15.349 0.420 0 0 -0.588</pose>
+          </waypoint>
+          <waypoint>
+            <time>18.592</time>
+            <pose>-17.257 -17.954 0.420 0 0 -0.419</pose>
+          </waypoint>
+          <waypoint>
+            <time>19.478</time>
+            <pose>-11.866 -19.875 0.420 0 0 -0.269</pose>
+          </waypoint>
+          <waypoint>
+            <time>20.363</time>
+            <pose>-6.043 -21.053 0.420 0 0 -0.132</pose>
+          </waypoint>
+          <waypoint>
+            <time>21.248</time>
+            <pose>-0.000 -21.450 0.420 0 0 -0.000</pose>
+          </waypoint>
+          <waypoint>
+            <time>22.134</time>
+            <pose>6.043 -21.053 0.420 0 0 0.132</pose>
+          </waypoint>
+          <waypoint>
+            <time>23.019</time>
+            <pose>11.866 -19.875 0.420 0 0 0.269</pose>
+          </waypoint>
+          <waypoint>
+            <time>23.904</time>
+            <pose>17.257 -17.954 0.420 0 0 0.419</pose>
+          </waypoint>
+          <waypoint>
+            <time>24.790</time>
+            <pose>22.018 -15.349 0.420 0 0 0.588</pose>
+          </waypoint>
+          <waypoint>
+            <time>25.675</time>
+            <pose>25.968 -12.138 0.420 0 0 0.784</pose>
+          </waypoint>
+          <waypoint>
+            <time>26.560</time>
+            <pose>28.948 -8.419 0.420 0 0 1.015</pose>
+          </waypoint>
+          <waypoint>
+            <time>27.446</time>
+            <pose>30.813 -4.316 0.420 0 0 1.281</pose>
+          </waypoint>
+          <waypoint>
+            <time>28.331</time>
+            <pose>31.450 0.000 0.420 0 0 1.571</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="traffic_car_red">
+      <pose>0 0 0 0 0 0</pose>
+      <link name="body_link">
+        <visual name="body">
+          <pose>0 0 0.12 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>2.4 1.05 0.35</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.08 0.05 1</ambient>
+            <diffuse>0.92 0.08 0.05 1</diffuse>
+            <specular>0.45 0.45 0.45 1</specular>
+          </material>
+        </visual>
+        <visual name="cabin">
+          <pose>0.18 0 0.42 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>1.05 0.86 0.34</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.06 0.09 0.12 1</ambient>
+            <diffuse>0.08 0.12 0.16 1</diffuse>
+            <specular>0.4 0.4 0.45 1</specular>
+          </material>
+        </visual>
+        <visual name="front_marker">
+          <pose>1.23 0 0.22 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.82 0.12</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 0.95 0.72 1</ambient>
+            <diffuse>1 0.95 0.72 1</diffuse>
+          </material>
+        </visual>
+        <visual name="rear_marker">
+          <pose>-1.23 0 0.21 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.82 0.12</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.04 0.03 1</ambient>
+            <diffuse>0.8 0.04 0.03 1</diffuse>
+          </material>
+        </visual>
+        <visual name="left_wheels">
+          <pose>0 0.58 0.02 1.5708 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.22</radius>
+              <length>2.0</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.015 0.015 0.015 1</ambient>
+            <diffuse>0.015 0.015 0.015 1</diffuse>
+          </material>
+        </visual>
+        <visual name="right_wheels">
+          <pose>0 -0.58 0.02 1.5708 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.22</radius>
+              <length>2.0</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.015 0.015 0.015 1</ambient>
+            <diffuse>0.015 0.015 0.015 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <script>
+        <loop>true</loop>
+        <auto_start>true</auto_start>
+        <trajectory id="0" type="traffic_loop" tension="0.8">
+          <waypoint>
+            <time>0.000</time>
+            <pose>5.804 21.084 0.420 0 0 3.015</pose>
+          </waypoint>
+          <waypoint>
+            <time>0.972</time>
+            <pose>-0.243 21.449 0.420 0 0 -3.136</pose>
+          </waypoint>
+          <waypoint>
+            <time>1.944</time>
+            <pose>-6.282 21.021 0.420 0 0 -3.004</pose>
+          </waypoint>
+          <waypoint>
+            <time>2.916</time>
+            <pose>-12.092 19.812 0.420 0 0 -2.866</pose>
+          </waypoint>
+          <waypoint>
+            <time>3.889</time>
+            <pose>-17.461 17.862 0.420 0 0 -2.716</pose>
+          </waypoint>
+          <waypoint>
+            <time>4.861</time>
+            <pose>-22.192 15.231 0.420 0 0 -2.546</pose>
+          </waypoint>
+          <waypoint>
+            <time>5.833</time>
+            <pose>-26.107 11.998 0.420 0 0 -2.349</pose>
+          </waypoint>
+          <waypoint>
+            <time>6.805</time>
+            <pose>-29.045 8.261 0.420 0 0 -2.117</pose>
+          </waypoint>
+          <waypoint>
+            <time>7.777</time>
+            <pose>-30.863 4.147 0.420 0 0 -1.849</pose>
+          </waypoint>
+          <waypoint>
+            <time>8.749</time>
+            <pose>-31.449 -0.174 0.420 0 0 -1.559</pose>
+          </waypoint>
+          <waypoint>
+            <time>9.721</time>
+            <pose>-30.761 -4.486 0.420 0 0 -1.270</pose>
+          </waypoint>
+          <waypoint>
+            <time>10.694</time>
+            <pose>-28.849 -8.576 0.420 0 0 -1.005</pose>
+          </waypoint>
+          <waypoint>
+            <time>11.666</time>
+            <pose>-25.828 -12.277 0.420 0 0 -0.776</pose>
+          </waypoint>
+          <waypoint>
+            <time>12.638</time>
+            <pose>-21.842 -15.465 0.420 0 0 -0.581</pose>
+          </waypoint>
+          <waypoint>
+            <time>13.610</time>
+            <pose>-17.052 -18.044 0.420 0 0 -0.413</pose>
+          </waypoint>
+          <waypoint>
+            <time>14.582</time>
+            <pose>-11.640 -19.937 0.420 0 0 -0.264</pose>
+          </waypoint>
+          <waypoint>
+            <time>15.554</time>
+            <pose>-5.804 -21.084 0.420 0 0 -0.126</pose>
+          </waypoint>
+          <waypoint>
+            <time>16.526</time>
+            <pose>0.243 -21.449 0.420 0 0 0.005</pose>
+          </waypoint>
+          <waypoint>
+            <time>17.499</time>
+            <pose>6.282 -21.021 0.420 0 0 0.137</pose>
+          </waypoint>
+          <waypoint>
+            <time>18.471</time>
+            <pose>12.092 -19.812 0.420 0 0 0.275</pose>
+          </waypoint>
+          <waypoint>
+            <time>19.443</time>
+            <pose>17.461 -17.862 0.420 0 0 0.425</pose>
+          </waypoint>
+          <waypoint>
+            <time>20.415</time>
+            <pose>22.192 -15.231 0.420 0 0 0.595</pose>
+          </waypoint>
+          <waypoint>
+            <time>21.387</time>
+            <pose>26.107 -11.998 0.420 0 0 0.793</pose>
+          </waypoint>
+          <waypoint>
+            <time>22.359</time>
+            <pose>29.045 -8.261 0.420 0 0 1.025</pose>
+          </waypoint>
+          <waypoint>
+            <time>23.332</time>
+            <pose>30.863 -4.147 0.420 0 0 1.292</pose>
+          </waypoint>
+          <waypoint>
+            <time>24.304</time>
+            <pose>31.449 0.174 0.420 0 0 1.583</pose>
+          </waypoint>
+          <waypoint>
+            <time>25.276</time>
+            <pose>30.761 4.486 0.420 0 0 1.872</pose>
+          </waypoint>
+          <waypoint>
+            <time>26.248</time>
+            <pose>28.849 8.576 0.420 0 0 2.137</pose>
+          </waypoint>
+          <waypoint>
+            <time>27.220</time>
+            <pose>25.828 12.277 0.420 0 0 2.366</pose>
+          </waypoint>
+          <waypoint>
+            <time>28.192</time>
+            <pose>21.842 15.465 0.420 0 0 2.561</pose>
+          </waypoint>
+          <waypoint>
+            <time>29.164</time>
+            <pose>17.052 18.044 0.420 0 0 2.729</pose>
+          </waypoint>
+          <waypoint>
+            <time>30.137</time>
+            <pose>11.640 19.937 0.420 0 0 2.878</pose>
+          </waypoint>
+          <waypoint>
+            <time>31.109</time>
+            <pose>5.804 21.084 0.420 0 0 3.015</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="traffic_car_green">
+      <pose>0 0 0 0 0 0</pose>
+      <link name="body_link">
+        <visual name="body">
+          <pose>0 0 0.12 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>2.4 1.05 0.35</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.04 0.55 0.22 1</ambient>
+            <diffuse>0.04 0.55 0.22 1</diffuse>
+            <specular>0.45 0.45 0.45 1</specular>
+          </material>
+        </visual>
+        <visual name="cabin">
+          <pose>0.18 0 0.42 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>1.05 0.86 0.34</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.06 0.09 0.12 1</ambient>
+            <diffuse>0.08 0.12 0.16 1</diffuse>
+            <specular>0.4 0.4 0.45 1</specular>
+          </material>
+        </visual>
+        <visual name="front_marker">
+          <pose>1.23 0 0.22 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.82 0.12</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 0.95 0.72 1</ambient>
+            <diffuse>1 0.95 0.72 1</diffuse>
+          </material>
+        </visual>
+        <visual name="rear_marker">
+          <pose>-1.23 0 0.21 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.82 0.12</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.04 0.03 1</ambient>
+            <diffuse>0.8 0.04 0.03 1</diffuse>
+          </material>
+        </visual>
+        <visual name="left_wheels">
+          <pose>0 0.58 0.02 1.5708 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.22</radius>
+              <length>2.0</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.015 0.015 0.015 1</ambient>
+            <diffuse>0.015 0.015 0.015 1</diffuse>
+          </material>
+        </visual>
+        <visual name="right_wheels">
+          <pose>0 -0.58 0.02 1.5708 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.22</radius>
+              <length>2.0</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.015 0.015 0.015 1</ambient>
+            <diffuse>0.015 0.015 0.015 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <script>
+        <loop>true</loop>
+        <auto_start>true</auto_start>
+        <trajectory id="0" type="traffic_loop" tension="0.8">
+          <waypoint>
+            <time>0.000</time>
+            <pose>-31.188 2.777 0.420 0 0 -1.758</pose>
+          </waypoint>
+          <waypoint>
+            <time>0.855</time>
+            <pose>-31.367 -1.566 0.420 0 0 -1.465</pose>
+          </waypoint>
+          <waypoint>
+            <time>1.710</time>
+            <pose>-30.278 -5.828 0.420 0 0 -1.181</pose>
+          </waypoint>
+          <waypoint>
+            <time>2.564</time>
+            <pose>-27.997 -9.809 0.420 0 0 -0.928</pose>
+          </waypoint>
+          <waypoint>
+            <time>3.419</time>
+            <pose>-24.650 -13.358 0.420 0 0 -0.710</pose>
+          </waypoint>
+          <waypoint>
+            <time>4.274</time>
+            <pose>-20.388 -16.361 0.420 0 0 -0.524</pose>
+          </waypoint>
+          <waypoint>
+            <time>5.129</time>
+            <pose>-15.379 -18.728 0.420 0 0 -0.363</pose>
+          </waypoint>
+          <waypoint>
+            <time>5.984</time>
+            <pose>-9.809 -20.387 0.420 0 0 -0.219</pose>
+          </waypoint>
+          <waypoint>
+            <time>6.839</time>
+            <pose>-3.882 -21.287 0.420 0 0 -0.084</pose>
+          </waypoint>
+          <waypoint>
+            <time>7.693</time>
+            <pose>2.187 -21.398 0.420 0 0 0.047</pose>
+          </waypoint>
+          <waypoint>
+            <time>8.548</time>
+            <pose>8.176 -20.718 0.420 0 0 0.180</pose>
+          </waypoint>
+          <waypoint>
+            <time>9.403</time>
+            <pose>13.868 -19.267 0.420 0 0 0.322</pose>
+          </waypoint>
+          <waypoint>
+            <time>10.258</time>
+            <pose>19.053 -17.091 0.420 0 0 0.477</pose>
+          </waypoint>
+          <waypoint>
+            <time>11.113</time>
+            <pose>23.542 -14.258 0.420 0 0 0.655</pose>
+          </waypoint>
+          <waypoint>
+            <time>11.967</time>
+            <pose>27.161 -10.852 0.420 0 0 0.863</pose>
+          </waypoint>
+          <waypoint>
+            <time>12.822</time>
+            <pose>29.755 -6.978 0.420 0 0 1.107</pose>
+          </waypoint>
+          <waypoint>
+            <time>13.677</time>
+            <pose>31.188 -2.777 0.420 0 0 1.384</pose>
+          </waypoint>
+          <waypoint>
+            <time>14.532</time>
+            <pose>31.367 1.566 0.420 0 0 1.677</pose>
+          </waypoint>
+          <waypoint>
+            <time>15.387</time>
+            <pose>30.278 5.828 0.420 0 0 1.960</pose>
+          </waypoint>
+          <waypoint>
+            <time>16.242</time>
+            <pose>27.997 9.809 0.420 0 0 2.214</pose>
+          </waypoint>
+          <waypoint>
+            <time>17.096</time>
+            <pose>24.650 13.358 0.420 0 0 2.432</pose>
+          </waypoint>
+          <waypoint>
+            <time>17.951</time>
+            <pose>20.388 16.361 0.420 0 0 2.617</pose>
+          </waypoint>
+          <waypoint>
+            <time>18.806</time>
+            <pose>15.379 18.728 0.420 0 0 2.778</pose>
+          </waypoint>
+          <waypoint>
+            <time>19.661</time>
+            <pose>9.809 20.387 0.420 0 0 2.923</pose>
+          </waypoint>
+          <waypoint>
+            <time>20.516</time>
+            <pose>3.882 21.287 0.420 0 0 3.058</pose>
+          </waypoint>
+          <waypoint>
+            <time>21.370</time>
+            <pose>-2.187 21.398 0.420 0 0 -3.094</pose>
+          </waypoint>
+          <waypoint>
+            <time>22.225</time>
+            <pose>-8.176 20.718 0.420 0 0 -2.961</pose>
+          </waypoint>
+          <waypoint>
+            <time>23.080</time>
+            <pose>-13.868 19.267 0.420 0 0 -2.820</pose>
+          </waypoint>
+          <waypoint>
+            <time>23.935</time>
+            <pose>-19.053 17.091 0.420 0 0 -2.664</pose>
+          </waypoint>
+          <waypoint>
+            <time>24.790</time>
+            <pose>-23.542 14.258 0.420 0 0 -2.487</pose>
+          </waypoint>
+          <waypoint>
+            <time>25.645</time>
+            <pose>-27.161 10.852 0.420 0 0 -2.279</pose>
+          </waypoint>
+          <waypoint>
+            <time>26.499</time>
+            <pose>-29.755 6.978 0.420 0 0 -2.035</pose>
+          </waypoint>
+          <waypoint>
+            <time>27.354</time>
+            <pose>-31.188 2.777 0.420 0 0 -1.758</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="traffic_car_white">
+      <pose>0 0 0 0 0 0</pose>
+      <link name="body_link">
+        <visual name="body">
+          <pose>0 0 0.12 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>2.4 1.05 0.35</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.88 0.88 0.82 1</ambient>
+            <diffuse>0.88 0.88 0.82 1</diffuse>
+            <specular>0.45 0.45 0.45 1</specular>
+          </material>
+        </visual>
+        <visual name="cabin">
+          <pose>0.18 0 0.42 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>1.05 0.86 0.34</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.06 0.09 0.12 1</ambient>
+            <diffuse>0.08 0.12 0.16 1</diffuse>
+            <specular>0.4 0.4 0.45 1</specular>
+          </material>
+        </visual>
+        <visual name="front_marker">
+          <pose>1.23 0 0.22 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.82 0.12</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 0.95 0.72 1</ambient>
+            <diffuse>1 0.95 0.72 1</diffuse>
+          </material>
+        </visual>
+        <visual name="rear_marker">
+          <pose>-1.23 0 0.21 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.82 0.12</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.04 0.03 1</ambient>
+            <diffuse>0.8 0.04 0.03 1</diffuse>
+          </material>
+        </visual>
+        <visual name="left_wheels">
+          <pose>0 0.58 0.02 1.5708 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.22</radius>
+              <length>2.0</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.015 0.015 0.015 1</ambient>
+            <diffuse>0.015 0.015 0.015 1</diffuse>
+          </material>
+        </visual>
+        <visual name="right_wheels">
+          <pose>0 -0.58 0.02 1.5708 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.22</radius>
+              <length>2.0</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.015 0.015 0.015 1</ambient>
+            <diffuse>0.015 0.015 0.015 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <script>
+        <loop>true</loop>
+        <auto_start>true</auto_start>
+        <trajectory id="0" type="traffic_loop" tension="0.8">
+          <waypoint>
+            <time>0.000</time>
+            <pose>25.171 8.713 0.420 0 0 2.260</pose>
+          </waypoint>
+          <waypoint>
+            <time>1.033</time>
+            <pose>22.063 11.733 0.420 0 0 2.471</pose>
+          </waypoint>
+          <waypoint>
+            <time>2.066</time>
+            <pose>18.074 14.330 0.420 0 0 2.651</pose>
+          </waypoint>
+          <waypoint>
+            <time>3.099</time>
+            <pose>13.355 16.378 0.420 0 0 2.808</pose>
+          </waypoint>
+          <waypoint>
+            <time>4.132</time>
+            <pose>8.094 17.782 0.420 0 0 2.950</pose>
+          </waypoint>
+          <waypoint>
+            <time>5.165</time>
+            <pose>2.505 18.478 0.420 0 0 3.084</pose>
+          </waypoint>
+          <waypoint>
+            <time>6.197</time>
+            <pose>-3.186 18.433 0.420 0 0 -3.068</pose>
+          </waypoint>
+          <waypoint>
+            <time>7.230</time>
+            <pose>-8.747 17.650 0.420 0 0 -2.934</pose>
+          </waypoint>
+          <waypoint>
+            <time>8.263</time>
+            <pose>-13.954 16.165 0.420 0 0 -2.790</pose>
+          </waypoint>
+          <waypoint>
+            <time>9.296</time>
+            <pose>-18.595 14.045 0.420 0 0 -2.631</pose>
+          </waypoint>
+          <waypoint>
+            <time>10.329</time>
+            <pose>-22.485 11.390 0.420 0 0 -2.448</pose>
+          </waypoint>
+          <waypoint>
+            <time>11.362</time>
+            <pose>-25.479 8.328 0.420 0 0 -2.233</pose>
+          </waypoint>
+          <waypoint>
+            <time>12.395</time>
+            <pose>-27.480 5.001 0.420 0 0 -1.982</pose>
+          </waypoint>
+          <waypoint>
+            <time>13.428</time>
+            <pose>-28.450 1.539 0.420 0 0 -1.700</pose>
+          </waypoint>
+          <waypoint>
+            <time>14.461</time>
+            <pose>-28.388 -1.958 0.420 0 0 -1.407</pose>
+          </waypoint>
+          <waypoint>
+            <time>15.494</time>
+            <pose>-27.294 -5.409 0.420 0 0 -1.128</pose>
+          </waypoint>
+          <waypoint>
+            <time>16.526</time>
+            <pose>-25.171 -8.713 0.420 0 0 -0.881</pose>
+          </waypoint>
+          <waypoint>
+            <time>17.559</time>
+            <pose>-22.063 -11.733 0.420 0 0 -0.671</pose>
+          </waypoint>
+          <waypoint>
+            <time>18.592</time>
+            <pose>-18.074 -14.330 0.420 0 0 -0.491</pose>
+          </waypoint>
+          <waypoint>
+            <time>19.625</time>
+            <pose>-13.355 -16.378 0.420 0 0 -0.333</pose>
+          </waypoint>
+          <waypoint>
+            <time>20.658</time>
+            <pose>-8.094 -17.782 0.420 0 0 -0.191</pose>
+          </waypoint>
+          <waypoint>
+            <time>21.691</time>
+            <pose>-2.505 -18.478 0.420 0 0 -0.058</pose>
+          </waypoint>
+          <waypoint>
+            <time>22.724</time>
+            <pose>3.186 -18.433 0.420 0 0 0.073</pose>
+          </waypoint>
+          <waypoint>
+            <time>23.757</time>
+            <pose>8.747 -17.650 0.420 0 0 0.208</pose>
+          </waypoint>
+          <waypoint>
+            <time>24.790</time>
+            <pose>13.954 -16.165 0.420 0 0 0.351</pose>
+          </waypoint>
+          <waypoint>
+            <time>25.823</time>
+            <pose>18.595 -14.045 0.420 0 0 0.511</pose>
+          </waypoint>
+          <waypoint>
+            <time>26.856</time>
+            <pose>22.485 -11.390 0.420 0 0 0.694</pose>
+          </waypoint>
+          <waypoint>
+            <time>27.888</time>
+            <pose>25.479 -8.328 0.420 0 0 0.909</pose>
+          </waypoint>
+          <waypoint>
+            <time>28.921</time>
+            <pose>27.480 -5.001 0.420 0 0 1.160</pose>
+          </waypoint>
+          <waypoint>
+            <time>29.954</time>
+            <pose>28.450 -1.539 0.420 0 0 1.442</pose>
+          </waypoint>
+          <waypoint>
+            <time>30.987</time>
+            <pose>28.388 1.958 0.420 0 0 1.735</pose>
+          </waypoint>
+          <waypoint>
+            <time>32.020</time>
+            <pose>27.294 5.409 0.420 0 0 2.014</pose>
+          </waypoint>
+          <waypoint>
+            <time>33.053</time>
+            <pose>25.171 8.713 0.420 0 0 2.260</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+    <actor name="traffic_car_yellow">
+      <pose>0 0 0 0 0 0</pose>
+      <link name="body_link">
+        <visual name="body">
+          <pose>0 0 0.12 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>2.4 1.05 0.35</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1.0 0.72 0.05 1</ambient>
+            <diffuse>1.0 0.72 0.05 1</diffuse>
+            <specular>0.45 0.45 0.45 1</specular>
+          </material>
+        </visual>
+        <visual name="cabin">
+          <pose>0.18 0 0.42 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>1.05 0.86 0.34</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.06 0.09 0.12 1</ambient>
+            <diffuse>0.08 0.12 0.16 1</diffuse>
+            <specular>0.4 0.4 0.45 1</specular>
+          </material>
+        </visual>
+        <visual name="front_marker">
+          <pose>1.23 0 0.22 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.82 0.12</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 0.95 0.72 1</ambient>
+            <diffuse>1 0.95 0.72 1</diffuse>
+          </material>
+        </visual>
+        <visual name="rear_marker">
+          <pose>-1.23 0 0.21 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.05 0.82 0.12</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.04 0.03 1</ambient>
+            <diffuse>0.8 0.04 0.03 1</diffuse>
+          </material>
+        </visual>
+        <visual name="left_wheels">
+          <pose>0 0.58 0.02 1.5708 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.22</radius>
+              <length>2.0</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.015 0.015 0.015 1</ambient>
+            <diffuse>0.015 0.015 0.015 1</diffuse>
+          </material>
+        </visual>
+        <visual name="right_wheels">
+          <pose>0 -0.58 0.02 1.5708 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.22</radius>
+              <length>2.0</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.015 0.015 0.015 1</ambient>
+            <diffuse>0.015 0.015 0.015 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <script>
+        <loop>true</loop>
+        <auto_start>true</auto_start>
+        <trajectory id="0" type="traffic_loop" tension="0.8">
+          <waypoint>
+            <time>0.000</time>
+            <pose>-21.030 12.509 0.420 0 0 -2.524</pose>
+          </waypoint>
+          <waypoint>
+            <time>0.935</time>
+            <pose>-24.396 9.593 0.420 0 0 -2.323</pose>
+          </waypoint>
+          <waypoint>
+            <time>1.871</time>
+            <pose>-26.802 6.354 0.420 0 0 -2.086</pose>
+          </waypoint>
+          <waypoint>
+            <time>2.806</time>
+            <pose>-28.186 2.932 0.420 0 0 -1.815</pose>
+          </waypoint>
+          <waypoint>
+            <time>3.742</time>
+            <pose>-28.537 -0.560 0.420 0 0 -1.524</pose>
+          </waypoint>
+          <waypoint>
+            <time>4.677</time>
+            <pose>-27.856 -4.040 0.420 0 0 -1.236</pose>
+          </waypoint>
+          <waypoint>
+            <time>5.613</time>
+            <pose>-26.142 -7.417 0.420 0 0 -0.975</pose>
+          </waypoint>
+          <waypoint>
+            <time>6.548</time>
+            <pose>-23.419 -10.568 0.420 0 0 -0.751</pose>
+          </waypoint>
+          <waypoint>
+            <time>7.484</time>
+            <pose>-19.767 -13.350 0.420 0 0 -0.559</pose>
+          </waypoint>
+          <waypoint>
+            <time>8.419</time>
+            <pose>-15.319 -15.631 0.420 0 0 -0.394</pose>
+          </waypoint>
+          <waypoint>
+            <time>9.355</time>
+            <pose>-10.250 -17.303 0.420 0 0 -0.247</pose>
+          </waypoint>
+          <waypoint>
+            <time>10.290</time>
+            <pose>-4.766 -18.287 0.420 0 0 -0.111</pose>
+          </waypoint>
+          <waypoint>
+            <time>11.226</time>
+            <pose>0.912 -18.540 0.420 0 0 0.021</pose>
+          </waypoint>
+          <waypoint>
+            <time>12.161</time>
+            <pose>6.553 -18.050 0.420 0 0 0.153</pose>
+          </waypoint>
+          <waypoint>
+            <time>13.096</time>
+            <pose>11.927 -16.840 0.420 0 0 0.292</pose>
+          </waypoint>
+          <waypoint>
+            <time>14.032</time>
+            <pose>16.819 -14.963 0.420 0 0 0.445</pose>
+          </waypoint>
+          <waypoint>
+            <time>14.967</time>
+            <pose>21.030 -12.509 0.420 0 0 0.617</pose>
+          </waypoint>
+          <waypoint>
+            <time>15.903</time>
+            <pose>24.396 -9.593 0.420 0 0 0.819</pose>
+          </waypoint>
+          <waypoint>
+            <time>16.838</time>
+            <pose>26.802 -6.354 0.420 0 0 1.055</pose>
+          </waypoint>
+          <waypoint>
+            <time>17.774</time>
+            <pose>28.186 -2.932 0.420 0 0 1.326</pose>
+          </waypoint>
+          <waypoint>
+            <time>18.709</time>
+            <pose>28.537 0.560 0.420 0 0 1.618</pose>
+          </waypoint>
+          <waypoint>
+            <time>19.645</time>
+            <pose>27.856 4.040 0.420 0 0 1.905</pose>
+          </waypoint>
+          <waypoint>
+            <time>20.580</time>
+            <pose>26.142 7.417 0.420 0 0 2.166</pose>
+          </waypoint>
+          <waypoint>
+            <time>21.516</time>
+            <pose>23.419 10.568 0.420 0 0 2.391</pose>
+          </waypoint>
+          <waypoint>
+            <time>22.451</time>
+            <pose>19.767 13.350 0.420 0 0 2.582</pose>
+          </waypoint>
+          <waypoint>
+            <time>23.387</time>
+            <pose>15.319 15.631 0.420 0 0 2.748</pose>
+          </waypoint>
+          <waypoint>
+            <time>24.322</time>
+            <pose>10.250 17.303 0.420 0 0 2.895</pose>
+          </waypoint>
+          <waypoint>
+            <time>25.257</time>
+            <pose>4.766 18.287 0.420 0 0 3.031</pose>
+          </waypoint>
+          <waypoint>
+            <time>26.193</time>
+            <pose>-0.912 18.540 0.420 0 0 -3.121</pose>
+          </waypoint>
+          <waypoint>
+            <time>27.128</time>
+            <pose>-6.553 18.050 0.420 0 0 -2.988</pose>
+          </waypoint>
+          <waypoint>
+            <time>28.064</time>
+            <pose>-11.927 16.840 0.420 0 0 -2.849</pose>
+          </waypoint>
+          <waypoint>
+            <time>28.999</time>
+            <pose>-16.819 14.963 0.420 0 0 -2.697</pose>
+          </waypoint>
+          <waypoint>
+            <time>29.935</time>
+            <pose>-21.030 12.509 0.420 0 0 -2.524</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+  </world>
+</sdf>

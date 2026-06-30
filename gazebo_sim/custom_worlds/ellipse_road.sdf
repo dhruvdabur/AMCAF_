@@ -1,0 +1,4416 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+  <world name="ellipse_road_world">
+
+    <plugin
+      filename="ignition-gazebo-physics-system"
+      name="ignition::gazebo::systems::Physics"/>
+
+    <plugin
+      filename="ignition-gazebo-user-commands-system"
+      name="ignition::gazebo::systems::UserCommands"/>
+
+    <plugin
+      filename="ignition-gazebo-scene-broadcaster-system"
+      name="ignition::gazebo::systems::SceneBroadcaster"/>
+
+    <light name="sun" type="directional">
+      <pose>0 0 20 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.2 -1</direction>
+    </light>
+
+    <!-- Ground -->
+    <model name="ground">
+      <static>true</static>
+      <pose>0 0 -0.03 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>80 60 0.04</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>80 60 0.04</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.25 0.45 0.25 1</ambient>
+            <diffuse>0.25 0.45 0.25 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_0">
+      <static>true</static>
+      <pose>27.989 0.314 0.02 0 0 1.605148</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.786 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.786 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_1">
+      <static>true</static>
+      <pose>27.946 0.942 0.02 0 0 1.673635</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.788 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.788 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_2">
+      <static>true</static>
+      <pose>27.860 1.568 0.02 0 0 1.741479</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.793 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.793 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_3">
+      <static>true</static>
+      <pose>27.731 2.192 0.02 0 0 1.808283</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.800 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.800 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_4">
+      <static>true</static>
+      <pose>27.559 2.812 0.02 0 0 1.873691</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.810 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.810 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_5">
+      <static>true</static>
+      <pose>27.344 3.428 0.02 0 0 1.937401</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.822 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.822 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_6">
+      <static>true</static>
+      <pose>27.088 4.039 0.02 0 0 1.999172</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.835 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.835 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_7">
+      <static>true</static>
+      <pose>26.789 4.644 0.02 0 0 2.058823</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.851 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.851 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_8">
+      <static>true</static>
+      <pose>26.449 5.241 0.02 0 0 2.116235</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.868 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.868 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_9">
+      <static>true</static>
+      <pose>26.069 5.830 0.02 0 0 2.171341</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.886 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.886 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_10">
+      <static>true</static>
+      <pose>25.648 6.411 0.02 0 0 2.224122</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.906 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.906 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_11">
+      <static>true</static>
+      <pose>25.188 6.981 0.02 0 0 2.274600</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.927 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.927 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_12">
+      <static>true</static>
+      <pose>24.689 7.541 0.02 0 0 2.322826</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.948 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.948 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_13">
+      <static>true</static>
+      <pose>24.152 8.089 0.02 0 0 2.368877</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.971 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.971 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_14">
+      <static>true</static>
+      <pose>23.578 8.625 0.02 0 0 2.412848</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.993 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.993 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_15">
+      <static>true</static>
+      <pose>22.967 9.147 0.02 0 0 2.454843</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.016 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.016 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_16">
+      <static>true</static>
+      <pose>22.321 9.655 0.02 0 0 2.494976</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.039 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.039 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_17">
+      <static>true</static>
+      <pose>21.640 10.148 0.02 0 0 2.533362</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.062 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.062 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_18">
+      <static>true</static>
+      <pose>20.926 10.626 0.02 0 0 2.570119</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.085 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.085 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_19">
+      <static>true</static>
+      <pose>20.180 11.087 0.02 0 0 2.605359</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.108 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.108 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_20">
+      <static>true</static>
+      <pose>19.403 11.531 0.02 0 0 2.639196</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.130 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.130 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_21">
+      <static>true</static>
+      <pose>18.595 11.958 0.02 0 0 2.671737</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.152 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.152 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_22">
+      <static>true</static>
+      <pose>17.760 12.366 0.02 0 0 2.703085</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.173 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.173 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_23">
+      <static>true</static>
+      <pose>16.896 12.755 0.02 0 0 2.733336</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.194 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.194 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_24">
+      <static>true</static>
+      <pose>16.007 13.124 0.02 0 0 2.762584</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.214 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.214 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_25">
+      <static>true</static>
+      <pose>15.093 13.473 0.02 0 0 2.790916</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.233 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.233 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_26">
+      <static>true</static>
+      <pose>14.156 13.801 0.02 0 0 2.818415</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.250 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.250 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_27">
+      <static>true</static>
+      <pose>13.197 14.108 0.02 0 0 2.845157</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.267 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.267 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_28">
+      <static>true</static>
+      <pose>12.217 14.393 0.02 0 0 2.871217</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.283 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.283 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_29">
+      <static>true</static>
+      <pose>11.219 14.656 0.02 0 0 2.896663</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.298 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.298 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_30">
+      <static>true</static>
+      <pose>10.203 14.897 0.02 0 0 2.921561</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.311 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.311 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_31">
+      <static>true</static>
+      <pose>9.172 15.114 0.02 0 0 2.945973</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.324 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.324 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_32">
+      <static>true</static>
+      <pose>8.126 15.308 0.02 0 0 2.969957</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.335 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.335 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_33">
+      <static>true</static>
+      <pose>7.068 15.479 0.02 0 0 2.993571</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.345 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.345 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_34">
+      <static>true</static>
+      <pose>5.999 15.625 0.02 0 0 3.016868</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.353 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.353 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_35">
+      <static>true</static>
+      <pose>4.921 15.748 0.02 0 0 3.039900</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.360 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.360 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_36">
+      <static>true</static>
+      <pose>3.836 15.846 0.02 0 0 3.062718</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.366 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.366 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_37">
+      <static>true</static>
+      <pose>2.744 15.920 0.02 0 0 3.085371</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.370 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.370 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_38">
+      <static>true</static>
+      <pose>1.648 15.969 0.02 0 0 3.107906</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.373 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.373 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_39">
+      <static>true</static>
+      <pose>0.550 15.994 0.02 0 0 3.130372</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.374 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.374 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_40">
+      <static>true</static>
+      <pose>-0.550 15.994 0.02 0 0 -3.130372</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.374 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.374 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_41">
+      <static>true</static>
+      <pose>-1.648 15.969 0.02 0 0 -3.107906</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.373 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.373 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_42">
+      <static>true</static>
+      <pose>-2.744 15.920 0.02 0 0 -3.085371</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.370 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.370 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_43">
+      <static>true</static>
+      <pose>-3.836 15.846 0.02 0 0 -3.062718</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.366 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.366 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_44">
+      <static>true</static>
+      <pose>-4.921 15.748 0.02 0 0 -3.039900</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.360 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.360 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_45">
+      <static>true</static>
+      <pose>-5.999 15.625 0.02 0 0 -3.016868</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.353 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.353 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_46">
+      <static>true</static>
+      <pose>-7.068 15.479 0.02 0 0 -2.993571</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.345 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.345 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_47">
+      <static>true</static>
+      <pose>-8.126 15.308 0.02 0 0 -2.969957</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.335 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.335 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_48">
+      <static>true</static>
+      <pose>-9.172 15.114 0.02 0 0 -2.945973</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.324 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.324 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_49">
+      <static>true</static>
+      <pose>-10.203 14.897 0.02 0 0 -2.921561</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.311 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.311 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_50">
+      <static>true</static>
+      <pose>-11.219 14.656 0.02 0 0 -2.896663</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.298 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.298 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_51">
+      <static>true</static>
+      <pose>-12.217 14.393 0.02 0 0 -2.871217</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.283 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.283 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_52">
+      <static>true</static>
+      <pose>-13.197 14.108 0.02 0 0 -2.845157</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.267 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.267 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_53">
+      <static>true</static>
+      <pose>-14.156 13.801 0.02 0 0 -2.818415</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.250 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.250 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_54">
+      <static>true</static>
+      <pose>-15.093 13.473 0.02 0 0 -2.790916</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.233 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.233 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_55">
+      <static>true</static>
+      <pose>-16.007 13.124 0.02 0 0 -2.762584</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.214 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.214 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_56">
+      <static>true</static>
+      <pose>-16.896 12.755 0.02 0 0 -2.733336</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.194 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.194 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_57">
+      <static>true</static>
+      <pose>-17.760 12.366 0.02 0 0 -2.703085</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.173 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.173 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_58">
+      <static>true</static>
+      <pose>-18.595 11.958 0.02 0 0 -2.671737</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.152 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.152 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_59">
+      <static>true</static>
+      <pose>-19.403 11.531 0.02 0 0 -2.639196</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.130 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.130 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_60">
+      <static>true</static>
+      <pose>-20.180 11.087 0.02 0 0 -2.605359</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.108 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.108 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_61">
+      <static>true</static>
+      <pose>-20.926 10.626 0.02 0 0 -2.570119</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.085 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.085 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_62">
+      <static>true</static>
+      <pose>-21.640 10.148 0.02 0 0 -2.533362</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.062 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.062 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_63">
+      <static>true</static>
+      <pose>-22.321 9.655 0.02 0 0 -2.494976</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.039 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.039 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_64">
+      <static>true</static>
+      <pose>-22.967 9.147 0.02 0 0 -2.454843</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.016 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.016 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_65">
+      <static>true</static>
+      <pose>-23.578 8.625 0.02 0 0 -2.412848</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.993 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.993 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_66">
+      <static>true</static>
+      <pose>-24.152 8.089 0.02 0 0 -2.368877</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.971 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.971 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_67">
+      <static>true</static>
+      <pose>-24.689 7.541 0.02 0 0 -2.322826</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.948 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.948 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_68">
+      <static>true</static>
+      <pose>-25.188 6.981 0.02 0 0 -2.274600</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.927 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.927 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_69">
+      <static>true</static>
+      <pose>-25.648 6.411 0.02 0 0 -2.224122</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.906 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.906 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_70">
+      <static>true</static>
+      <pose>-26.069 5.830 0.02 0 0 -2.171341</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.886 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.886 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_71">
+      <static>true</static>
+      <pose>-26.449 5.241 0.02 0 0 -2.116235</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.868 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.868 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_72">
+      <static>true</static>
+      <pose>-26.789 4.644 0.02 0 0 -2.058823</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.851 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.851 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_73">
+      <static>true</static>
+      <pose>-27.088 4.039 0.02 0 0 -1.999172</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.835 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.835 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_74">
+      <static>true</static>
+      <pose>-27.344 3.428 0.02 0 0 -1.937401</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.822 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.822 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_75">
+      <static>true</static>
+      <pose>-27.559 2.812 0.02 0 0 -1.873691</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.810 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.810 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_76">
+      <static>true</static>
+      <pose>-27.731 2.192 0.02 0 0 -1.808283</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.800 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.800 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_77">
+      <static>true</static>
+      <pose>-27.860 1.568 0.02 0 0 -1.741479</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.793 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.793 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_78">
+      <static>true</static>
+      <pose>-27.946 0.942 0.02 0 0 -1.673635</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.788 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.788 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_79">
+      <static>true</static>
+      <pose>-27.989 0.314 0.02 0 0 -1.605148</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.786 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.786 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_80">
+      <static>true</static>
+      <pose>-27.989 -0.314 0.02 0 0 -1.536444</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.786 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.786 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_81">
+      <static>true</static>
+      <pose>-27.946 -0.942 0.02 0 0 -1.467958</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.788 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.788 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_82">
+      <static>true</static>
+      <pose>-27.860 -1.568 0.02 0 0 -1.400113</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.793 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.793 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_83">
+      <static>true</static>
+      <pose>-27.731 -2.192 0.02 0 0 -1.333310</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.800 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.800 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_84">
+      <static>true</static>
+      <pose>-27.559 -2.812 0.02 0 0 -1.267902</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.810 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.810 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_85">
+      <static>true</static>
+      <pose>-27.344 -3.428 0.02 0 0 -1.204192</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.822 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.822 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_86">
+      <static>true</static>
+      <pose>-27.088 -4.039 0.02 0 0 -1.142421</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.835 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.835 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_87">
+      <static>true</static>
+      <pose>-26.789 -4.644 0.02 0 0 -1.082769</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.851 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.851 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_88">
+      <static>true</static>
+      <pose>-26.449 -5.241 0.02 0 0 -1.025357</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.868 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.868 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_89">
+      <static>true</static>
+      <pose>-26.069 -5.830 0.02 0 0 -0.970252</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.886 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.886 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_90">
+      <static>true</static>
+      <pose>-25.648 -6.411 0.02 0 0 -0.917470</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.906 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.906 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_91">
+      <static>true</static>
+      <pose>-25.188 -6.981 0.02 0 0 -0.866993</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.927 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.927 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_92">
+      <static>true</static>
+      <pose>-24.689 -7.541 0.02 0 0 -0.818767</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.948 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.948 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_93">
+      <static>true</static>
+      <pose>-24.152 -8.089 0.02 0 0 -0.772715</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.971 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.971 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_94">
+      <static>true</static>
+      <pose>-23.578 -8.625 0.02 0 0 -0.728745</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.993 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.993 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_95">
+      <static>true</static>
+      <pose>-22.967 -9.147 0.02 0 0 -0.686749</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.016 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.016 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_96">
+      <static>true</static>
+      <pose>-22.321 -9.655 0.02 0 0 -0.646616</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.039 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.039 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_97">
+      <static>true</static>
+      <pose>-21.640 -10.148 0.02 0 0 -0.608230</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.062 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.062 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_98">
+      <static>true</static>
+      <pose>-20.926 -10.626 0.02 0 0 -0.571474</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.085 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.085 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_99">
+      <static>true</static>
+      <pose>-20.180 -11.087 0.02 0 0 -0.536233</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.108 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.108 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_100">
+      <static>true</static>
+      <pose>-19.403 -11.531 0.02 0 0 -0.502396</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.130 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.130 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_101">
+      <static>true</static>
+      <pose>-18.595 -11.958 0.02 0 0 -0.469855</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.152 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.152 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_102">
+      <static>true</static>
+      <pose>-17.760 -12.366 0.02 0 0 -0.438508</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.173 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.173 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_103">
+      <static>true</static>
+      <pose>-16.896 -12.755 0.02 0 0 -0.408257</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.194 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.194 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_104">
+      <static>true</static>
+      <pose>-16.007 -13.124 0.02 0 0 -0.379009</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.214 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.214 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_105">
+      <static>true</static>
+      <pose>-15.093 -13.473 0.02 0 0 -0.350676</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.233 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.233 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_106">
+      <static>true</static>
+      <pose>-14.156 -13.801 0.02 0 0 -0.323178</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.250 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.250 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_107">
+      <static>true</static>
+      <pose>-13.197 -14.108 0.02 0 0 -0.296435</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.267 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.267 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_108">
+      <static>true</static>
+      <pose>-12.217 -14.393 0.02 0 0 -0.270376</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.283 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.283 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_109">
+      <static>true</static>
+      <pose>-11.219 -14.656 0.02 0 0 -0.244930</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.298 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.298 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_110">
+      <static>true</static>
+      <pose>-10.203 -14.897 0.02 0 0 -0.220032</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.311 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.311 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_111">
+      <static>true</static>
+      <pose>-9.172 -15.114 0.02 0 0 -0.195620</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.324 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.324 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_112">
+      <static>true</static>
+      <pose>-8.126 -15.308 0.02 0 0 -0.171635</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.335 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.335 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_113">
+      <static>true</static>
+      <pose>-7.068 -15.479 0.02 0 0 -0.148022</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.345 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.345 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_114">
+      <static>true</static>
+      <pose>-5.999 -15.625 0.02 0 0 -0.124725</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.353 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.353 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_115">
+      <static>true</static>
+      <pose>-4.921 -15.748 0.02 0 0 -0.101692</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.360 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.360 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_116">
+      <static>true</static>
+      <pose>-3.836 -15.846 0.02 0 0 -0.078874</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.366 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.366 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_117">
+      <static>true</static>
+      <pose>-2.744 -15.920 0.02 0 0 -0.056221</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.370 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.370 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_118">
+      <static>true</static>
+      <pose>-1.648 -15.969 0.02 0 0 -0.033686</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.373 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.373 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_119">
+      <static>true</static>
+      <pose>-0.550 -15.994 0.02 0 0 -0.011221</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.374 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.374 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_120">
+      <static>true</static>
+      <pose>0.550 -15.994 0.02 0 0 0.011221</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.374 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.374 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_121">
+      <static>true</static>
+      <pose>1.648 -15.969 0.02 0 0 0.033686</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.373 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.373 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_122">
+      <static>true</static>
+      <pose>2.744 -15.920 0.02 0 0 0.056221</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.370 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.370 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_123">
+      <static>true</static>
+      <pose>3.836 -15.846 0.02 0 0 0.078874</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.366 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.366 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_124">
+      <static>true</static>
+      <pose>4.921 -15.748 0.02 0 0 0.101692</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.360 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.360 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_125">
+      <static>true</static>
+      <pose>5.999 -15.625 0.02 0 0 0.124725</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.353 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.353 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_126">
+      <static>true</static>
+      <pose>7.068 -15.479 0.02 0 0 0.148022</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.345 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.345 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_127">
+      <static>true</static>
+      <pose>8.126 -15.308 0.02 0 0 0.171635</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.335 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.335 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_128">
+      <static>true</static>
+      <pose>9.172 -15.114 0.02 0 0 0.195620</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.324 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.324 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_129">
+      <static>true</static>
+      <pose>10.203 -14.897 0.02 0 0 0.220032</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.311 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.311 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_130">
+      <static>true</static>
+      <pose>11.219 -14.656 0.02 0 0 0.244930</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.298 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.298 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_131">
+      <static>true</static>
+      <pose>12.217 -14.393 0.02 0 0 0.270376</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.283 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.283 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_132">
+      <static>true</static>
+      <pose>13.197 -14.108 0.02 0 0 0.296435</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.267 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.267 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_133">
+      <static>true</static>
+      <pose>14.156 -13.801 0.02 0 0 0.323178</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.250 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.250 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_134">
+      <static>true</static>
+      <pose>15.093 -13.473 0.02 0 0 0.350676</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.233 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.233 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_135">
+      <static>true</static>
+      <pose>16.007 -13.124 0.02 0 0 0.379009</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.214 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.214 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_136">
+      <static>true</static>
+      <pose>16.896 -12.755 0.02 0 0 0.408257</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.194 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.194 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_137">
+      <static>true</static>
+      <pose>17.760 -12.366 0.02 0 0 0.438508</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.173 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.173 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_138">
+      <static>true</static>
+      <pose>18.595 -11.958 0.02 0 0 0.469855</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.152 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.152 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_139">
+      <static>true</static>
+      <pose>19.403 -11.531 0.02 0 0 0.502396</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.130 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.130 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_140">
+      <static>true</static>
+      <pose>20.180 -11.087 0.02 0 0 0.536233</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.108 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.108 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_141">
+      <static>true</static>
+      <pose>20.926 -10.626 0.02 0 0 0.571474</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.085 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.085 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_142">
+      <static>true</static>
+      <pose>21.640 -10.148 0.02 0 0 0.608230</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.062 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.062 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_143">
+      <static>true</static>
+      <pose>22.321 -9.655 0.02 0 0 0.646616</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.039 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.039 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_144">
+      <static>true</static>
+      <pose>22.967 -9.147 0.02 0 0 0.686749</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>1.016 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.016 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_145">
+      <static>true</static>
+      <pose>23.578 -8.625 0.02 0 0 0.728745</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.993 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.993 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_146">
+      <static>true</static>
+      <pose>24.152 -8.089 0.02 0 0 0.772715</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.971 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.971 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_147">
+      <static>true</static>
+      <pose>24.689 -7.541 0.02 0 0 0.818767</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.948 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.948 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_148">
+      <static>true</static>
+      <pose>25.188 -6.981 0.02 0 0 0.866993</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.927 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.927 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_149">
+      <static>true</static>
+      <pose>25.648 -6.411 0.02 0 0 0.917470</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.906 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.906 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_150">
+      <static>true</static>
+      <pose>26.069 -5.830 0.02 0 0 0.970252</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.886 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.886 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_151">
+      <static>true</static>
+      <pose>26.449 -5.241 0.02 0 0 1.025357</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.868 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.868 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_152">
+      <static>true</static>
+      <pose>26.789 -4.644 0.02 0 0 1.082769</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.851 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.851 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_153">
+      <static>true</static>
+      <pose>27.088 -4.039 0.02 0 0 1.142421</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.835 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.835 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_154">
+      <static>true</static>
+      <pose>27.344 -3.428 0.02 0 0 1.204192</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.822 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.822 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_155">
+      <static>true</static>
+      <pose>27.559 -2.812 0.02 0 0 1.267902</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.810 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.810 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_156">
+      <static>true</static>
+      <pose>27.731 -2.192 0.02 0 0 1.333310</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.800 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.800 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_157">
+      <static>true</static>
+      <pose>27.860 -1.568 0.02 0 0 1.400113</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.793 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.793 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_158">
+      <static>true</static>
+      <pose>27.946 -0.942 0.02 0 0 1.467958</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.788 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.788 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="road_segment_159">
+      <static>true</static>
+      <pose>27.989 -0.314 0.02 0 0 1.536444</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>0.786 5.000 0.080</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>0.786 5.000 0.080</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.02 0.02 0.02 1</ambient>
+            <diffuse>0.02 0.02 0.02 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_0">
+      <static>true</static>
+      <pose>27.957 0.628 0.085 0 0 1.639446</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.132 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_8">
+      <static>true</static>
+      <pose>26.249 5.534 0.085 0 0 2.144079</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.263 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_16">
+      <static>true</static>
+      <pose>21.972 9.898 0.085 0 0 2.514380</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.513 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_24">
+      <static>true</static>
+      <pose>15.544 13.293 0.085 0 0 2.776859</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.761 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_32">
+      <static>true</static>
+      <pose>7.594 15.387 0.085 0 0 2.981807</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.929 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_40">
+      <static>true</static>
+      <pose>-1.098 15.975 0.085 0 0 -3.119145</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.978 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_48">
+      <static>true</static>
+      <pose>-9.684 14.999 0.085 0 0 -2.933824</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.897 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_56">
+      <static>true</static>
+      <pose>-17.321 12.555 0.085 0 0 -2.718341</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.704 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_64">
+      <static>true</static>
+      <pose>-23.263 8.882 0.085 0 0 -2.434086</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.446 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_72">
+      <static>true</static>
+      <pose>-26.928 4.340 0.085 0 0 -2.029271</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.214 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_80">
+      <static>true</static>
+      <pose>-27.957 -0.628 0.085 0 0 -1.502147</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.132 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_88">
+      <static>true</static>
+      <pose>-26.249 -5.534 0.085 0 0 -0.997514</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.263 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_96">
+      <static>true</static>
+      <pose>-21.972 -9.898 0.085 0 0 -0.627212</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.513 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_104">
+      <static>true</static>
+      <pose>-15.544 -13.293 0.085 0 0 -0.364733</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.761 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_112">
+      <static>true</static>
+      <pose>-7.594 -15.387 0.085 0 0 -0.159786</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.929 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_120">
+      <static>true</static>
+      <pose>1.098 -15.975 0.085 0 0 0.022448</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.978 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_128">
+      <static>true</static>
+      <pose>9.684 -14.999 0.085 0 0 0.207769</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.897 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_136">
+      <static>true</static>
+      <pose>17.321 -12.555 0.085 0 0 0.423251</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.704 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_144">
+      <static>true</static>
+      <pose>23.263 -8.882 0.085 0 0 0.707507</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.446 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="center_dash_152">
+      <static>true</static>
+      <pose>26.928 -4.340 0.085 0 0 1.112321</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box>
+              <size>1.214 0.18 0.015</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>1 1 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <include>
+      <name>prius</name>
+      <uri>file:///home/dhruv/amcaf/gazebo_sim/custom_worlds/models/prius</uri>
+      <pose>28 0 0.35 0 0 1.5708</pose>
+    </include>
+  </world>
+</sdf>

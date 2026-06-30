@@ -26,3 +26,6 @@ venv/
 # ROS bag files
 *.db3
 *.mcap
+
+# Large executables/binaries
+**/agy
