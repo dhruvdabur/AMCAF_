@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ROS 2 Node for controlling the Gazebo Prius vehicle using MPC with live OpenCV tuning and saving."""
+"""ROS 2 Node for controlling the Gazebo Prius vehicle using MPC with live OpenCV tuning, saving, and plotting."""
 
 import sys
 import os
@@ -158,24 +158,27 @@ class GazeboMpcControllerNode(Node):
         # Node parameters
         self.declare_parameter('trajectory_file', '/home/dhruv/amcaf/gazebo_sim/gazebo_worlds/trajectory.csv')
         self.declare_parameter('tuning_file', '/home/dhruv/amcaf/gazebo_sim/gazebo_worlds/mpc_tuning.json')
+        self.declare_parameter('telemetry_file', '/home/dhruv/amcaf/gazebo_sim/gazebo_worlds/mpc_telemetry.csv')
         self.declare_parameter('target_speed', 5.0)  # m/s
         self.declare_parameter('control_rate', 20.0)  # Hz
         self.declare_parameter('odom_topic', '/model/prius/odometry')
         self.declare_parameter('cmd_topic', '/model/prius/cmd_vel')
         self.declare_parameter('enable_tuning', True)
-        # Set pre-declared use_sim_time parameter to True
-        try:
-            self.set_parameters([rclpy.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)])
-        except Exception:
-            pass
 
         self.trajectory_file = self.get_parameter('trajectory_file').value
         self.tuning_file = self.get_parameter('tuning_file').value
+        self.telemetry_file = self.get_parameter('telemetry_file').value
         self.target_speed = self.get_parameter('target_speed').value
         self.control_rate = self.get_parameter('control_rate').value
         self.odom_topic = self.get_parameter('odom_topic').value
         self.cmd_topic = self.get_parameter('cmd_topic').value
         self.enable_tuning = self.get_parameter('enable_tuning').value
+
+        # Setup ROS 2 Sim Time (declared by base Node class, set to True)
+        try:
+            self.set_parameters([rclpy.Parameter('use_sim_time', rclpy.Parameter.Type.BOOL, True)])
+        except Exception:
+            pass
 
         # Load waypoints
         self.get_logger().info(f"Loading trajectory waypoints from: {self.trajectory_file}")
@@ -193,6 +196,14 @@ class GazeboMpcControllerNode(Node):
         first_yaw_deg = float(df.iloc[0]['yaw_deg'])
         self.yaw_offset = math.radians(first_yaw_deg)
         self.get_logger().info(f"World Frame Transform Offset loaded: x_off={self.x_offset:.3f}, y_off={self.y_offset:.3f}, yaw_off={first_yaw_deg:.3f}°")
+
+        # Create/Clear telemetry file
+        try:
+            with open(self.telemetry_file, 'w') as f:
+                f.write("timestamp,x,y,yaw,speed,target_speed,lateral_error,steer_cmd,accel_cmd\n")
+            self.get_logger().info(f"Created telemetry file at: {self.telemetry_file}")
+        except Exception as e:
+            self.get_logger().error(f"Failed to create telemetry file: {e}")
 
         # Initial MPC configuration defaults
         self.dt = 1.0 / self.control_rate
@@ -226,9 +237,11 @@ class GazeboMpcControllerNode(Node):
         self.last_accel = 0.0
         self.last_steer = 0.0
         
-        # Save feedback status
+        # Save feedback status and error history
         self.save_status_msg = None
         self.save_status_time = None
+        self.error_history = []
+        self.latest_lateral_error = 0.0
 
         # ROS 2 Subscribers and Publishers
         self.subscription = self.create_subscription(
@@ -247,7 +260,7 @@ class GazeboMpcControllerNode(Node):
         if self.enable_tuning:
             self.window_name = "MPC Tuning Panel"
             cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-            cv2.resizeWindow(self.window_name, 550, 420)
+            cv2.resizeWindow(self.window_name, 550, 460)
             
             # Setup trackbars based on loaded values
             cv2.createTrackbar('Target Speed', self.window_name, int(self.target_speed * 10), 150, noop)
@@ -351,35 +364,72 @@ class GazeboMpcControllerNode(Node):
             self.get_logger().info("Solver re-built successfully.")
 
     def draw_status_display(self, vel, solve_time):
-        """Draw a status panel with telemetry in the OpenCV window."""
-        panel = np.zeros((300, 500, 3), dtype=np.uint8)
+        """Draw a status panel with telemetry and live rolling lateral error graph in OpenCV."""
+        panel = np.zeros((420, 500, 3), dtype=np.uint8)
         
         # Header
-        cv2.putText(panel, "MPC TUNING & TELEMETRY", (25, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.line(panel, (20, 48), (480, 48), (100, 100, 100), 1)
+        cv2.putText(panel, "MPC TUNING & TELEMETRY", (25, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.line(panel, (20, 42), (480, 42), (100, 100, 100), 1)
 
         # Status text rows
         solve_color = (0, 255, 0) if self.controller.solver_success else (0, 0, 255)
-        cv2.putText(panel, f"Solver success: {self.controller.solver_success}", (25, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.55, solve_color, 1, cv2.LINE_AA)
-        cv2.putText(panel, f"Solve time: {solve_time:.2f} ms", (25, 115), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Solver success: {self.controller.solver_success}", (25, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.55, solve_color, 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Solve time: {solve_time:.2f} ms", (25, 105), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
         
-        cv2.putText(panel, f"Current speed: {vel:.2f} m/s", (25, 155), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
-        cv2.putText(panel, f"Target speed: {self.target_speed:.2f} m/s", (25, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Current speed: {vel:.2f} m/s", (25, 140), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Target speed: {self.target_speed:.2f} m/s", (25, 175), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
         
-        cv2.putText(panel, f"Steer Cmd: {math.degrees(self.last_steer):.1f} deg", (25, 230), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
-        cv2.putText(panel, f"Accel Cmd: {self.last_accel:.3f} m/s2", (25, 265), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Steer Cmd: {math.degrees(self.last_steer):.1f} deg", (25, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Accel Cmd: {self.last_accel:.3f} m/s2", (25, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Lateral Error: {self.latest_lateral_error:.3f} m", (25, 270), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255) if abs(self.latest_lateral_error) > 0.1 else (220, 220, 220), 1, cv2.LINE_AA)
         
         # Save instructions and save status
         if self.save_status_msg:
             elapsed = (self.get_clock().now() - self.save_status_time).nanoseconds / 1e9
             if elapsed < 2.5:
                 color = (0, 255, 0) if "SUCCESS" in self.save_status_msg else (0, 0, 255)
-                cv2.putText(panel, self.save_status_msg, (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+                cv2.putText(panel, self.save_status_msg, (25, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
             else:
                 self.save_status_msg = None
-                cv2.putText(panel, "Press 'S' on this window to save values", (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+                cv2.putText(panel, "Press 'S' on this window to save values", (25, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
         else:
-            cv2.putText(panel, "Press 'S' on this window to save values", (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+            cv2.putText(panel, "Press 'S' on this window to save values", (25, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+
+        # Draw rolling lateral error graph at the bottom
+        gx = 25
+        gy = 320
+        gw = 450
+        gh = 80
+        g_center_y = gy + gh // 2
+
+        # Draw graph background and border
+        cv2.rectangle(panel, (gx, gy), (gx + gw, gy + gh), (20, 20, 20), -1)
+        cv2.rectangle(panel, (gx, gy), (gx + gw, gy + gh), (80, 80, 80), 1)
+        
+        # Center reference line (0.0 error)
+        cv2.line(panel, (gx, g_center_y), (gx + gw, g_center_y), (0, 80, 0), 1)
+        cv2.putText(panel, "Centerline (0.0m)", (gx + 5, g_center_y - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 140, 0), 1, cv2.LINE_AA)
+
+        # Plot error history
+        if len(self.error_history) > 1:
+            points = []
+            max_visible_points = gw
+            history_slice = self.error_history[-max_visible_points:]
+            
+            # Scale: 1.0 meter lateral error = 30 pixels vertical height
+            scale_y = 30.0
+            
+            for idx, err in enumerate(history_slice):
+                # Distribute points evenly along the graph width
+                x_pos = gx + int(idx * (gw / len(history_slice)))
+                y_pos = int(g_center_y - err * scale_y)
+                # Clamp within graph box boundaries
+                y_pos = max(gy + 2, min(gy + gh - 2, y_pos))
+                points.append((x_pos, y_pos))
+                
+            for k in range(len(points) - 1):
+                # Yellow line representing error history
+                cv2.line(panel, points[k], points[k+1], (0, 220, 220), 1, cv2.LINE_AA)
 
         cv2.imshow(self.window_name, panel)
         
@@ -423,23 +473,52 @@ class GazeboMpcControllerNode(Node):
         self.last_accel = accel
         self.last_steer = steer
 
-        # 3. Integrate acceleration to compute target velocity
+        # 3. Calculate signed lateral error (cross-track error)
+        # Vector from closest waypoint to vehicle
+        best_idx = self.controller._prev_waypoint_idx
+        ref_x = self.controller._ext_x[best_idx]
+        ref_y = self.controller._ext_y[best_idx]
+        ref_yaw = self.controller._ext_yaw[best_idx]
+
+        dx = px - ref_x
+        dy = py - ref_y
+
+        # Normal vector pointing left in World Map frame
+        nx = -math.sin(ref_yaw)
+        ny = math.cos(ref_yaw)
+        
+        # Signed lateral error is projection of distance vector onto the normal vector
+        self.latest_lateral_error = dx * nx + dy * ny
+
+        # Maintain lateral error history list (max 450 points to fill graph width)
+        self.error_history.append(self.latest_lateral_error)
+        if len(self.error_history) > 450:
+            self.error_history.pop(0)
+
+        # 4. Integrate acceleration to compute target velocity
         self.vel_cmd = self.vel_cmd + accel * self.dt
         self.vel_cmd = max(0.0, min(self.target_speed, self.vel_cmd))
 
-        # 4. Construct and publish the command message
+        # 5. Construct and publish command message
         cmd_msg = Twist()
         cmd_msg.linear.x = float(self.vel_cmd)
         cmd_msg.angular.z = float(steer)
         self.publisher.publish(cmd_msg)
 
-        # 5. Live display update
+        # 6. Log telemetry to CSV file
+        try:
+            timestamp = self.get_clock().now().nanoseconds / 1e9
+            with open(self.telemetry_file, 'a') as f:
+                f.write(f"{timestamp:.3f},{px:.3f},{py:.3f},{yaw:.3f},{vel:.3f},{self.target_speed:.3f},{self.latest_lateral_error:.3f},{steer:.3f},{accel:.3f}\n")
+        except Exception:
+            pass
+
+        # 7. Live display update
         if self.enable_tuning:
             self.draw_status_display(vel, self.controller.solve_time_ms)
 
         self.get_logger().info(
-            f"Pose: ({px:.2f}, {py:.2f}) | Speed: {vel:.2f} m/s | Target: {self.target_speed:.2f} m/s | "
-            f"Steer: {math.degrees(steer):.1f}°",
+            f"Pose: ({px:.2f}, {py:.2f}) | Lateral Error: {self.latest_lateral_error:.3f}m | Target: {self.target_speed:.2f} m/s",
             throttle_duration_sec=0.5
         )
 
