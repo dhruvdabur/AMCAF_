@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""ROS 2 Node for controlling the Gazebo Prius vehicle using MPC."""
+"""ROS 2 Node for controlling the Gazebo Prius vehicle using MPC with live OpenCV tuning."""
 
 import sys
 import os
 import math
+import warnings
 import numpy as np
 import pandas as pd
+import cv2
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
@@ -15,8 +17,138 @@ from nav_msgs.msg import Odometry
 sys.path.append('/home/dhruv/amcaf')
 from hardware.hil.controllers.mpc_cbf import MPCController, MPCConfig
 
+try:
+    import casadi as ca
+    import do_mpc
+except ImportError:
+    pass
+
+def noop(val):
+    pass
+
+class TunedMPCController(MPCController):
+    """Subclass of MPCController that allows dynamic re-initialization of CasADi weights."""
+
+    def _setup_optimizer(self):
+        """Set up the do_mpc model and controller using dynamic cost weights."""
+        cfg = self.config
+        L = cfg.wheelbase
+        dt = self.delta_t
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            model = do_mpc.model.Model("discrete")
+
+        model.set_variable("_x", "px")
+        model.set_variable("_x", "py")
+        model.set_variable("_x", "yaw")
+        model.set_variable("_x", "vel")
+        model.set_variable("_u", "steer")
+        model.set_variable("_u", "accel")
+        model.set_variable("_tvp", "ref_x")
+        model.set_variable("_tvp", "ref_y")
+        model.set_variable("_tvp", "ref_yaw")
+        model.set_variable("_tvp", "ref_vel")
+
+        # Use wrapped atan2 sin/cos to compute phase-independent yaw error
+        yaw_err = ca.atan2(
+            ca.sin(model.x["yaw"] - model.tvp["ref_yaw"]),
+            ca.cos(model.x["yaw"] - model.tvp["ref_yaw"]),
+        )
+        model.set_expression("yaw_err", yaw_err)
+
+        # Kinematic bicycle model transitions
+        model.set_rhs("px", model.x["px"] + model.x["vel"] * ca.cos(model.x["yaw"]) * dt)
+        model.set_rhs("py", model.x["py"] + model.x["vel"] * ca.sin(model.x["yaw"]) * dt)
+        model.set_rhs("yaw", model.x["yaw"] + model.x["vel"] / L * ca.tan(model.u["steer"]) * dt)
+        model.set_rhs("vel", model.x["vel"] + model.u["accel"] * dt)
+
+        model.setup()
+        self._model = model
+
+        # Setup MPC
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            mpc = do_mpc.controller.MPC(model)
+
+        ipopt_opts = {
+            "ipopt.max_iter": cfg.ipopt_max_iter,
+            "ipopt.print_level": cfg.ipopt_print_level,
+            "ipopt.sb": "yes",
+            "print_time": 0,
+        }
+
+        mpc.set_param(
+            n_horizon=self.T,
+            t_step=dt,
+            n_robust=0,
+            store_full_solution=True,
+            nlpsol_opts=ipopt_opts,
+        )
+
+        tvp_template = mpc.get_tvp_template()
+        self._current_ref = np.zeros((4, self.T + 1))
+
+        def tvp_fun(t_now):
+            for k in range(self.T + 1):
+                tvp_template["_tvp", k, "ref_x"] = float(self._current_ref[0, k])
+                tvp_template["_tvp", k, "ref_y"] = float(self._current_ref[1, k])
+                tvp_template["_tvp", k, "ref_yaw"] = float(self._current_ref[2, k])
+                tvp_template["_tvp", k, "ref_vel"] = float(self._current_ref[3, k])
+            return tvp_template
+
+        mpc.set_tvp_fun(tvp_fun)
+
+        # Dynamic weights loaded from config (or fall back to original HIL defaults)
+        w_xy = getattr(cfg, "w_xy", 2.0)
+        w_yaw = getattr(cfg, "w_yaw", 500.0)
+        w_vel = getattr(cfg, "w_vel", 1.0)
+        w_steer = getattr(cfg, "w_steer", 10.0)
+        w_accel = getattr(cfg, "w_accel", 0.5)
+
+        # Stage weights: [px, py, yaw, vel]
+        sw = np.array([w_xy, w_xy, w_yaw, w_vel])
+        tw = sw * 2.0
+        # Control weights: [steer, accel]
+        cw = np.array([w_steer, w_accel])
+        # Smoothness weights
+        smw = np.array([10.0, 1.0])
+
+        x = model.x
+        tvp = model.tvp
+
+        lterm = (
+            sw[0] * (x["px"] - tvp["ref_x"]) ** 2
+            + sw[1] * (x["py"] - tvp["ref_y"]) ** 2
+            + sw[2] * model.aux["yaw_err"] ** 2
+            + sw[3] * (x["vel"] - tvp["ref_vel"]) ** 2
+        )
+        mterm = (
+            tw[0] * (x["px"] - tvp["ref_x"]) ** 2
+            + tw[1] * (x["py"] - tvp["ref_y"]) ** 2
+            + tw[2] * model.aux["yaw_err"] ** 2
+            + tw[3] * (x["vel"] - tvp["ref_vel"]) ** 2
+        )
+
+        mpc.set_objective(lterm=lterm, mterm=mterm)
+        mpc.set_rterm(
+            steer=float(cw[0] + smw[0]),
+            accel=float(cw[1] + smw[1]),
+        )
+
+        mpc.bounds["lower", "_u", "steer"] = cfg.min_steer
+        mpc.bounds["upper", "_u", "steer"] = cfg.max_steer
+        mpc.bounds["lower", "_u", "accel"] = cfg.min_accel
+        mpc.bounds["upper", "_u", "accel"] = cfg.max_accel
+        mpc.bounds["lower", "_x", "vel"] = cfg.v_min
+        mpc.bounds["upper", "_x", "vel"] = cfg.v_max
+
+        mpc.setup()
+        self._mpc = mpc
+
+
 class GazeboMpcControllerNode(Node):
-    """ROS 2 Node wrapping the Model Predictive Controller (MPC) for Prius tracking."""
+    """ROS 2 Node wrapping the Model Predictive Controller (MPC) with live OpenCV tuning panel."""
 
     def __init__(self):
         super().__init__('gazebo_mpc_controller')
@@ -27,94 +159,183 @@ class GazeboMpcControllerNode(Node):
         self.declare_parameter('control_rate', 20.0)  # Hz
         self.declare_parameter('odom_topic', '/model/prius/odometry')
         self.declare_parameter('cmd_topic', '/model/prius/cmd_vel')
+        self.declare_parameter('enable_tuning', True)
 
-        trajectory_file = self.get_parameter('trajectory_file').value
+        self.trajectory_file = self.get_parameter('trajectory_file').value
         self.target_speed = self.get_parameter('target_speed').value
-        control_rate = self.get_parameter('control_rate').value
-        odom_topic = self.get_parameter('odom_topic').value
-        cmd_topic = self.get_parameter('cmd_topic').value
+        self.control_rate = self.get_parameter('control_rate').value
+        self.odom_topic = self.get_parameter('odom_topic').value
+        self.cmd_topic = self.get_parameter('cmd_topic').value
+        self.enable_tuning = self.get_parameter('enable_tuning').value
 
-        self.get_logger().info(f"Loading trajectory waypoints from: {trajectory_file}")
-        
         # Load waypoints
+        self.get_logger().info(f"Loading trajectory waypoints from: {self.trajectory_file}")
         try:
-            df = pd.read_csv(trajectory_file)
-            track_points = df[['x', 'y']].to_numpy()
-            self.get_logger().info(f"Loaded {len(track_points)} waypoints successfully.")
+            df = pd.read_csv(self.trajectory_file)
+            self.track_points = df[['x', 'y']].to_numpy()
+            self.get_logger().info(f"Loaded {len(self.track_points)} waypoints successfully.")
         except Exception as e:
             self.get_logger().error(f"Failed to load trajectory file: {e}")
             sys.exit(1)
 
-        # Initialize MPC Controller
-        dt = 1.0 / control_rate
-        mpc_config = MPCConfig(
-            wheelbase=2.86,        # Prius wheelbase in meters
-            delta_t=dt,            # Time step matching the node control rate
-            horizon_T=12,          # Lookahead horizon steps
-            max_steer=0.6,         # Prius steering limit in radians
+        # Initial MPC configuration
+        self.dt = 1.0 / self.control_rate
+        self.mpc_config = MPCConfig(
+            wheelbase=2.86,
+            delta_t=self.dt,
+            horizon_T=12,
+            max_steer=0.6,
             min_steer=-0.6,
-            max_accel=2.0,         # Maximum acceleration in m/s^2
-            min_accel=-5.0,        # Maximum deceleration
+            max_accel=2.0,
+            min_accel=-5.0,
             v_min=0.0,
             v_max=12.0
         )
-        self.controller = MPCController(mpc_config)
-        self.controller.update_track(track_points)
+        # Custom weights on config object
+        self.mpc_config.w_xy = 2.0
+        self.mpc_config.w_yaw = 500.0
+        self.mpc_config.w_vel = 1.0
+        self.mpc_config.w_steer = 10.0
+        self.mpc_config.w_accel = 0.5
+
+        # Setup controller
+        self.controller = TunedMPCController(self.mpc_config)
+        self.controller.update_track(self.track_points)
 
         # State variables
         self.current_odom = None
         self.vel_cmd = 0.0
+        self.last_accel = 0.0
+        self.last_steer = 0.0
 
         # ROS 2 Subscribers and Publishers
         self.subscription = self.create_subscription(
             Odometry,
-            odom_topic,
+            self.odom_topic,
             self.odom_callback,
             10
         )
         self.publisher = self.create_publisher(
             Twist,
-            cmd_topic,
+            self.cmd_topic,
             10
         )
 
+        # Tuning GUI Setup
+        if self.enable_tuning:
+            self.window_name = "MPC Tuning Panel"
+            cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
+            cv2.resizeWindow(self.window_name, 550, 400)
+            
+            # Setup trackbars
+            cv2.createTrackbar('Target Speed', self.window_name, int(self.target_speed * 10), 150, noop)
+            cv2.createTrackbar('Horizon T', self.window_name, self.mpc_config.horizon_T, 25, noop)
+            cv2.createTrackbar('XY Tracking W x10', self.window_name, int(self.mpc_config.w_xy * 10), 100, noop)
+            cv2.createTrackbar('Yaw W /10', self.window_name, int(self.mpc_config.w_yaw / 10), 200, noop)
+            cv2.createTrackbar('Steer Effort W x2', self.window_name, int(self.mpc_config.w_steer * 2), 100, noop)
+            cv2.createTrackbar('Speed W x10', self.window_name, int(self.mpc_config.w_vel * 10), 100, noop)
+            
+            self.get_logger().info("OpenCV Tuning Panel initialized.")
+
         # Periodic timer for the control loop
-        self.timer = self.create_timer(dt, self.timer_callback)
-        self.get_logger().info(f"MPC Controller Node initialized at {control_rate}Hz.")
+        self.timer = self.create_timer(self.dt, self.timer_callback)
+        self.get_logger().info(f"MPC Controller Node initialized at {self.control_rate}Hz.")
 
     def odom_callback(self, msg):
-        """Cache the latest odometry message."""
         self.current_odom = msg
 
+    def read_tuning_panel(self):
+        """Read values from trackbars and re-initialize optimizer if any weight changes."""
+        if not self.enable_tuning:
+            return
+
+        # Target Speed can be changed without re-setup
+        speed_val = cv2.getTrackbarPos('Target Speed', self.window_name) / 10.0
+        self.target_speed = max(0.5, speed_val)
+
+        # Check if structural parameters changed
+        t_val = max(4, cv2.getTrackbarPos('Horizon T', self.window_name))
+        w_xy_val = cv2.getTrackbarPos('XY Tracking W x10', self.window_name) / 10.0
+        w_yaw_val = cv2.getTrackbarPos('Yaw W /10', self.window_name) * 10.0
+        w_steer_val = cv2.getTrackbarPos('Steer Effort W x2', self.window_name) / 2.0
+        w_vel_val = cv2.getTrackbarPos('Speed W x10', self.window_name) / 10.0
+
+        changed = (
+            t_val != self.mpc_config.horizon_T or
+            abs(w_xy_val - self.mpc_config.w_xy) > 1e-3 or
+            abs(w_yaw_val - self.mpc_config.w_yaw) > 1e-3 or
+            abs(w_steer_val - self.mpc_config.w_steer) > 1e-3 or
+            abs(w_vel_val - self.mpc_config.w_vel) > 1e-3
+        )
+
+        if changed:
+            self.get_logger().info("Re-optimizing solver with new tuning panel parameters...")
+            self.mpc_config.horizon_T = t_val
+            self.mpc_config.w_xy = max(0.1, w_xy_val)
+            self.mpc_config.w_yaw = max(1.0, w_yaw_val)
+            self.mpc_config.w_steer = max(0.1, w_steer_val)
+            self.mpc_config.w_vel = max(0.1, w_vel_val)
+            
+            # Rebuild optimizer
+            self.controller = TunedMPCController(self.mpc_config)
+            self.controller.update_track(self.track_points)
+            self.get_logger().info("Solver re-built successfully.")
+
+    def draw_status_display(self, vel, solve_time):
+        """Draw a status panel with telemetry in the OpenCV window."""
+        panel = np.zeros((300, 500, 3), dtype=np.uint8)
+        
+        # Header
+        cv2.putText(panel, "MPC TUNING & TELEMETRY", (25, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.line(panel, (20, 48), (480, 48), (100, 100, 100), 1)
+
+        # Status text rows
+        solve_color = (0, 255, 0) if self.controller.solver_success else (0, 0, 255)
+        cv2.putText(panel, f"Solver success: {self.controller.solver_success}", (25, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.55, solve_color, 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Solve time: {solve_time:.2f} ms", (25, 115), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        
+        cv2.putText(panel, f"Current speed: {vel:.2f} m/s", (25, 155), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Target speed: {self.target_speed:.2f} m/s", (25, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        
+        cv2.putText(panel, f"Steer Cmd: {math.degrees(self.last_steer):.1f} deg", (25, 230), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Accel Cmd: {self.last_accel:.3f} m/s2", (25, 265), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        
+        cv2.imshow(self.window_name, panel)
+        cv2.waitKey(1)
+
     def timer_callback(self):
-        """Execute one step of the MPC solver and publish velocity and steering commands."""
+        # Update weights and target speed from window
+        if self.enable_tuning:
+            self.read_tuning_panel()
+
         if self.current_odom is None:
             self.get_logger().warning("Waiting for odometry messages...", throttle_duration_sec=3.0)
             return
 
-        # 1. Extract current state from Odometry
+        # 1. Extract current state
         px = self.current_odom.pose.pose.position.x
         py = self.current_odom.pose.pose.position.y
 
-        # Quaternion to Euler Yaw (Heading)
+        # Quaternion to Euler Yaw
         q = self.current_odom.pose.pose.orientation
         siny_cosp = 2 * (q.w * q.z + q.x * q.y)
         cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
         yaw = math.atan2(siny_cosp, cosy_cosp)
 
-        # Current speed calculation (preserving direction direction)
+        # Current speed calculation (preserving direction)
         vx = self.current_odom.twist.twist.linear.x
         vy = self.current_odom.twist.twist.linear.y
         vel = math.hypot(vx, vy)
         if vx < 0:
             vel = -vel
 
-        # 2. Run MPC optimization step
-        dt = self.controller.delta_t
+        # 2. Run MPC optimization
         accel, steer = self.controller.step(px, py, yaw, vel, self.target_speed)
+        self.last_accel = accel
+        self.last_steer = steer
 
-        # 3. Integrate acceleration to compute the target velocity command
-        self.vel_cmd = self.vel_cmd + accel * dt
+        # 3. Integrate acceleration to compute target velocity
+        self.vel_cmd = self.vel_cmd + accel * self.dt
         self.vel_cmd = max(0.0, min(self.target_speed, self.vel_cmd))
 
         # 4. Construct and publish the command message
@@ -123,10 +344,13 @@ class GazeboMpcControllerNode(Node):
         cmd_msg.angular.z = float(steer)
         self.publisher.publish(cmd_msg)
 
-        # Detailed logging
+        # 5. Live display update
+        if self.enable_tuning:
+            self.draw_status_display(vel, self.controller.solve_time_ms)
+
         self.get_logger().info(
-            f"Pose: ({px:.2f}, {py:.2f}) | Heading: {math.degrees(yaw):.1f}° | Speed: {vel:.2f} m/s | "
-            f"Cmd: speed={self.vel_cmd:.2f} m/s, steer={math.degrees(steer):.1f}° (accel={accel:.3f} m/s²)",
+            f"Pose: ({px:.2f}, {py:.2f}) | Speed: {vel:.2f} m/s | Target: {self.target_speed:.2f} m/s | "
+            f"Steer: {math.degrees(steer):.1f}°",
             throttle_duration_sec=0.5
         )
 
@@ -138,7 +362,8 @@ def main(args=None):
     except KeyboardInterrupt:
         node.get_logger().info("MPC Controller Node stopped by user.")
     finally:
-        # Publish a final zero velocity command before shutting down
+        if node.enable_tuning:
+            cv2.destroyAllWindows()
         stop_msg = Twist()
         node.publisher.publish(stop_msg)
         node.destroy_node()
