@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ROS 2 Node for controlling the Gazebo Prius vehicle using MPC with live OpenCV tuning, saving, and plotting."""
+"""ROS 2 Node for controlling the Gazebo Prius vehicle using MPC with live OpenCV tuning, saving, and dedicated live plotting."""
 
 import sys
 import os
@@ -260,7 +260,11 @@ class GazeboMpcControllerNode(Node):
         if self.enable_tuning:
             self.window_name = "MPC Tuning Panel"
             cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-            cv2.resizeWindow(self.window_name, 550, 460)
+            cv2.resizeWindow(self.window_name, 550, 320)
+            
+            self.plot_window_name = "Live Lateral Error Plot"
+            cv2.namedWindow(self.plot_window_name, cv2.WINDOW_NORMAL)
+            cv2.resizeWindow(self.plot_window_name, 600, 300)
             
             # Setup trackbars based on loaded values
             cv2.createTrackbar('Target Speed', self.window_name, int(self.target_speed * 10), 150, noop)
@@ -270,7 +274,7 @@ class GazeboMpcControllerNode(Node):
             cv2.createTrackbar('Steer Effort W x2', self.window_name, int(self.mpc_config.w_steer * 2), 100, noop)
             cv2.createTrackbar('Speed W x10', self.window_name, int(self.mpc_config.w_vel * 10), 100, noop)
             
-            self.get_logger().info("OpenCV Tuning Panel initialized.")
+            self.get_logger().info("OpenCV Tuning Panel and Lateral Error Plot initialized.")
 
         # Periodic timer for the control loop
         self.timer = self.create_timer(self.dt, self.timer_callback)
@@ -364,74 +368,92 @@ class GazeboMpcControllerNode(Node):
             self.get_logger().info("Solver re-built successfully.")
 
     def draw_status_display(self, vel, solve_time):
-        """Draw a status panel with telemetry and live rolling lateral error graph in OpenCV."""
-        panel = np.zeros((420, 500, 3), dtype=np.uint8)
+        """Draw a status panel with telemetry in OpenCV."""
+        panel = np.zeros((300, 500, 3), dtype=np.uint8)
         
         # Header
-        cv2.putText(panel, "MPC TUNING & TELEMETRY", (25, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.line(panel, (20, 42), (480, 42), (100, 100, 100), 1)
+        cv2.putText(panel, "MPC TUNING & TELEMETRY", (25, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.line(panel, (20, 48), (480, 48), (100, 100, 100), 1)
 
         # Status text rows
         solve_color = (0, 255, 0) if self.controller.solver_success else (0, 0, 255)
-        cv2.putText(panel, f"Solver success: {self.controller.solver_success}", (25, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.55, solve_color, 1, cv2.LINE_AA)
-        cv2.putText(panel, f"Solve time: {solve_time:.2f} ms", (25, 105), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Solver success: {self.controller.solver_success}", (25, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.55, solve_color, 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Solve time: {solve_time:.2f} ms", (25, 115), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
         
-        cv2.putText(panel, f"Current speed: {vel:.2f} m/s", (25, 140), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
-        cv2.putText(panel, f"Target speed: {self.target_speed:.2f} m/s", (25, 175), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Current speed: {vel:.2f} m/s", (25, 155), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Target speed: {self.target_speed:.2f} m/s", (25, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
         
-        cv2.putText(panel, f"Steer Cmd: {math.degrees(self.last_steer):.1f} deg", (25, 210), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
-        cv2.putText(panel, f"Accel Cmd: {self.last_accel:.3f} m/s2", (25, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
-        cv2.putText(panel, f"Lateral Error: {self.latest_lateral_error:.3f} m", (25, 270), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255) if abs(self.latest_lateral_error) > 0.1 else (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Steer Cmd: {math.degrees(self.last_steer):.1f} deg", (25, 225), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
+        cv2.putText(panel, f"Accel Cmd: {self.last_accel:.3f} m/s2", (25, 255), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
         
         # Save instructions and save status
         if self.save_status_msg:
             elapsed = (self.get_clock().now() - self.save_status_time).nanoseconds / 1e9
             if elapsed < 2.5:
                 color = (0, 255, 0) if "SUCCESS" in self.save_status_msg else (0, 0, 255)
-                cv2.putText(panel, self.save_status_msg, (25, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+                cv2.putText(panel, self.save_status_msg, (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
             else:
                 self.save_status_msg = None
-                cv2.putText(panel, "Press 'S' on this window to save values", (25, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+                cv2.putText(panel, "Press 'S' on this window to save values", (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
         else:
-            cv2.putText(panel, "Press 'S' on this window to save values", (25, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
-
-        # Draw rolling lateral error graph at the bottom
-        gx = 25
-        gy = 320
-        gw = 450
-        gh = 80
-        g_center_y = gy + gh // 2
-
-        # Draw graph background and border
-        cv2.rectangle(panel, (gx, gy), (gx + gw, gy + gh), (20, 20, 20), -1)
-        cv2.rectangle(panel, (gx, gy), (gx + gw, gy + gh), (80, 80, 80), 1)
-        
-        # Center reference line (0.0 error)
-        cv2.line(panel, (gx, g_center_y), (gx + gw, g_center_y), (0, 80, 0), 1)
-        cv2.putText(panel, "Centerline (0.0m)", (gx + 5, g_center_y - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 140, 0), 1, cv2.LINE_AA)
-
-        # Plot error history
-        if len(self.error_history) > 1:
-            points = []
-            max_visible_points = gw
-            history_slice = self.error_history[-max_visible_points:]
-            
-            # Scale: 1.0 meter lateral error = 30 pixels vertical height
-            scale_y = 30.0
-            
-            for idx, err in enumerate(history_slice):
-                # Distribute points evenly along the graph width
-                x_pos = gx + int(idx * (gw / len(history_slice)))
-                y_pos = int(g_center_y - err * scale_y)
-                # Clamp within graph box boundaries
-                y_pos = max(gy + 2, min(gy + gh - 2, y_pos))
-                points.append((x_pos, y_pos))
-                
-            for k in range(len(points) - 1):
-                # Yellow line representing error history
-                cv2.line(panel, points[k], points[k+1], (0, 220, 220), 1, cv2.LINE_AA)
+            cv2.putText(panel, "Press 'S' on this window to save values", (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
 
         cv2.imshow(self.window_name, panel)
+
+        # Call key check (shared with plotting window render)
+        cv2.waitKey(1)
+
+    def draw_live_plot(self):
+        """Draws a high-resolution live scrolling lateral error plot in its own dedicated window."""
+        canvas_h, canvas_w = 300, 600
+        canvas = np.zeros((canvas_h, canvas_w, 3), dtype=np.uint8)
+
+        # Draw dark grid lines and labels
+        center_y = 150
+        scale_y = 100.0  # 1.0m error = 100px vertical displacement
+
+        grid_values = [1.0, 0.5, 0.0, -0.5, -1.0]
+        for val in grid_values:
+            y_pos = int(center_y - val * scale_y)
+            color = (0, 60, 0) if val == 0.0 else (40, 40, 40)
+            thickness = 2 if val == 0.0 else 1
+            cv2.line(canvas, (65, y_pos), (canvas_w - 20, y_pos), color, thickness)
+            
+            # Label Y axis
+            cv2.putText(canvas, f"{val:+.1f}m", (10, y_pos + 4), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (180, 180, 180), 1, cv2.LINE_AA)
+
+        # Draw vertical gridlines (time axis ticks)
+        for x_pos in range(150, canvas_w - 20, 100):
+            cv2.line(canvas, (x_pos, 10), (x_pos, canvas_h - 10), (30, 30, 30), 1)
+
+        # Plot error history curve
+        gx_start = 65
+        g_width = canvas_w - gx_start - 20
+        
+        if len(self.error_history) > 1:
+            points = []
+            history_slice = self.error_history[-g_width:]
+            
+            for idx, err in enumerate(history_slice):
+                # Scale data points horizontally to fit graph width
+                x_pos = gx_start + int(idx * (g_width / len(history_slice)))
+                y_pos = int(center_y - err * scale_y)
+                # Keep points inside plot boundary
+                y_pos = max(10, min(canvas_h - 10, y_pos))
+                points.append((x_pos, y_pos))
+
+            for k in range(len(points) - 1):
+                # Yellow trace for error curve
+                cv2.line(canvas, points[k], points[k+1], (0, 220, 255), 1, cv2.LINE_AA)
+
+        # Stats Overlay
+        if len(self.error_history) > 0:
+            rmse = (np.array(self.error_history) ** 2).mean() ** 0.5
+            max_err = np.abs(self.error_history).max()
+            cv2.putText(canvas, f"Live Lateral Error: {self.latest_lateral_error:+.3f} m", (gx_start + 15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1, cv2.LINE_AA)
+            cv2.putText(canvas, f"RMSE: {rmse:.3f} m | Max Deviation: {max_err:.3f} m", (gx_start + 15, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (180, 180, 180), 1, cv2.LINE_AA)
+
+        cv2.imshow(self.plot_window_name, canvas)
         
         # Check keyboard inputs
         key = cv2.waitKey(1) & 0xFF
@@ -474,7 +496,6 @@ class GazeboMpcControllerNode(Node):
         self.last_steer = steer
 
         # 3. Calculate signed lateral error (cross-track error)
-        # Vector from closest waypoint to vehicle
         best_idx = self.controller._prev_waypoint_idx
         ref_x = self.controller._ext_x[best_idx]
         ref_y = self.controller._ext_y[best_idx]
@@ -490,9 +511,9 @@ class GazeboMpcControllerNode(Node):
         # Signed lateral error is projection of distance vector onto the normal vector
         self.latest_lateral_error = dx * nx + dy * ny
 
-        # Maintain lateral error history list (max 450 points to fill graph width)
+        # Maintain lateral error history list (max 500 points to fill graph width)
         self.error_history.append(self.latest_lateral_error)
-        if len(self.error_history) > 450:
+        if len(self.error_history) > 500:
             self.error_history.pop(0)
 
         # 4. Integrate acceleration to compute target velocity
@@ -516,6 +537,7 @@ class GazeboMpcControllerNode(Node):
         # 7. Live display update
         if self.enable_tuning:
             self.draw_status_display(vel, self.controller.solve_time_ms)
+            self.draw_live_plot()
 
         self.get_logger().info(
             f"Pose: ({px:.2f}, {py:.2f}) | Lateral Error: {self.latest_lateral_error:.3f}m | Target: {self.target_speed:.2f} m/s",
