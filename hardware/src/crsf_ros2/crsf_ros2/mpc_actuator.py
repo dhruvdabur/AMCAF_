@@ -17,8 +17,14 @@ INPUT_TOPIC = '/mpc/ackermann_command'
 COMMAND_TOPIC = '/drone/rc_command'
 ARMING_SERVICE = '/drone/cmd/arming'
 NEUTRAL_VALUE = 1500
+TELEOP_FORWARD_PWM = 1589
+TELEOP_MAX_FORWARD_PWM = 1600
+TELEOP_MAX_REVERSE_PWM = 1415
+TELEOP_LEFT_PWM = 1300
+TELEOP_RIGHT_PWM = 1700
 UPDATE_RATE_HZ = 50.0
 SETTLE_DURATION = 0.5
+STOP_SPEED_EPS_MPS = 1e-3
 
 
 def bounded(value, lower, upper):
@@ -49,6 +55,8 @@ def accel_to_pwm(accel_mps2, max_accel_mps2, center, forward, reverse):
 def speed_to_pwm(speed_mps, max_speed_kph, center, forward):
     """Map requested forward speed to a calibrated throttle endpoint."""
     speed_kph = bounded(speed_mps * 3.6, 0.0, max_speed_kph)
+    if speed_kph <= 1e-6:
+        return center
     return round(center + speed_kph / max_speed_kph * (forward - center))
 
 
@@ -90,7 +98,14 @@ class MPCActuator(Node):
             self.config.left_pwm,
             self.config.right_pwm,
         )
-        if command.acceleration_mps2 < 0.0:
+        if command.target_speed_mps > STOP_SPEED_EPS_MPS:
+            self.throttle = speed_to_pwm(
+                command.target_speed_mps,
+                self.config.max_speed_kph,
+                self.config.neutral_throttle_pwm,
+                self.config.forward_pwm,
+            )
+        elif command.target_speed_mps < -STOP_SPEED_EPS_MPS:
             self.throttle = accel_to_pwm(
                 command.acceleration_mps2,
                 self.config.max_accel_mps2,
@@ -99,12 +114,7 @@ class MPCActuator(Node):
                 self.config.reverse_pwm,
             )
         else:
-            self.throttle = speed_to_pwm(
-                command.target_speed_mps,
-                self.config.max_speed_kph,
-                self.config.neutral_throttle_pwm,
-                self.config.forward_pwm,
-            )
+            self.throttle = self.config.neutral_throttle_pwm
         self.last_control_time = time.monotonic()
         self.timeout_reported = False
 
@@ -119,9 +129,9 @@ class MPCActuator(Node):
     def neutral_message(self):
         """Create a centered and stopped RC command."""
         command = RCMessage()
-        command.rc_throttle = self.config.neutral_throttle_pwm
+        command.rc_throttle = NEUTRAL_VALUE
         command.rc_roll = self.config.center_steering_pwm
-        command.rc_pitch = NEUTRAL_VALUE
+        command.rc_pitch = self.config.neutral_throttle_pwm
         command.rc_yaw = NEUTRAL_VALUE
         return command
 
@@ -139,9 +149,9 @@ class MPCActuator(Node):
             return
 
         command = RCMessage()
-        command.rc_throttle = self.throttle
+        command.rc_throttle = NEUTRAL_VALUE
         command.rc_roll = self.roll
-        command.rc_pitch = NEUTRAL_VALUE
+        command.rc_pitch = self.throttle
         command.rc_yaw = NEUTRAL_VALUE
         self.command_pub.publish(command)
 
@@ -186,13 +196,13 @@ def parse_args(args=None):
     parser.add_argument('--input-topic', default=INPUT_TOPIC)
     parser.add_argument('--max-steer-rad', type=float, default=0.523)
     parser.add_argument('--max-accel-mps2', type=float, default=2.0)
-    parser.add_argument('--max-speed-kph', type=float, default=40.0)
-    parser.add_argument('--left-pwm', type=int, default=1700)
+    parser.add_argument('--max-speed-kph', type=float, default=10.0)
+    parser.add_argument('--left-pwm', type=int, default=TELEOP_LEFT_PWM)
     parser.add_argument('--center-steering-pwm', type=int, default=1500)
-    parser.add_argument('--right-pwm', type=int, default=1300)
-    parser.add_argument('--forward-pwm', type=int, default=1700)
+    parser.add_argument('--right-pwm', type=int, default=TELEOP_RIGHT_PWM)
+    parser.add_argument('--forward-pwm', type=int, default=TELEOP_FORWARD_PWM)
     parser.add_argument('--neutral-throttle-pwm', type=int, default=1500)
-    parser.add_argument('--reverse-pwm', type=int, default=1400)
+    parser.add_argument('--reverse-pwm', type=int, default=TELEOP_MAX_REVERSE_PWM)
     parser.add_argument('--command-timeout', type=float, default=0.3)
     parser.add_argument(
         '--dry-run',
@@ -245,12 +255,12 @@ def print_mapping(config):
         f'-{config.max_steer_rad:.3f} rad -> {config.right_pwm}'
     )
     print(
-        'forward speed: '
+        'drive pitch: '
         f'{config.max_speed_kph:.1f} km/h -> {config.forward_pwm}, '
         f'0 km/h -> {config.neutral_throttle_pwm}'
     )
     print(
-        'braking: '
+        'reverse target: '
         f'-{config.max_accel_mps2:.3f} m/s^2 -> {config.reverse_pwm}, '
         f'0 m/s^2 -> {config.neutral_throttle_pwm}'
     )
