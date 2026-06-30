@@ -8,22 +8,35 @@ waypoints = df.to_dict('records')
 
 # 1. Generate new road segments XML for elliptical_road
 road_links_xml = "    <model name=\"elliptical_road\">\n      <static>true</static>\n"
-for i, row in enumerate(waypoints):
-    x = row['x']
-    y = row['y']
-    yaw_rad = math.radians(row['yaw_deg'])
+N = len(waypoints)
+for i in range(N):
+    curr_wp = waypoints[i]
+    next_wp = waypoints[(i + 1) % N]
     
-    # Each segment is 2.0m long, 6.0m wide (6.4m with yellow border), 0.02m thick
+    x1, y1 = curr_wp['x'], curr_wp['y']
+    x2, y2 = next_wp['x'], next_wp['y']
+    
+    # Calculate midpoint coordinate for the segment center
+    x_mid = (x1 + x2) / 2.0
+    y_mid = (y1 + y2) / 2.0
+    
+    # Calculate exact distance length between waypoints
+    L = math.hypot(x2 - x1, y2 - y1)
+    
+    # Calculate exact segment yaw heading
+    yaw_rad = math.atan2(y2 - y1, x2 - x1)
+    
+    # Each segment is L long, 6.0m wide (6.4m with yellow border), 0.02m thick
     road_links_xml += f"""
     <link name="seg_{i}">
-      <pose>{x:.3f} {y:.3f} 0.01 0 0 {yaw_rad:.3f}</pose>
+      <pose>{x_mid:.3f} {y_mid:.3f} 0.01 0 0 {yaw_rad:.3f}</pose>
       
       <!-- Yellow Border Base -->
       <visual name="yellow_base_{i}">
         <pose>0 0 0.001 0 0 0</pose>
         <geometry>
           <box>
-            <size>2.0 6.4 0.02</size>
+            <size>{L:.3f} 6.4 0.02</size>
           </box>
         </geometry>
         <material>
@@ -38,7 +51,7 @@ for i, row in enumerate(waypoints):
         <pose>0 0 0.002 0 0 0</pose>
         <geometry>
           <box>
-            <size>2.0 6.0 0.02</size>
+            <size>{L:.3f} 6.0 0.02</size>
           </box>
         </geometry>
         <material>
@@ -53,7 +66,7 @@ for i, row in enumerate(waypoints):
         <pose>0 0 0.003 0 0 0</pose>
         <geometry>
           <box>
-            <size>1.0 0.15 0.001</size>
+            <size>{min(1.0, L/2.0):.3f} 0.15 0.001</size>
           </box>
         </geometry>
         <material>
@@ -73,9 +86,15 @@ with open('custom_road.sdf', 'r') as f:
 # 2. Replace elliptical_road model
 # Search from <model name="elliptical_road"> to the matching </model>
 # Since there are nested tags, we find the first </model> after the start
-model_start_re = r'<model name="elliptical_road">.*?</model>'
-sdf_content, count = re.subn(model_start_re, road_links_xml, sdf_content, flags=re.DOTALL)
-print(f"Replaced elliptical_road: {count} occurrence(s)")
+if '<model name="elliptical_road">' in sdf_content:
+    model_start_re = r'<model name="elliptical_road">.*?</model>'
+    sdf_content, count = re.subn(model_start_re, road_links_xml, sdf_content, flags=re.DOTALL)
+    print(f"Replaced elliptical_road: {count} occurrence(s)")
+else:
+    # Insert before the prius include model
+    include_re = r'(<include>\s*<name>prius</name>)'
+    sdf_content, count = re.subn(include_re, lambda m: road_links_xml + "\n\n    " + m.group(1), sdf_content, flags=re.DOTALL)
+    print(f"Inserted elliptical_road before prius include: {count} occurrence(s)")
 
 # 3. Disable smooth_road_overlay (replace with empty/commented model)
 smooth_road_re = r'<model name="smooth_road_overlay">.*?</model>'
