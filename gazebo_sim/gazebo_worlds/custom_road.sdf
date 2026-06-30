@@ -10354,6 +10354,144 @@
         </trajectory>
       </script>
     </actor>
+    <!-- Debug overlays for controller and world-alignment checks.
+         These visuals are static and collision-free: cyan dots show sampled
+         centerline waypoints, magenta/yellow dots show road-edge references,
+         blue arrows show heading, and green/red cylinders mark start/finish. -->
+    <model name="debug_visuals">
+      <static>true</static>
+
+      <link name="start_finish_markers">
+        <visual name="start_marker">
+          <pose>6.089 1.763 0.45 0 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.55</radius>
+              <length>0.9</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.0 1.0 0.25 0.85</ambient>
+            <diffuse>0.0 1.0 0.25 0.85</diffuse>
+          </material>
+        </visual>
+        <visual name="finish_marker">
+          <pose>2.266 1.705 0.45 0 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.45</radius>
+              <length>0.9</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>1.0 0.1 0.1 0.85</ambient>
+            <diffuse>1.0 0.1 0.1 0.85</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <link name="sampled_centerline">
+        <visual name="center_wp_000">
+          <pose>6.089 1.763 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_010">
+          <pose>26.088 1.891 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_020">
+          <pose>46.088 2.020 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_030">
+          <pose>61.367 -6.536 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_040">
+          <pose>60.940 -26.409 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_050">
+          <pose>63.034 -46.258 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_060">
+          <pose>53.515 -61.501 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_070">
+          <pose>33.819 -62.744 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_080">
+          <pose>14.119 -64.483 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_090">
+          <pose>-1.869 -54.829 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_100">
+          <pose>-8.643 -36.170 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_110">
+          <pose>-11.543 -16.353 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+        <visual name="center_wp_120">
+          <pose>-5.633 1.081 0.18 0 0 0</pose>
+          <geometry><sphere><radius>0.22</radius></sphere></geometry>
+          <material><ambient>0.0 0.9 1.0 1</ambient><diffuse>0.0 0.9 1.0 1</diffuse></material>
+        </visual>
+      </link>
+
+      <link name="heading_arrows">
+        <visual name="heading_000"><pose>6.089 1.763 0.26 0 0 0.006</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_010"><pose>26.088 1.891 0.26 0 0 0.006</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_020"><pose>46.088 2.020 0.26 0 0 0.006</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_030"><pose>61.367 -6.536 0.26 0 0 -1.350</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_040"><pose>60.940 -26.409 0.26 0 0 -1.646</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_050"><pose>63.034 -46.258 0.26 0 0 -1.560</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_060"><pose>53.515 -61.501 0.26 0 0 -2.925</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_070"><pose>33.819 -62.744 0.26 0 0 2.902</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_080"><pose>14.119 -64.483 0.26 0 0 -3.024</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_090"><pose>-1.869 -54.829 0.26 0 0 2.095</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_100"><pose>-8.643 -36.170 0.26 0 0 1.754</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_110"><pose>-11.543 -16.353 0.26 0 0 1.630</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+        <visual name="heading_120"><pose>-5.633 1.081 0.26 0 0 0.274</pose><geometry><box><size>1.4 0.12 0.08</size></box></geometry><material><ambient>0.1 0.25 1.0 1</ambient><diffuse>0.1 0.25 1.0 1</diffuse></material></visual>
+      </link>
+
+      <link name="sampled_road_edges">
+        <visual name="left_edge_000"><pose>6.068 4.963 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.0 0.8 1</ambient><diffuse>1.0 0.0 0.8 1</diffuse></material></visual>
+        <visual name="right_edge_000"><pose>6.109 -1.437 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.9 0.0 1</ambient><diffuse>1.0 0.9 0.0 1</diffuse></material></visual>
+        <visual name="left_edge_020"><pose>46.067 5.220 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.0 0.8 1</ambient><diffuse>1.0 0.0 0.8 1</diffuse></material></visual>
+        <visual name="right_edge_020"><pose>46.108 -1.180 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.9 0.0 1</ambient><diffuse>1.0 0.9 0.0 1</diffuse></material></visual>
+        <visual name="left_edge_040"><pose>64.131 -26.649 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.0 0.8 1</ambient><diffuse>1.0 0.0 0.8 1</diffuse></material></visual>
+        <visual name="right_edge_040"><pose>57.749 -26.169 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.9 0.0 1</ambient><diffuse>1.0 0.9 0.0 1</diffuse></material></visual>
+        <visual name="left_edge_060"><pose>54.204 -64.626 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.0 0.8 1</ambient><diffuse>1.0 0.0 0.8 1</diffuse></material></visual>
+        <visual name="right_edge_060"><pose>52.826 -58.376 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.9 0.0 1</ambient><diffuse>1.0 0.9 0.0 1</diffuse></material></visual>
+        <visual name="left_edge_080"><pose>14.494 -67.660 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.0 0.8 1</ambient><diffuse>1.0 0.0 0.8 1</diffuse></material></visual>
+        <visual name="right_edge_080"><pose>13.744 -61.305 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.9 0.0 1</ambient><diffuse>1.0 0.9 0.0 1</diffuse></material></visual>
+        <visual name="left_edge_100"><pose>-11.789 -36.753 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.0 0.8 1</ambient><diffuse>1.0 0.0 0.8 1</diffuse></material></visual>
+        <visual name="right_edge_100"><pose>-5.496 -35.587 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.9 0.0 1</ambient><diffuse>1.0 0.9 0.0 1</diffuse></material></visual>
+        <visual name="left_edge_120"><pose>-6.498 4.162 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.0 0.8 1</ambient><diffuse>1.0 0.0 0.8 1</diffuse></material></visual>
+        <visual name="right_edge_120"><pose>-4.769 -2.000 0.16 0 0 0</pose><geometry><sphere><radius>0.16</radius></sphere></geometry><material><ambient>1.0 0.9 0.0 1</ambient><diffuse>1.0 0.9 0.0 1</diffuse></material></visual>
+      </link>
+    </model>
+
     <include>
       <name>prius</name>
       <uri>file:///home/dhruv/amcaf/gazebo_sim/custom_worlds/models/prius</uri>

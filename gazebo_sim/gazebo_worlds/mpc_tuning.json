@@ -1,0 +1,8 @@
+{
+  "target_speed": 2.8,
+  "horizon_T": 15,
+  "w_xy": 9.5,
+  "w_yaw": 50.0,
+  "w_steer": 1.0,
+  "w_vel": 2.3
+}

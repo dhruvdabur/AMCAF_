@@ -182,6 +182,13 @@ class GazeboMpcControllerNode(Node):
             self.get_logger().error(f"Failed to load trajectory file: {e}")
             sys.exit(1)
 
+        # Coordinate frame transformation offsets (Odom spawn -> World Map frame)
+        self.x_offset = float(self.track_points[0][0])
+        self.y_offset = float(self.track_points[0][1])
+        first_yaw_deg = float(df.iloc[0]['yaw_deg'])
+        self.yaw_offset = math.radians(first_yaw_deg)
+        self.get_logger().info(f"World Frame Transform Offset loaded: x_off={self.x_offset:.3f}, y_off={self.y_offset:.3f}, yaw_off={first_yaw_deg:.3f}°")
+
         # Initial MPC configuration defaults
         self.dt = 1.0 / self.control_rate
         self.mpc_config = MPCConfig(
@@ -385,15 +392,19 @@ class GazeboMpcControllerNode(Node):
             self.get_logger().warning("Waiting for odometry messages...", throttle_duration_sec=3.0)
             return
 
-        # 1. Extract current state
-        px = self.current_odom.pose.pose.position.x
-        py = self.current_odom.pose.pose.position.y
+        # 1. Extract current state and transform to World Map frame
+        px = self.current_odom.pose.pose.position.x + self.x_offset
+        py = self.current_odom.pose.pose.position.y + self.y_offset
 
         # Quaternion to Euler Yaw
         q = self.current_odom.pose.pose.orientation
         siny_cosp = 2 * (q.w * q.z + q.x * q.y)
         cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
-        yaw = math.atan2(siny_cosp, cosy_cosp)
+        yaw_odom = math.atan2(siny_cosp, cosy_cosp)
+        
+        # Shift yaw relative to initial world pose and wrap to [-pi, pi]
+        yaw = yaw_odom + self.yaw_offset
+        yaw = math.atan2(math.sin(yaw), math.cos(yaw))
 
         # Current speed calculation (preserving direction)
         vx = self.current_odom.twist.twist.linear.x
