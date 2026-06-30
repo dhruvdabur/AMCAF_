@@ -1,60 +1,91 @@
-# Demo of Prius in ROS/GAZEBO
+# Legacy Prius Car Demo
 
-This is a simulation of a Prius in [gazebo 9](http://gazebosim.org) with sensor data being published using [ROS kinetic](http://wiki.ros.org/kinetic/Installation)
-The car's throttle, brake, steering, and gear shifting are controlled by publishing a ROS message.
-A ROS node allows driving with a gamepad or joystick.
+This directory contains the OSRF Prius demo adapted into the AMCaf Gazebo tree.
+It is separate from the current `gazebo_worlds/` ROS 2 MPC workflow.
 
-# Video + Pictures
+Use this directory when you specifically need the older ROS 1/Gazebo Classic Prius demo, joystick translator, RViz configuration, or `PriusHybridPlugin` implementation.
 
-A video and screenshots of the demo can be seen in this blog post: https://www.osrfoundation.org/simulated-car-demo/
+## What Is Here
 
-![Prius Image](https://www.osrfoundation.org/wordpress2/wp-content/uploads/2017/06/prius_roundabout_exit.png)
+| Path | Purpose |
+| --- | --- |
+| `car_demo/` | Catkin package containing the Gazebo Classic world, launch file, joystick node, and Prius model plugin. |
+| `prius_description/` | Prius URDF and mesh assets. |
+| `prius_msgs/` | ROS 1 `Control.msg` used to command throttle, brake, steering, and gear state. |
+| `build_demo.bash` | Builds the Docker image. |
+| `run_demo.bash` | Runs the demo container through `rocker`. |
 
-# Requirements
+## Runtime Stack
 
-This demo has been tested on Ubuntu Xenial (16.04)
+This demo targets:
 
-* An X server
-* [Docker](https://www.docker.com/get-docker)
-* [nvidia-docker2](https://github.com/nvidia/nvidia-docker/wiki/Installation-(version-2.0))
-* The current user is a member of the docker group or other group with docker execution rights.
-* [rocker](https://github.com/osrf/rocker)
+- ROS Kinetic.
+- Gazebo 9 / Gazebo Classic.
+- Catkin.
+- Docker plus `rocker`.
 
-# Recommended
+The launch file is:
 
-* A joystick
-* A joystick driver which creates links to `/dev/input/js0` or `/dev/input/js1`
-
-This has been tested with the Logitech F710 in Xbox mode. If you have a different joystick you may need to adjust the parameters for the very basic joystick_translator node: https://github.com/osrf/car_demo/blob/master/car_demo/nodes/joystick_translator
-
-# Building
-
-First clone the repo, then run the script `build_demo.bash`.
-It builds a docker image with the local source code inside.
-
-```
-$ cd car_demo
-$ ./build_demo.bash
+```bash
+car_demo/car_demo/launch/demo.launch
 ```
 
-# Running
+It starts:
 
-Connect a game controller to your PC.
-Use the script `run_demo.bash` to run the demo.
+- `gazebo_ros` with `car_demo/worlds/mcity.world`.
+- `robot_state_publisher`.
+- `fake_localization`.
+- joystick nodes for `/dev/input/js0` and `/dev/input/js1`.
+- `joystick_translator`.
+- RViz with `car_demo/rviz/demo.rviz`.
+- a spawned Prius URDF model.
 
+## Controls
+
+The primary ROS message is `prius_msgs/Control`:
+
+- `throttle`: `0.0` to `1.0`
+- `brake`: `0.0` to `1.0`
+- `steer`: `-1.0` to `1.0`
+- `shift_gears`: `NO_COMMAND`, `NEUTRAL`, `FORWARD`, or `REVERSE`
+
+The `PriusHybridPlugin` also exposes Ignition transport handlers for command and utility topics, including `/cmd_vel`, `/cmd_gear`, `/cmd_mode`, `/prius/reset`, and `/prius/stop`.
+
+## Build
+
+From this directory:
+
+```bash
+./build_demo.bash
 ```
-$ ./run_demo.bash
+
+This builds the local Docker image:
+
+```text
+osrf/car_demo
 ```
-An [RVIZ](http://wiki.ros.org/rviz) window will open showing the car and sensor output.
-A gazebo window will appear showing the simulation.
-Either use the controller to drive the prius around the world, or click on the gazebo window and use the `WASD` keys to drive the car.
 
-If using a Logitech F710 controller:
+## Run
 
-* Make sure the MODE status light is off
-* Set the swtich to XInput mode
-* The right stick controls throttle and brake
-* The left stick controls steering
-* Y puts the car into DRIVE
-* A puts the car into REVERSE
-* B puts the car into NEUTRAL
+Connect a game controller if you want joystick input, then run:
+
+```bash
+./run_demo.bash
+```
+
+RViz opens with the car and sensor output, and Gazebo opens with the simulation world. You can drive with a controller or click into the Gazebo window and use keyboard controls.
+
+For a Logitech F710 in XInput mode:
+
+- Right stick controls throttle and brake.
+- Left stick controls steering.
+- `Y` shifts to drive.
+- `A` shifts to reverse.
+- `B` shifts to neutral.
+
+## Relationship To The Current Gazebo Workflow
+
+The current AMCaf Gazebo workflow lives one level up in `../gazebo_worlds/` and `../custom_worlds/`.
+That path uses Ignition/Gazebo, ROS 2, `ros_gz_bridge`, and `mpc_controller_node.py`.
+
+Use `car_demo/` only when working on the legacy ROS 1 Prius demo or the original OSRF plugin stack.
