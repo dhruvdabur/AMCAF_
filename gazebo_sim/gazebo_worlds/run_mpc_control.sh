@@ -10,9 +10,19 @@ fi
 pkill -f "ros_gz_bridge"
 pkill -f "mpc_controller_node.py"
 
+cleanup() {
+    echo -e "\nShutting down..."
+    if [ -n "${BRIDGE_PID:-}" ]; then
+        kill "$BRIDGE_PID" 2>/dev/null
+    fi
+    exit 0
+}
+trap cleanup SIGINT SIGTERM
+
 echo "Starting ROS 2 - Gazebo parameter bridge..."
-# Bridge /model/prius/cmd_vel (ROS -> Gazebo) and /model/prius/odometry (Gazebo -> ROS)
+# Bridge /clock and /model/prius/odometry from Gazebo -> ROS, and cmd_vel from ROS -> Gazebo.
 ros2 run ros_gz_bridge parameter_bridge \
+  /clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock \
   /model/prius/cmd_vel@geometry_msgs/msg/Twist]ignition.msgs.Twist \
   /model/prius/odometry@nav_msgs/msg/Odometry[ignition.msgs.Odometry \
   > /tmp/ros_gz_bridge.log 2>&1 &
@@ -36,9 +46,4 @@ export PYTHONPATH=/home/dhruv/.local/lib/python3.10/site-packages:/home/dhruv/am
 python3 /home/dhruv/amcaf/gazebo_sim/gazebo_worlds/mpc_controller_node.py
 
 # Cleanup on exit
-cleanup() {
-    echo -e "\nShutting down..."
-    kill $BRIDGE_PID 2>/dev/null
-    exit 0
-}
-trap cleanup SIGINT SIGTERM
+cleanup
