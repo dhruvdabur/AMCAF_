@@ -328,9 +328,14 @@ class GazeboMpcControllerNode(Node):
             self.mpc_config.w_steer = max(0.1, w_steer_val)
             self.mpc_config.w_vel = max(0.1, w_vel_val)
             
+            # Preserve current waypoint progress index to prevent jumps/clamping issues
+            prev_idx = self.controller._prev_waypoint_idx
+            
             # Rebuild optimizer
             self.controller = TunedMPCController(self.mpc_config)
             self.controller.update_track(self.track_points)
+            self.controller._prev_waypoint_idx = prev_idx
+            
             self.get_logger().info("Solver re-built successfully.")
 
     def draw_status_display(self, vel, solve_time):
