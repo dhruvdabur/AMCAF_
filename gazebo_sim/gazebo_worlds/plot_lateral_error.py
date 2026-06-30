@@ -8,8 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def main():
-    csv_path = Path("/home/dhruv/amcaf/gazebo_sim/gazebo_worlds/mpc_telemetry.csv")
-    output_plot = Path("/home/dhruv/amcaf/gazebo_sim/gazebo_worlds/mpc_performance_plot.png")
+    GAZEBO_WORLDS_DIR = Path(__file__).resolve().parent
+    csv_path = GAZEBO_WORLDS_DIR / "mpc_telemetry.csv"
+    output_plot = GAZEBO_WORLDS_DIR / "mpc_performance_plot.png"
 
     if not csv_path.exists():
         print(f"Error: Telemetry file {csv_path} does not exist. Run the controller first to generate data!")

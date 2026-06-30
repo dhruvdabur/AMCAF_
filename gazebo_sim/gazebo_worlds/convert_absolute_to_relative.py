@@ -1,6 +1,6 @@
 import os
 
-root_dir = '/home/dhruv/amcaf/gazebo_sim'
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Replacement rules:
 # 1.  -> '' (relative to gazebo_worlds/)

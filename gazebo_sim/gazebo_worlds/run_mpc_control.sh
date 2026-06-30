@@ -1,9 +1,18 @@
 #!/bin/bash
 # Helper script to run the ROS 2 - Gazebo bridge and the MPC Controller Node
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 # Ensure ROS 2 Humble environment is sourced (usually in ~/.bashrc, but safety first)
 if [ -f "/opt/ros/humble/setup.bash" ]; then
     source /opt/ros/humble/setup.bash
+fi
+if [ -f "$REPO_ROOT/install/setup.bash" ]; then
+    source "$REPO_ROOT/install/setup.bash"
+fi
+if [ -f "$REPO_ROOT/hardware/install/setup.bash" ]; then
+    source "$REPO_ROOT/hardware/install/setup.bash"
 fi
 
 # Kill any existing bridge or node to prevent port/name conflicts
@@ -40,10 +49,10 @@ fi
 
 echo "Launching MPC Controller Node..."
 # Export PYTHONPATH so the node can find the hardware.hil.controllers packages
-export PYTHONPATH=/home/dhruv/.local/lib/python3.10/site-packages:/home/dhruv/amcaf:$PYTHONPATH
+export PYTHONPATH="$REPO_ROOT:$PYTHONPATH"
 
 # Launch the node
-python3 /home/dhruv/amcaf/gazebo_sim/gazebo_worlds/mpc_controller_node.py
+python3 "$SCRIPT_DIR/mpc_controller_node.py"
 
 # Cleanup on exit
 cleanup

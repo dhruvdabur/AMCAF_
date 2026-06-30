@@ -12,11 +12,15 @@ import pandas as pd
 import cv2
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import ExternalShutdownException
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
+from rc_msgs.msg import AckermannCommand
 
 # Add workspace root to sys.path to resolve hardware package imports
-sys.path.append('/home/dhruv/amcaf')
+REPO_ROOT = Path(__file__).resolve().parents[2]
+GAZEBO_WORLDS_DIR = Path(__file__).resolve().parent
+sys.path.append(str(REPO_ROOT))
 from hardware.hil.controllers.mpc_cbf import MPCController, MPCConfig
 
 try:
@@ -156,13 +160,14 @@ class GazeboMpcControllerNode(Node):
         super().__init__('gazebo_mpc_controller')
 
         # Node parameters
-        self.declare_parameter('trajectory_file', '/home/dhruv/amcaf/gazebo_sim/gazebo_worlds/trajectory.csv')
-        self.declare_parameter('tuning_file', '/home/dhruv/amcaf/gazebo_sim/gazebo_worlds/mpc_tuning.json')
-        self.declare_parameter('telemetry_file', '/home/dhruv/amcaf/gazebo_sim/gazebo_worlds/mpc_telemetry.csv')
+        self.declare_parameter('trajectory_file', str(GAZEBO_WORLDS_DIR / 'trajectory.csv'))
+        self.declare_parameter('tuning_file', str(GAZEBO_WORLDS_DIR / 'mpc_tuning.json'))
+        self.declare_parameter('telemetry_file', str(GAZEBO_WORLDS_DIR / 'mpc_telemetry.csv'))
         self.declare_parameter('target_speed', 5.0)  # m/s
         self.declare_parameter('control_rate', 20.0)  # Hz
         self.declare_parameter('odom_topic', '/model/prius/odometry')
         self.declare_parameter('cmd_topic', '/model/prius/cmd_vel')
+        self.declare_parameter('ackermann_topic', '/mpc/ackermann_command')
         self.declare_parameter('enable_tuning', True)
 
         self.trajectory_file = self.get_parameter('trajectory_file').value
@@ -172,6 +177,7 @@ class GazeboMpcControllerNode(Node):
         self.control_rate = self.get_parameter('control_rate').value
         self.odom_topic = self.get_parameter('odom_topic').value
         self.cmd_topic = self.get_parameter('cmd_topic').value
+        self.ackermann_topic = self.get_parameter('ackermann_topic').value
         self.enable_tuning = self.get_parameter('enable_tuning').value
 
         # Setup ROS 2 Sim Time (declared by base Node class, set to True)
@@ -253,6 +259,11 @@ class GazeboMpcControllerNode(Node):
         self.publisher = self.create_publisher(
             Twist,
             self.cmd_topic,
+            10
+        )
+        self.ackermann_publisher = self.create_publisher(
+            AckermannCommand,
+            self.ackermann_topic,
             10
         )
 
@@ -526,6 +537,12 @@ class GazeboMpcControllerNode(Node):
         cmd_msg.angular.z = float(steer)
         self.publisher.publish(cmd_msg)
 
+        ackermann_msg = AckermannCommand()
+        ackermann_msg.steering_angle_rad = float(steer)
+        ackermann_msg.acceleration_mps2 = float(accel)
+        ackermann_msg.target_speed_mps = float(self.target_speed)
+        self.ackermann_publisher.publish(ackermann_msg)
+
         # 6. Log telemetry to CSV file
         try:
             timestamp = self.get_clock().now().nanoseconds / 1e9
@@ -551,13 +568,18 @@ def main(args=None):
         rclpy.spin(node)
     except KeyboardInterrupt:
         node.get_logger().info("MPC Controller Node stopped by user.")
+    except ExternalShutdownException:
+        pass
     finally:
         if node.enable_tuning:
             cv2.destroyAllWindows()
-        stop_msg = Twist()
-        node.publisher.publish(stop_msg)
-        node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            stop_msg = Twist()
+            node.publisher.publish(stop_msg)
+            ackermann_stop_msg = AckermannCommand()
+            node.ackermann_publisher.publish(ackermann_stop_msg)
+            node.destroy_node()
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
