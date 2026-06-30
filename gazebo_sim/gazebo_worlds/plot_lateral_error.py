@@ -27,32 +27,39 @@ def main():
     # Calculate time elapsed relative to start
     df['time_elapsed'] = df['timestamp'] - df['timestamp'].iloc[0]
 
+    # Convert to numpy arrays to avoid matplotlib/pandas indexer incompatibility
+    t = df['time_elapsed'].to_numpy()
+    lat_err = df['lateral_error'].to_numpy()
+    speed = df['speed'].to_numpy()
+    target_speed = df['target_speed'].to_numpy()
+    steer_cmd = df['steer_cmd'].to_numpy()
+
     # Create figure
     fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
     fig.suptitle("MPC Controller Performance Analysis", fontsize=14, fontweight='bold')
 
     # 1. Lateral Error Plot
-    axes[0].plot(df['time_elapsed'], df['lateral_error'], color='crimson', label='Lateral Error (m)', linewidth=1.5)
+    axes[0].plot(t, lat_err, color='crimson', label='Lateral Error (m)', linewidth=1.5)
     axes[0].axhline(0, color='black', linestyle='--', alpha=0.6)
     axes[0].set_ylabel("Lateral Error (meters)", fontweight='bold')
     axes[0].grid(True, linestyle=':', alpha=0.6)
     axes[0].legend(loc='upper right')
     
     # Calculate performance metrics for display
-    rmse = (df['lateral_error'] ** 2).mean() ** 0.5
-    max_error = df['lateral_error'].abs().max()
+    rmse = (lat_err ** 2).mean() ** 0.5
+    max_error = np.abs(lat_err).max()
     axes[0].text(0.02, 0.08, f"RMSE: {rmse:.3f}m | Max Error: {max_error:.3f}m", 
                  transform=axes[0].transAxes, bbox=dict(facecolor='white', alpha=0.8, boxstyle='round,pad=0.3'))
 
     # 2. Speed Profile Plot
-    axes[1].plot(df['time_elapsed'], df['speed'], color='dodgerblue', label='Actual Speed (m/s)', linewidth=1.5)
-    axes[1].plot(df['time_elapsed'], df['target_speed'], color='darkorange', linestyle='--', label='Target Speed (m/s)', linewidth=1.5)
+    axes[1].plot(t, speed, color='dodgerblue', label='Actual Speed (m/s)', linewidth=1.5)
+    axes[1].plot(t, target_speed, color='darkorange', linestyle='--', label='Target Speed (m/s)', linewidth=1.5)
     axes[1].set_ylabel("Velocity (m/s)", fontweight='bold')
     axes[1].grid(True, linestyle=':', alpha=0.6)
     axes[1].legend(loc='lower right')
 
     # 3. Control Inputs (Steering) Plot
-    axes[2].plot(df['time_elapsed'], df['steer_cmd'] * 57.2958, color='forestgreen', label='Steer Cmd (deg)', linewidth=1.5)
+    axes[2].plot(t, steer_cmd * 57.2958, color='forestgreen', label='Steer Cmd (deg)', linewidth=1.5)
     axes[2].set_ylabel("Steering angle (deg)", fontweight='bold')
     axes[2].set_xlabel("Time Elapsed (seconds)", fontweight='bold')
     axes[2].grid(True, linestyle=':', alpha=0.6)
