@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""ROS 2 Node for controlling the Gazebo Prius vehicle using MPC with live OpenCV tuning."""
+"""ROS 2 Node for controlling the Gazebo Prius vehicle using MPC with live OpenCV tuning and saving."""
 
 import sys
 import os
+import json
 import math
 import warnings
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import cv2
@@ -99,7 +101,7 @@ class TunedMPCController(MPCController):
 
         mpc.set_tvp_fun(tvp_fun)
 
-        # Dynamic weights loaded from config (or fall back to original HIL defaults)
+        # Dynamic weights loaded from config
         w_xy = getattr(cfg, "w_xy", 2.0)
         w_yaw = getattr(cfg, "w_yaw", 500.0)
         w_vel = getattr(cfg, "w_vel", 1.0)
@@ -148,13 +150,14 @@ class TunedMPCController(MPCController):
 
 
 class GazeboMpcControllerNode(Node):
-    """ROS 2 Node wrapping the Model Predictive Controller (MPC) with live OpenCV tuning panel."""
+    """ROS 2 Node wrapping the Model Predictive Controller (MPC) with live OpenCV tuning and saving."""
 
     def __init__(self):
         super().__init__('gazebo_mpc_controller')
 
         # Node parameters
         self.declare_parameter('trajectory_file', '/home/dhruv/amcaf/gazebo_sim/gazebo_worlds/trajectory.csv')
+        self.declare_parameter('tuning_file', '/home/dhruv/amcaf/gazebo_sim/gazebo_worlds/mpc_tuning.json')
         self.declare_parameter('target_speed', 5.0)  # m/s
         self.declare_parameter('control_rate', 20.0)  # Hz
         self.declare_parameter('odom_topic', '/model/prius/odometry')
@@ -162,6 +165,7 @@ class GazeboMpcControllerNode(Node):
         self.declare_parameter('enable_tuning', True)
 
         self.trajectory_file = self.get_parameter('trajectory_file').value
+        self.tuning_file = self.get_parameter('tuning_file').value
         self.target_speed = self.get_parameter('target_speed').value
         self.control_rate = self.get_parameter('control_rate').value
         self.odom_topic = self.get_parameter('odom_topic').value
@@ -178,7 +182,7 @@ class GazeboMpcControllerNode(Node):
             self.get_logger().error(f"Failed to load trajectory file: {e}")
             sys.exit(1)
 
-        # Initial MPC configuration
+        # Initial MPC configuration defaults
         self.dt = 1.0 / self.control_rate
         self.mpc_config = MPCConfig(
             wheelbase=2.86,
@@ -191,12 +195,14 @@ class GazeboMpcControllerNode(Node):
             v_min=0.0,
             v_max=12.0
         )
-        # Custom weights on config object
         self.mpc_config.w_xy = 2.0
         self.mpc_config.w_yaw = 500.0
         self.mpc_config.w_vel = 1.0
         self.mpc_config.w_steer = 10.0
         self.mpc_config.w_accel = 0.5
+
+        # Try to load existing tuning values from file
+        self.load_tuning_from_file()
 
         # Setup controller
         self.controller = TunedMPCController(self.mpc_config)
@@ -207,6 +213,10 @@ class GazeboMpcControllerNode(Node):
         self.vel_cmd = 0.0
         self.last_accel = 0.0
         self.last_steer = 0.0
+        
+        # Save feedback status
+        self.save_status_msg = None
+        self.save_status_time = None
 
         # ROS 2 Subscribers and Publishers
         self.subscription = self.create_subscription(
@@ -225,9 +235,9 @@ class GazeboMpcControllerNode(Node):
         if self.enable_tuning:
             self.window_name = "MPC Tuning Panel"
             cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-            cv2.resizeWindow(self.window_name, 550, 400)
+            cv2.resizeWindow(self.window_name, 550, 420)
             
-            # Setup trackbars
+            # Setup trackbars based on loaded values
             cv2.createTrackbar('Target Speed', self.window_name, int(self.target_speed * 10), 150, noop)
             cv2.createTrackbar('Horizon T', self.window_name, self.mpc_config.horizon_T, 25, noop)
             cv2.createTrackbar('XY Tracking W x10', self.window_name, int(self.mpc_config.w_xy * 10), 100, noop)
@@ -243,6 +253,48 @@ class GazeboMpcControllerNode(Node):
 
     def odom_callback(self, msg):
         self.current_odom = msg
+
+    def load_tuning_from_file(self):
+        """Loads tuning values from self.tuning_file if it exists."""
+        tuning_path = Path(self.tuning_file)
+        if not tuning_path.exists():
+            self.get_logger().warning(f"No existing tuning file found at {self.tuning_file}. Using defaults.")
+            return
+
+        try:
+            payload = json.loads(tuning_path.read_text(encoding='utf-8'))
+            self.target_speed = payload.get('target_speed', self.target_speed)
+            self.mpc_config.horizon_T = payload.get('horizon_T', self.mpc_config.horizon_T)
+            self.mpc_config.w_xy = payload.get('w_xy', self.mpc_config.w_xy)
+            self.mpc_config.w_yaw = payload.get('w_yaw', self.mpc_config.w_yaw)
+            self.mpc_config.w_steer = payload.get('w_steer', self.mpc_config.w_steer)
+            self.mpc_config.w_vel = payload.get('w_vel', self.mpc_config.w_vel)
+            self.get_logger().info(f"Loaded tuning parameters successfully from {self.tuning_file}")
+        except Exception as e:
+            self.get_logger().error(f"Error reading tuning file: {e}")
+
+    def save_tuning_to_file(self):
+        """Saves current tuning trackbar parameters to self.tuning_file."""
+        payload = {
+            'target_speed': float(self.target_speed),
+            'horizon_T': int(self.mpc_config.horizon_T),
+            'w_xy': float(self.mpc_config.w_xy),
+            'w_yaw': float(self.mpc_config.w_yaw),
+            'w_steer': float(self.mpc_config.w_steer),
+            'w_vel': float(self.mpc_config.w_vel)
+        }
+        
+        try:
+            tuning_path = Path(self.tuning_file)
+            tuning_path.parent.mkdir(parents=True, exist_ok=True)
+            tuning_path.write_text(json.dumps(payload, indent=2) + '\n', encoding='utf-8')
+            self.get_logger().info(f"Saved tuning values to: {self.tuning_file}")
+            self.save_status_msg = "SAVED TO FILE SUCCESSFULLY!"
+            self.save_status_time = self.get_clock().now()
+        except Exception as e:
+            self.get_logger().error(f"Failed to save tuning: {e}")
+            self.save_status_msg = "SAVE TO FILE FAILED!"
+            self.save_status_time = self.get_clock().now()
 
     def read_tuning_panel(self):
         """Read values from trackbars and re-initialize optimizer if any weight changes."""
@@ -300,8 +352,24 @@ class GazeboMpcControllerNode(Node):
         cv2.putText(panel, f"Steer Cmd: {math.degrees(self.last_steer):.1f} deg", (25, 230), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
         cv2.putText(panel, f"Accel Cmd: {self.last_accel:.3f} m/s2", (25, 265), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
         
+        # Save instructions and save status
+        if self.save_status_msg:
+            elapsed = (self.get_clock().now() - self.save_status_time).nanoseconds / 1e9
+            if elapsed < 2.5:
+                color = (0, 255, 0) if "SUCCESS" in self.save_status_msg else (0, 0, 255)
+                cv2.putText(panel, self.save_status_msg, (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+            else:
+                self.save_status_msg = None
+                cv2.putText(panel, "Press 'S' on this window to save values", (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+        else:
+            cv2.putText(panel, "Press 'S' on this window to save values", (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+
         cv2.imshow(self.window_name, panel)
-        cv2.waitKey(1)
+        
+        # Check keyboard inputs
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('s') or key == ord('S'):
+            self.save_tuning_to_file()
 
     def timer_callback(self):
         # Update weights and target speed from window
