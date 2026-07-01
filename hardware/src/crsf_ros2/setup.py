@@ -1,11 +1,68 @@
 from pathlib import Path
+import os
 
 from setuptools import find_packages, setup
+from setuptools.command.develop import develop as _develop
 
 package_name = 'crsf_ros2'
 submodules = 'crsf_ros2/submodules'
-hil_source = Path(__file__).resolve().parents[2] / 'hil'
 setup_dir = Path(__file__).resolve().parent
+
+
+def find_hil_source():
+    """Locate the hardware hil source directory from build and source layouts."""
+    path = setup_dir
+    for parent in [path, *path.parents]:
+        candidate = parent / 'hil'
+        if (candidate / '__init__.py').is_file():
+            return candidate
+        candidate = parent / 'hardware' / 'hil'
+        if (candidate / '__init__.py').is_file():
+            return candidate
+    raise FileNotFoundError('cannot locate hardware/hil source directory')
+
+
+hil_source = find_hil_source()
+
+
+class develop(_develop):
+    """Accept colcon-specific develop flags for backward compatibility."""
+
+    user_options = _develop.user_options + [
+        ('editable', None, 'support colcon editable mode'),
+        ('build-directory=', None, 'ignored build directory'),
+        ('symlink-data', None, 'ignored symlink data'),
+        ('force', None, 'ignored force flag'),
+        ('uninstall', None, 'ignored uninstall flag'),
+    ]
+    boolean_options = _develop.boolean_options + [
+        'editable',
+        'symlink-data',
+        'force',
+        'uninstall',
+    ]
+
+    editable = False
+    build_directory = None
+    symlink_data = False
+    force = False
+    uninstall = False
+
+    def initialize_options(self):
+        super().initialize_options()
+        self.editable = False
+        self.build_directory = None
+        self.symlink_data = False
+        self.force = False
+        self.uninstall = False
+
+    def finalize_options(self):
+        _develop.finalize_options(self)
+
+    def run(self):
+        if self.uninstall:
+            return
+        super().run()
 
 
 def hil_package_name(package):
@@ -24,8 +81,11 @@ hil_package_paths = [
 ]
 hil_packages = [hil_package_name(package) for package in hil_package_paths]
 package_dir = {
-    hil_package_name(package): str(package)
-    for package in hil_package_paths
+    '': str(setup_dir),
+    **{
+        hil_package_name(package): str(package)
+        for package in hil_package_paths
+    }
 }
 
 setup(
@@ -33,12 +93,15 @@ setup(
     version='0.0.0',
     packages=find_packages(exclude=['test']) + hil_packages,
     package_dir=package_dir,
+    cmdclass={
+        'develop': develop,
+    },
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'cvxpy'],
     zip_safe=True,
     maintainer='arunser',
     maintainer_email='stormbreaker.004@gmail.com',

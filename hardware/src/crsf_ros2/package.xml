@@ -12,6 +12,7 @@
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <depend>cv_bridge</depend>
+  <depend>python3-cvxpy</depend>
   <exec_depend>rclpy</exec_depend>
   
   <test_depend>ament_copyright</test_depend>

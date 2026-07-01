@@ -1,0 +1,18 @@
+[console_scripts]
+aruco_track_follower = crsf_ros2.aruco_track_follower:main
+crsf_ros = crsf_ros2.ros2_crsf:main
+dyanmic_straight = crsf_ros2.hil.dynamic_straight:main
+dynamic_straight = crsf_ros2.hil.dynamic_straight:main
+ellipse_static = crsf_ros2.hil.ellipse_static:main
+follow_the_gap_dynamic_straight = crsf_ros2.hil.dynamic_straight:main
+ftg_dynamic_straight = crsf_ros2.hil.dynamic_straight:main
+mentor_demo_benchmark = crsf_ros2.hil.mentor_demo_benchmark:main
+mpc_actuator = crsf_ros2.mpc_actuator:main
+steering_test = crsf_ros2.steering_test:main
+straght_static = crsf_ros2.hil.straght_static:main
+straight_random_static_test = crsf_ros2.hil.random_static_test:main
+straight_static = crsf_ros2.hil.straight_static:main
+teleop_test = crsf_ros2.teleop_test:main
+throttle_test = crsf_ros2.throttle_test:main
+throttle_topic_test = crsf_ros2.throttle_topic_test:main
+virtual_vehicle = crsf_ros2.hil.simulation.virtual_vehicle:main

@@ -20,7 +20,7 @@ COMMAND_TOPIC = '/drone/rc_command'
 ARMING_SERVICE = '/drone/cmd/arming'
 NEUTRAL_VALUE = 1500
 STEERING_NEUTRAL_VALUE = 1500
-FORWARD_THROTTLE = 1587
+FORWARD_THROTTLE = 1600
 MAX_FORWARD_THROTTLE = 1600
 REVERSE_THROTTLE = NEUTRAL_VALUE - (FORWARD_THROTTLE - NEUTRAL_VALUE)
 MAX_REVERSE_THROTTLE = 1400
@@ -136,6 +136,12 @@ def parse_args(args=None):
         action='store_true',
         help='Required for output; confirms wheels/propulsion cannot injure.',
     )
+    parser.add_argument(
+        '--forward-throttle',
+        type=int,
+        default=1600,
+        help='Throttle value sent on W key (default: 1600).',
+    )
     return parser.parse_known_args(args)
 
 
@@ -157,7 +163,10 @@ def print_controls():
 
 def main(args=None):
     """Arm at neutral and run bounded terminal teleoperation until stopped."""
+    global FORWARD_THROTTLE, REVERSE_THROTTLE
     config, ros_args = parse_args(args)
+    FORWARD_THROTTLE = config.forward_throttle
+    REVERSE_THROTTLE = NEUTRAL_VALUE - (FORWARD_THROTTLE - NEUTRAL_VALUE)
     print_controls()
     if config.dry_run:
         return

@@ -17,11 +17,11 @@ INPUT_TOPIC = '/mpc/ackermann_command'
 COMMAND_TOPIC = '/drone/rc_command'
 ARMING_SERVICE = '/drone/cmd/arming'
 NEUTRAL_VALUE = 1500
-TELEOP_FORWARD_PWM = 1589
+TELEOP_FORWARD_PWM = 1586
 TELEOP_MAX_FORWARD_PWM = 1600
 TELEOP_MAX_REVERSE_PWM = 1415
-TELEOP_LEFT_PWM = 1300
-TELEOP_RIGHT_PWM = 1700
+TELEOP_LEFT_PWM = 1200
+TELEOP_RIGHT_PWM = 1800
 UPDATE_RATE_HZ = 50.0
 SETTLE_DURATION = 0.5
 STOP_SPEED_EPS_MPS = 1e-3
@@ -129,9 +129,9 @@ class MPCActuator(Node):
     def neutral_message(self):
         """Create a centered and stopped RC command."""
         command = RCMessage()
-        command.rc_throttle = NEUTRAL_VALUE
-        command.rc_roll = self.config.center_steering_pwm
-        command.rc_pitch = self.config.neutral_throttle_pwm
+        command.rc_throttle = self.config.neutral_throttle_pwm
+        command.rc_roll = 1.5 * self.config.center_steering_pwm
+        command.rc_pitch = NEUTRAL_VALUE
         command.rc_yaw = NEUTRAL_VALUE
         return command
 
@@ -148,11 +148,12 @@ class MPCActuator(Node):
                 self.request_disarm()
             return
 
-        command = RCMessage()
-        command.rc_throttle = NEUTRAL_VALUE
+        command = self.neutral_message()
         command.rc_roll = self.roll
-        command.rc_pitch = self.throttle
-        command.rc_yaw = NEUTRAL_VALUE
+        if self.config.drive_channel == 'pitch':
+            command.rc_pitch = self.throttle
+        else:
+            command.rc_throttle = self.throttle
         self.command_pub.publish(command)
 
     def publish_neutral_for(self, duration):
@@ -202,6 +203,12 @@ def parse_args(args=None):
     parser.add_argument('--right-pwm', type=int, default=TELEOP_RIGHT_PWM)
     parser.add_argument('--forward-pwm', type=int, default=TELEOP_FORWARD_PWM)
     parser.add_argument('--neutral-throttle-pwm', type=int, default=1500)
+    parser.add_argument(
+        '--drive-channel',
+        choices=('pitch', 'throttle'),
+        default='pitch',
+        help='RC channel used for vehicle drive output (default: pitch).',
+    )
     parser.add_argument('--reverse-pwm', type=int, default=TELEOP_MAX_REVERSE_PWM)
     parser.add_argument('--command-timeout', type=float, default=0.3)
     parser.add_argument(
@@ -254,8 +261,9 @@ def print_mapping(config):
         f'0 -> {config.center_steering_pwm}, '
         f'-{config.max_steer_rad:.3f} rad -> {config.right_pwm}'
     )
+    drive_label = 'drive pitch' if config.drive_channel == 'pitch' else 'drive throttle'
     print(
-        'drive pitch: '
+        f'{drive_label}: '
         f'{config.max_speed_kph:.1f} km/h -> {config.forward_pwm}, '
         f'0 km/h -> {config.neutral_throttle_pwm}'
     )
