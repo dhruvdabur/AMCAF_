@@ -99,6 +99,18 @@ def parse_args(args=None):
         ),
     )
     parser.add_argument(
+        '--aruco-offset-x-px',
+        type=float,
+        default=0.0,
+        help='Add a fixed pixel offset to detected ArUco control point x.',
+    )
+    parser.add_argument(
+        '--aruco-offset-y-px',
+        type=float,
+        default=0.0,
+        help='Add a fixed pixel offset to detected ArUco control point y.',
+    )
+    parser.add_argument(
         '--front-edge',
         choices=('top', 'right', 'bottom', 'left'),
         default='top',

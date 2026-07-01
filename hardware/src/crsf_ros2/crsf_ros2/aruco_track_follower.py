@@ -241,6 +241,18 @@ def parse_args(args=None):
     parser.add_argument('--marker-id', type=int, default=0)
     parser.add_argument('--marker-dict', default='DICT_4X4_50')
     parser.add_argument(
+        '--aruco-offset-x-px',
+        type=float,
+        default=0.0,
+        help='Add a fixed pixel offset to detected ArUco control point x.',
+    )
+    parser.add_argument(
+        '--aruco-offset-y-px',
+        type=float,
+        default=0.0,
+        help='Add a fixed pixel offset to detected ArUco control point y.',
+    )
+    parser.add_argument(
         '--front-edge',
         choices=('top', 'right', 'bottom', 'left'),
         default='top',
@@ -615,9 +627,18 @@ class ArucoTrackFollower(Node):
             if scale != 1.0:
                 marker_corners /= scale
             center = np.mean(marker_corners, axis=0)
+            center = self.apply_aruco_offset(center)
             heading = self.marker_heading(marker_corners)
             return center, heading, marker_corners
         return None
+
+    def apply_aruco_offset(self, center):
+        """Apply a fixed image-space pixel offset to the marker control point."""
+        offset_x = float(getattr(self.config, 'aruco_offset_x_px', 0.0))
+        offset_y = float(getattr(self.config, 'aruco_offset_y_px', 0.0))
+        if offset_x == 0.0 and offset_y == 0.0:
+            return center
+        return center + np.array([offset_x, offset_y], dtype=np.float32)
 
     def detection_frame(self, frame):
         """Return an optionally downscaled frame for faster detection."""
@@ -1081,6 +1102,14 @@ class ArucoTrackFollower(Node):
         self.config.steering_ki_px = values['steering_ki_px']
         self.config.steering_kd_px = values['steering_kd_px']
         self.heading_kp = values['heading_kp']
+        self.config.aruco_offset_x_px = values.get(
+            'aruco_offset_x_px',
+            getattr(self.config, 'aruco_offset_x_px', 0.0),
+        )
+        self.config.aruco_offset_y_px = values.get(
+            'aruco_offset_y_px',
+            getattr(self.config, 'aruco_offset_y_px', 0.0),
+        )
         self.config.forward_pwm = values['forward_pwm']
         self.target_track_speed_pps = values['target_track_speed_pps']
         self.config.velocity_kp_pwm = values['velocity_kp_pwm']
@@ -1127,6 +1156,8 @@ class ArucoTrackFollower(Node):
                 'steering_ki_px': self.config.steering_ki_px,
                 'steering_kd_px': self.config.steering_kd_px,
                 'heading_kp': self.heading_kp,
+                'aruco_offset_x_px': getattr(self.config, 'aruco_offset_x_px', 0.0),
+                'aruco_offset_y_px': getattr(self.config, 'aruco_offset_y_px', 0.0),
                 'forward_pwm': self.config.forward_pwm,
                 'target_track_speed_pps': self.target_track_speed_pps,
                 'velocity_kp_pwm': self.config.velocity_kp_pwm,
@@ -1138,6 +1169,8 @@ class ArucoTrackFollower(Node):
             {
                 'controller_mode': self.config.controller_mode,
                 'track_shape': self.config.track_shape,
+                'aruco_offset_x_px': getattr(self.config, 'aruco_offset_x_px', 0.0),
+                'aruco_offset_y_px': getattr(self.config, 'aruco_offset_y_px', 0.0),
                 'min_forward_pwm': self.config.min_forward_pwm,
                 'max_forward_pwm': self.config.max_forward_pwm,
                 'velocity_ki_pwm': self.config.velocity_ki_pwm,
@@ -1179,6 +1212,8 @@ class ArucoTrackFollower(Node):
                 'controller_mode': self.config.controller_mode,
                 'track_shape': self.config.track_shape,
                 'drive_channel': self.config.drive_channel,
+                'aruco_offset_x_px': getattr(self.config, 'aruco_offset_x_px', 0.0),
+                'aruco_offset_y_px': getattr(self.config, 'aruco_offset_y_px', 0.0),
                 'steering_kp_px': self.config.steering_kp_px,
                 'steering_ki_px': self.config.steering_ki_px,
                 'steering_kd_px': self.config.steering_kd_px,
@@ -1231,6 +1266,8 @@ class ArucoTrackFollower(Node):
         for key in (
             'min_forward_pwm',
             'max_forward_pwm',
+            'aruco_offset_x_px',
+            'aruco_offset_y_px',
             'velocity_ki_pwm',
             'velocity_kd_pwm',
             'cbf_slow_error_px',
@@ -1256,6 +1293,14 @@ class ArucoTrackFollower(Node):
                     self.config.steering_kd_px,
                 ),
                 'heading_kp': payload.get('heading_kp', self.heading_kp),
+                'aruco_offset_x_px': payload.get(
+                    'aruco_offset_x_px',
+                    getattr(self.config, 'aruco_offset_x_px', 0.0),
+                ),
+                'aruco_offset_y_px': payload.get(
+                    'aruco_offset_y_px',
+                    getattr(self.config, 'aruco_offset_y_px', 0.0),
+                ),
                 'forward_pwm': payload.get('forward_pwm', self.config.forward_pwm),
                 'target_track_speed_pps': payload.get(
                     'target_track_speed_pps',

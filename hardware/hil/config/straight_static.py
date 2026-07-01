@@ -100,6 +100,18 @@ def parse_args(args=None):
         ),
     )
     parser.add_argument(
+        '--aruco-offset-x-px',
+        type=float,
+        default=0.0,
+        help='Add a fixed pixel offset to detected ArUco control point x.',
+    )
+    parser.add_argument(
+        '--aruco-offset-y-px',
+        type=float,
+        default=0.0,
+        help='Add a fixed pixel offset to detected ArUco control point y.',
+    )
+    parser.add_argument(
         '--front-edge',
         choices=('top', 'right', 'bottom', 'left'),
         default='top',
@@ -642,7 +654,8 @@ def print_config(config):
     )
     print(
         f'aruco: marker_size={config.aruco_marker_size_cm:.1f}cm '
-        f'parallax_factor={config.aruco_parallax_factor:.3f}'
+        f'parallax_factor={config.aruco_parallax_factor:.3f} '
+        f'offset=({config.aruco_offset_x_px:.1f}, {config.aruco_offset_y_px:.1f})px'
     )
     if config.virtual_vehicle_test:
         print(

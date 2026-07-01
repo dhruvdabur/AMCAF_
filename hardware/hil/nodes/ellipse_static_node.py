@@ -293,6 +293,7 @@ class ArucoTrackFollower(Node):
                 marker_corners /= scale
             center = np.mean(marker_corners, axis=0)
             center = self.apply_aruco_parallax(center, marker_corners)
+            center = self.apply_aruco_offset(center)
             heading = self.marker_heading(marker_corners)
             return center, heading, marker_corners
         return None
@@ -328,6 +329,14 @@ class ArucoTrackFollower(Node):
         ]
         marker_size_px = float(np.mean(side_lengths))
         return center + (front_vector / norm) * marker_size_px * factor
+
+    def apply_aruco_offset(self, center):
+        """Apply a fixed image-space pixel offset to the marker control point."""
+        offset_x = float(getattr(self.config, 'aruco_offset_x_px', 0.0))
+        offset_y = float(getattr(self.config, 'aruco_offset_y_px', 0.0))
+        if offset_x == 0.0 and offset_y == 0.0:
+            return center
+        return center + np.array([offset_x, offset_y], dtype=np.float32)
 
     def detection_frame(self, frame):
         """Return an optionally downscaled frame for faster detection."""
@@ -417,6 +426,8 @@ class ArucoTrackFollower(Node):
                 'track_shape': self.config.track_shape,
                 'drive_channel': self.config.drive_channel,
                 'aruco_parallax_factor': self.config.aruco_parallax_factor,
+                'aruco_offset_x_px': getattr(self.config, 'aruco_offset_x_px', 0.0),
+                'aruco_offset_y_px': getattr(self.config, 'aruco_offset_y_px', 0.0),
                 'steering_kp_px': self.config.steering_kp_px,
                 'steering_ki_px': self.config.steering_ki_px,
                 'steering_kd_px': self.config.steering_kd_px,

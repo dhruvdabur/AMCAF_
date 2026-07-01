@@ -378,6 +378,8 @@ class EllipseStaticController:
                 'steering_kd_px': self.config.steering_kd_px,
                 'heading_kp': self.heading_kp,
                 'aruco_parallax_factor': self.config.aruco_parallax_factor,
+                'aruco_offset_x_px': getattr(self.config, 'aruco_offset_x_px', 0.0),
+                'aruco_offset_y_px': getattr(self.config, 'aruco_offset_y_px', 0.0),
                 'forward_pwm': self.config.forward_pwm,
                 'target_track_speed_pps': self.target_track_speed_pps,
                 'track_speed_filter_alpha': self.config.track_speed_filter_alpha,
@@ -418,6 +420,8 @@ class EllipseStaticController:
                 'controller_mode': self.config.controller_mode,
                 'track_shape': self.config.track_shape,
                 'aruco_parallax_factor': self.config.aruco_parallax_factor,
+                'aruco_offset_x_px': getattr(self.config, 'aruco_offset_x_px', 0.0),
+                'aruco_offset_y_px': getattr(self.config, 'aruco_offset_y_px', 0.0),
                 'heading_kp': self.heading_kp,
                 'min_forward_pwm': self.config.min_forward_pwm,
                 'max_forward_pwm': self.config.max_forward_pwm,
@@ -1488,6 +1492,14 @@ class EllipseStaticController:
         )
         self.heading_kp = values.get('heading_kp', self.heading_kp)
         self.config.heading_kp = self.heading_kp
+        self.config.aruco_offset_x_px = values.get(
+            'aruco_offset_x_px',
+            getattr(self.config, 'aruco_offset_x_px', 0.0),
+        )
+        self.config.aruco_offset_y_px = values.get(
+            'aruco_offset_y_px',
+            getattr(self.config, 'aruco_offset_y_px', 0.0),
+        )
         self.config.forward_pwm = values.get('forward_pwm', self.config.forward_pwm)
         if 'lookahead_points' in values:
             self.config.lookahead_points = max(1, int(values['lookahead_points']))
