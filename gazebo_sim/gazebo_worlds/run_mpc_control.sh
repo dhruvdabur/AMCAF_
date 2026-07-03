@@ -81,8 +81,8 @@ if [ "${USE_ARUCO}" = "true" ] || [ "${USE_ARUCO}" = "1" ]; then
         ARUCO_ARGS="--cam1 /dev/video0 --cam2 /dev/video4 --intrinsics1 /home/monukoru/aruco_merge/camera_calibration/cam1.yaml --intrinsics2 /home/monukoru/aruco_merge/camera_calibration/cam2.yaml"
     fi
     
-    echo "Running: python3 /home/monukoru/aruco_merge/monocular_merge/aruco_merge.py --json --output-json /tmp/aruco_pose.json $ARUCO_ARGS"
-    python3 /home/monukoru/aruco_merge/monocular_merge/aruco_merge.py --json --output-json /tmp/aruco_pose.json $ARUCO_ARGS > /tmp/aruco_merge.log 2>&1 &
+    echo "Running: python3 /home/monukoru/aruco_merge/monocular_merge/aruco_merge.py --json --output-json /tmp/aruco_pose.json --lock-anchors $ARUCO_ARGS"
+    python3 /home/monukoru/aruco_merge/monocular_merge/aruco_merge.py --json --output-json /tmp/aruco_pose.json --lock-anchors $ARUCO_ARGS > /tmp/aruco_merge.log 2>&1 &
     ARUCO_MERGE_PID=$!
     sleep 1
 fi
