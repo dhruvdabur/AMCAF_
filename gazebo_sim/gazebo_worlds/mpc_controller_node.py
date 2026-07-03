@@ -15,7 +15,6 @@ from rclpy.node import Node
 from rclpy.executors import ExternalShutdownException
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
-from rc_msgs.msg import AckermannCommand
 
 from rc_msgs.msg import RCMessage
 from rc_msgs.srv import CommandBool
