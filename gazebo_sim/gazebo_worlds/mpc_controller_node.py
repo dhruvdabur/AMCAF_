@@ -220,22 +220,29 @@ class GazeboMpcControllerNode(Node):
 
         # Initial MPC configuration defaults
         self.dt = 1.0 / self.control_rate
-        SCALE_FACTOR = 0.01
         self.mpc_config = MPCConfig(
-            wheelbase=2.86 * SCALE_FACTOR,
+            wheelbase=2.86,
             delta_t=self.dt,
             horizon_T=12,
             max_steer=0.6,
             min_steer=-0.6,
-            max_accel=2.0 * SCALE_FACTOR,
-            min_accel=-5.0 * SCALE_FACTOR,
-            v_min=0.0 * SCALE_FACTOR,
-            v_max=12.0 * SCALE_FACTOR
+            max_accel=2.0,
+            min_accel=-5.0,
+            v_min=0.0,
+            v_max=12.0
         )
         self.mpc_config.w_xy = 2.0
         self.mpc_config.w_yaw = 500.0
         self.mpc_config.w_vel = 1.0
         self.mpc_config.w_steer = 10.0
+        self.mpc_config.w_accel = 0.5
+
+        # Scale factors to map real-world meters to layout units (where 1 layout unit = 1 Gazebo meter)
+        self.scale_x = 0.029787
+        self.scale_y = 0.033621
+        self.x_offset_layout = None
+        self.y_offset_layout = None
+        self.yaw_offset_layout = None
         self.mpc_config.w_accel = 0.5
 
         # Try to load existing tuning values from file
@@ -248,9 +255,9 @@ class GazeboMpcControllerNode(Node):
         # CBF Safety Filter Setup
         self.enable_cbf = True
         self.cbf_config = EllipseCBFQPConfig(
-            a_ell=2.5 * SCALE_FACTOR,
-            b_ell=1.5 * SCALE_FACTOR,
-            wheelbase=2.86 * SCALE_FACTOR,
+            a_ell=2.5,
+            b_ell=1.5,
+            wheelbase=2.86,
             gamma1=10.0,
             gamma2=1.0,
             min_accel=self.mpc_config.min_accel,
@@ -402,11 +409,13 @@ class GazeboMpcControllerNode(Node):
             self.mpc_config.w_steer = payload.get('w_steer', self.mpc_config.w_steer)
             self.mpc_config.w_vel = payload.get('w_vel', self.mpc_config.w_vel)
             self.enable_cbf = payload.get('enable_cbf', self.enable_cbf)
+            self.scale_x = payload.get('scale_x', self.scale_x)
+            self.scale_y = payload.get('scale_y', self.scale_y)
             if hasattr(self, 'cbf_config'):
                 self.cbf_config.a_ell = payload.get('cbf_a_ell', self.cbf_config.a_ell)
                 self.cbf_config.b_ell = payload.get('cbf_b_ell', self.cbf_config.b_ell)
                 self.cbf_config.gamma1 = payload.get('cbf_gamma1', self.cbf_config.gamma1)
-            self.get_logger().info(f"Loaded tuning parameters successfully from {self.tuning_file}")
+            self.get_logger().info(f"Loaded tuning parameters successfully from {self.tuning_file} (scale_x={self.scale_x:.6f}, scale_y={self.scale_y:.6f})")
         except Exception as e:
             self.get_logger().error(f"Error reading tuning file: {e}")
 
@@ -422,7 +431,9 @@ class GazeboMpcControllerNode(Node):
             'enable_cbf': bool(self.enable_cbf),
             'cbf_a_ell': float(self.cbf_config.a_ell),
             'cbf_b_ell': float(self.cbf_config.b_ell),
-            'cbf_gamma1': float(self.cbf_config.gamma1)
+            'cbf_gamma1': float(self.cbf_config.gamma1),
+            'scale_x': float(self.scale_x),
+            'scale_y': float(self.scale_y)
         }
         
         try:
@@ -601,10 +612,31 @@ class GazeboMpcControllerNode(Node):
                         data = json.load(f)
                     target_in_origin = data.get('target_in_origin')
                     if target_in_origin is not None:
-                        px = float(target_in_origin['translation_m'][0])
-                        py = float(target_in_origin['translation_m'][1])
+                        # Raw ArUco coordinates in meters
+                        x_real = float(target_in_origin['translation_m'][0])
+                        y_real = float(target_in_origin['translation_m'][1])
                         yaw_deg = float(target_in_origin['rpy_deg'][2])
-                        yaw = math.radians(yaw_deg)
+                        
+                        # Scale to layout units (1 layout unit = 1 Gazebo meter)
+                        x_layout = x_real / self.scale_x
+                        y_layout = -y_real / self.scale_y  # Mirror Y to match layout orientation
+                        yaw_layout_deg = -yaw_deg          # Mirror yaw to match mirrored Y
+                        
+                        # Initialize offsets dynamically on the first frame to align starting waypoint
+                        if self.x_offset_layout is None or self.y_offset_layout is None:
+                            self.x_offset_layout = self.x_offset - x_layout
+                            self.y_offset_layout = self.y_offset - y_layout
+                            self.yaw_offset_layout = self.yaw_offset - math.radians(yaw_layout_deg)
+                            self.get_logger().info(
+                                f"Dynamic ArUco Alignment Offset Initialized: "
+                                f"x_off={self.x_offset_layout:.3f}, y_off={self.y_offset_layout:.3f}, "
+                                f"yaw_off={math.degrees(self.yaw_offset_layout):.1f}°"
+                            )
+                        
+                        # Transform to Gazebo world meters
+                        px = x_layout + self.x_offset_layout
+                        py = y_layout + self.y_offset_layout
+                        yaw = math.radians(yaw_layout_deg) + self.yaw_offset_layout
                         yaw = math.atan2(math.sin(yaw), math.cos(yaw))
                         use_gazebo_odom = False
                         
