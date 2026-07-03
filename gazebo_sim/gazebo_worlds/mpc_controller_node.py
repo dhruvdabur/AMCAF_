@@ -17,6 +17,9 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from rc_msgs.msg import AckermannCommand
 
+from rc_msgs.msg import RCMessage
+from rc_msgs.srv import CommandBool
+
 # Add workspace root to sys.path to resolve hardware package imports
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GAZEBO_WORLDS_DIR = Path(__file__).resolve().parent
@@ -297,6 +300,25 @@ class GazeboMpcControllerNode(Node):
             self.ackermann_topic,
             10
         )
+        self.rc_pub = self.create_publisher(
+            RCMessage,
+            "/drone/rc_command",
+            10
+        )
+
+        # Call arming service for HIL real car
+        self.arming_client = self.create_client(
+            CommandBool,
+            "/drone/cmd/arming"
+        )
+        self.get_logger().info("Checking for arming service /drone/cmd/arming...")
+        if self.arming_client.wait_for_service(timeout_sec=1.0):
+            req = CommandBool.Request()
+            req.value = True
+            self.get_logger().info("Arming RC Car...")
+            self.arming_client.call_async(req)
+        else:
+            self.get_logger().info("Arming service /drone/cmd/arming not available. Skipping arming.")
 
         # Tuning GUI Setup
         if self.enable_tuning:
@@ -685,6 +707,35 @@ class GazeboMpcControllerNode(Node):
         ackermann_msg.target_speed_mps = float(self.target_speed)
         self.ackermann_publisher.publish(ackermann_msg)
 
+        # 5b. Publish RCMessage for real-world car / HIL
+        REAL_RC_SCALE_THROTTLE = 100
+        REAL_RC_SCALE_STEER = 470
+        max_steer_rad = 0.68
+        max_accel_mps2 = 3.0
+
+        rc_msg = RCMessage()
+        
+        # Steering -> ROLL
+        steer_normalized = steer / max_steer_rad
+        rc_msg.rc_roll = int(1500 + REAL_RC_SCALE_STEER * steer_normalized)
+        rc_msg.rc_roll = max(1000, min(2000, rc_msg.rc_roll))
+        
+        # Throttle -> PITCH
+        throttle_normalized = max(0.0, accel) / max_accel_mps2
+        rc_msg.rc_pitch = int(1580 + REAL_RC_SCALE_THROTTLE * throttle_normalized)
+        rc_msg.rc_pitch = max(1580, min(1590, rc_msg.rc_pitch))
+        
+        rc_msg.rc_throttle = 1500
+        rc_msg.rc_yaw = 1500
+        
+        # Unused channels
+        rc_msg.aux1 = 2000
+        rc_msg.aux2 = 1000
+        rc_msg.aux3 = 1000
+        rc_msg.aux4 = 1000
+        
+        self.rc_pub.publish(rc_msg)
+
         # 6. Log telemetry to CSV file
         try:
             timestamp = self.get_clock().now().nanoseconds / 1e9
@@ -718,8 +769,21 @@ def main(args=None):
         if rclpy.ok():
             stop_msg = Twist()
             node.publisher.publish(stop_msg)
+            
             ackermann_stop_msg = AckermannCommand()
             node.ackermann_publisher.publish(ackermann_stop_msg)
+            
+            rc_stop_msg = RCMessage()
+            rc_stop_msg.rc_roll = 1500
+            rc_stop_msg.rc_pitch = 1580
+            rc_stop_msg.rc_throttle = 1500
+            rc_stop_msg.rc_yaw = 1500
+            rc_stop_msg.aux1 = 2000
+            rc_stop_msg.aux2 = 1000
+            rc_stop_msg.aux3 = 1000
+            rc_stop_msg.aux4 = 1000
+            node.rc_pub.publish(rc_stop_msg)
+
             node.destroy_node()
             rclpy.shutdown()
 
