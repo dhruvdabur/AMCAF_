@@ -22,6 +22,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 GAZEBO_WORLDS_DIR = Path(__file__).resolve().parent
 sys.path.append(str(REPO_ROOT))
 from hardware.hil.controllers.mpc_cbf import MPCController, MPCConfig
+from hardware.hil.controllers.cbf_qp_ellipse import EllipseCBFQPSafetyFilter, EllipseCBFQPConfig, PointObstacle, Car as CBFCar
+from sensor_msgs.msg import LaserScan
+import heapq
 
 try:
     import casadi as ca
@@ -237,6 +240,28 @@ class GazeboMpcControllerNode(Node):
         self.controller = TunedMPCController(self.mpc_config)
         self.controller.update_track(self.track_points)
 
+        # CBF Safety Filter Setup
+        self.enable_cbf = True
+        self.cbf_config = EllipseCBFQPConfig(
+            a_ell=2.5,
+            b_ell=1.5,
+            wheelbase=2.86,
+            gamma1=10.0,
+            gamma2=1.0,
+            min_accel=self.mpc_config.min_accel,
+            max_accel=self.mpc_config.max_accel,
+            min_delta=self.mpc_config.min_steer,
+            max_delta=self.mpc_config.max_steer,
+        )
+        self.cbf_filter = EllipseCBFQPSafetyFilter(self.cbf_config)
+        self.latest_scan = None
+
+        # ArUco Pose Feedback Setup
+        self.use_aruco = os.environ.get('USE_ARUCO', '').lower() in ('true', '1', 'yes', 'on')
+        self.aruco_pose_file = '/tmp/aruco_pose.json'
+        if self.use_aruco:
+            self.get_logger().info("ArUco pose feedback enabled. Reading from /tmp/aruco_pose.json")
+
         # State variables
         self.current_odom = None
         self.vel_cmd = 0.0
@@ -256,6 +281,12 @@ class GazeboMpcControllerNode(Node):
             self.odom_callback,
             10
         )
+        self.lidar_subscription = self.create_subscription(
+            LaserScan,
+            '/lidar2D/scan',
+            self.lidar_callback,
+            10
+        )
         self.publisher = self.create_publisher(
             Twist,
             self.cmd_topic,
@@ -271,7 +302,7 @@ class GazeboMpcControllerNode(Node):
         if self.enable_tuning:
             self.window_name = "MPC Tuning Panel"
             cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
-            cv2.resizeWindow(self.window_name, 550, 320)
+            cv2.resizeWindow(self.window_name, 550, 460)
             
             self.plot_window_name = "Live Lateral Error Plot"
             cv2.namedWindow(self.plot_window_name, cv2.WINDOW_NORMAL)
@@ -284,6 +315,10 @@ class GazeboMpcControllerNode(Node):
             cv2.createTrackbar('Yaw W /10', self.window_name, int(self.mpc_config.w_yaw / 10), 200, noop)
             cv2.createTrackbar('Steer Effort W x2', self.window_name, int(self.mpc_config.w_steer * 2), 100, noop)
             cv2.createTrackbar('Speed W x10', self.window_name, int(self.mpc_config.w_vel * 10), 100, noop)
+            cv2.createTrackbar('Enable CBF', self.window_name, 1 if self.enable_cbf else 0, 1, noop)
+            cv2.createTrackbar('CBF a_ell x10', self.window_name, int(self.cbf_config.a_ell * 10), 100, noop)
+            cv2.createTrackbar('CBF b_ell x10', self.window_name, int(self.cbf_config.b_ell * 10), 100, noop)
+            cv2.createTrackbar('CBF Gamma1', self.window_name, int(self.cbf_config.gamma1), 50, noop)
             
             self.get_logger().info("OpenCV Tuning Panel and Lateral Error Plot initialized.")
 
@@ -293,6 +328,37 @@ class GazeboMpcControllerNode(Node):
 
     def odom_callback(self, msg):
         self.current_odom = msg
+
+    def lidar_callback(self, msg):
+        self.latest_scan = msg
+
+    def get_obstacles_from_scan(self, px, py, yaw):
+        """Convert latest LaserScan ranges to PointObstacle objects in the world map frame."""
+        if self.latest_scan is None:
+            return []
+
+        scan = self.latest_scan
+        obstacles = []
+        
+        # Subsample scan points to avoid overloading the QP solver
+        step = 6  # Process every 6th beam
+        
+        for i in range(0, len(scan.ranges), step):
+            r = scan.ranges[i]
+            beam_angle = scan.angle_min + i * scan.angle_increment
+            
+            # Focus only on nearby obstacles (e.g. within 12 meters) to optimize QP speed
+            if np.isfinite(r) and scan.range_min < r < min(12.0, scan.range_max):
+                x_local = 2.3 + r * math.cos(beam_angle)
+                y_local = r * math.sin(beam_angle)
+                
+                # Transform to World Map frame
+                x_world = px + x_local * math.cos(yaw) - y_local * math.sin(yaw)
+                y_world = py + x_local * math.sin(yaw) + y_local * math.cos(yaw)
+                
+                obstacles.append(PointObstacle(x=x_world, y=y_world))
+                
+        return obstacles
 
     def load_tuning_from_file(self):
         """Loads tuning values from self.tuning_file if it exists."""
@@ -309,6 +375,11 @@ class GazeboMpcControllerNode(Node):
             self.mpc_config.w_yaw = payload.get('w_yaw', self.mpc_config.w_yaw)
             self.mpc_config.w_steer = payload.get('w_steer', self.mpc_config.w_steer)
             self.mpc_config.w_vel = payload.get('w_vel', self.mpc_config.w_vel)
+            self.enable_cbf = payload.get('enable_cbf', self.enable_cbf)
+            if hasattr(self, 'cbf_config'):
+                self.cbf_config.a_ell = payload.get('cbf_a_ell', self.cbf_config.a_ell)
+                self.cbf_config.b_ell = payload.get('cbf_b_ell', self.cbf_config.b_ell)
+                self.cbf_config.gamma1 = payload.get('cbf_gamma1', self.cbf_config.gamma1)
             self.get_logger().info(f"Loaded tuning parameters successfully from {self.tuning_file}")
         except Exception as e:
             self.get_logger().error(f"Error reading tuning file: {e}")
@@ -321,7 +392,11 @@ class GazeboMpcControllerNode(Node):
             'w_xy': float(self.mpc_config.w_xy),
             'w_yaw': float(self.mpc_config.w_yaw),
             'w_steer': float(self.mpc_config.w_steer),
-            'w_vel': float(self.mpc_config.w_vel)
+            'w_vel': float(self.mpc_config.w_vel),
+            'enable_cbf': bool(self.enable_cbf),
+            'cbf_a_ell': float(self.cbf_config.a_ell),
+            'cbf_b_ell': float(self.cbf_config.b_ell),
+            'cbf_gamma1': float(self.cbf_config.gamma1)
         }
         
         try:
@@ -360,6 +435,12 @@ class GazeboMpcControllerNode(Node):
             abs(w_vel_val - self.mpc_config.w_vel) > 1e-3
         )
 
+        # Read CBF parameters
+        self.enable_cbf = cv2.getTrackbarPos('Enable CBF', self.window_name) == 1
+        self.cbf_config.a_ell = max(0.1, cv2.getTrackbarPos('CBF a_ell x10', self.window_name) / 10.0)
+        self.cbf_config.b_ell = max(0.1, cv2.getTrackbarPos('CBF b_ell x10', self.window_name) / 10.0)
+        self.cbf_config.gamma1 = float(max(1, cv2.getTrackbarPos('CBF Gamma1', self.window_name)))
+
         if changed:
             self.get_logger().info("Re-optimizing solver with new tuning panel parameters...")
             self.mpc_config.horizon_T = t_val
@@ -380,7 +461,7 @@ class GazeboMpcControllerNode(Node):
 
     def draw_status_display(self, vel, solve_time):
         """Draw a status panel with telemetry in OpenCV."""
-        panel = np.zeros((300, 500, 3), dtype=np.uint8)
+        panel = np.zeros((350, 500, 3), dtype=np.uint8)
         
         # Header
         cv2.putText(panel, "MPC TUNING & TELEMETRY", (25, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
@@ -397,17 +478,21 @@ class GazeboMpcControllerNode(Node):
         cv2.putText(panel, f"Steer Cmd: {math.degrees(self.last_steer):.1f} deg", (25, 225), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
         cv2.putText(panel, f"Accel Cmd: {self.last_accel:.3f} m/s2", (25, 255), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (220, 220, 220), 1, cv2.LINE_AA)
         
+        cbf_status_str = "ACTIVE" if (self.enable_cbf and self.latest_scan is not None) else ("DISABLED" if not self.enable_cbf else "WAITING FOR SCAN")
+        cbf_color = (0, 255, 0) if self.enable_cbf else (128, 128, 128)
+        cv2.putText(panel, f"CBF Safety Filter: {cbf_status_str}", (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.55, cbf_color, 1, cv2.LINE_AA)
+
         # Save instructions and save status
         if self.save_status_msg:
             elapsed = (self.get_clock().now() - self.save_status_time).nanoseconds / 1e9
             if elapsed < 2.5:
                 color = (0, 255, 0) if "SUCCESS" in self.save_status_msg else (0, 0, 255)
-                cv2.putText(panel, self.save_status_msg, (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+                cv2.putText(panel, self.save_status_msg, (25, 325), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
             else:
                 self.save_status_msg = None
-                cv2.putText(panel, "Press 'S' on this window to save values", (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+                cv2.putText(panel, "Press 'S' on this window to save values", (25, 325), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
         else:
-            cv2.putText(panel, "Press 'S' on this window to save values", (25, 285), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+            cv2.putText(panel, "Press 'S' on this window to save values", (25, 325), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
 
         cv2.imshow(self.window_name, panel)
 
@@ -480,19 +565,39 @@ class GazeboMpcControllerNode(Node):
             self.get_logger().warning("Waiting for odometry messages...", throttle_duration_sec=3.0)
             return
 
-        # 1. Extract current state and transform to World Map frame
-        px = self.current_odom.pose.pose.position.x + self.x_offset
-        py = self.current_odom.pose.pose.position.y + self.y_offset
+        # 1. Extract current state
+        use_gazebo_odom = True
+        if self.use_aruco:
+            try:
+                import json
+                if os.path.exists(self.aruco_pose_file):
+                    with open(self.aruco_pose_file, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    target_in_origin = data.get('target_in_origin')
+                    if target_in_origin is not None:
+                        px = float(target_in_origin['translation_m'][0])
+                        py = float(target_in_origin['translation_m'][1])
+                        yaw_deg = float(target_in_origin['rpy_deg'][2])
+                        yaw = math.radians(yaw_deg)
+                        yaw = math.atan2(math.sin(yaw), math.cos(yaw))
+                        use_gazebo_odom = False
+            except Exception as e:
+                self.get_logger().warning(f"Error reading ArUco pose: {e}. Falling back to Gazebo Odom.", throttle_duration_sec=2.0)
 
-        # Quaternion to Euler Yaw
-        q = self.current_odom.pose.pose.orientation
-        siny_cosp = 2 * (q.w * q.z + q.x * q.y)
-        cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
-        yaw_odom = math.atan2(siny_cosp, cosy_cosp)
-        
-        # Shift yaw relative to initial world pose and wrap to [-pi, pi]
-        yaw = yaw_odom + self.yaw_offset
-        yaw = math.atan2(math.sin(yaw), math.cos(yaw))
+        if use_gazebo_odom:
+            # Transform base Gazebo odometry to World Map frame
+            px = self.current_odom.pose.pose.position.x + self.x_offset
+            py = self.current_odom.pose.pose.position.y + self.y_offset
+
+            # Quaternion to Euler Yaw
+            q = self.current_odom.pose.pose.orientation
+            siny_cosp = 2 * (q.w * q.z + q.x * q.y)
+            cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
+            yaw_odom = math.atan2(siny_cosp, cosy_cosp)
+            
+            # Shift yaw relative to initial world pose and wrap to [-pi, pi]
+            yaw = yaw_odom + self.yaw_offset
+            yaw = math.atan2(math.sin(yaw), math.cos(yaw))
 
         # Current speed calculation (preserving direction)
         vx = self.current_odom.twist.twist.linear.x
@@ -503,6 +608,43 @@ class GazeboMpcControllerNode(Node):
 
         # 2. Run MPC optimization
         accel, steer = self.controller.step(px, py, yaw, vel, self.target_speed)
+
+        # 2.5 Filter control commands through CBF-QP if enabled
+        if self.enable_cbf:
+            obstacles = self.get_obstacles_from_scan(px, py, yaw)
+            if obstacles:
+                # Limit the number of closest obstacles sent to the QP solver to max_obstacles (e.g. 4)
+                closest_obstacles = heapq.nsmallest(
+                    4,
+                    obstacles,
+                    key=lambda obs: (obs.x - px)**2 + (obs.y - py)**2
+                )
+                
+                car_state = CBFCar(
+                    x=float(px),
+                    y=float(py),
+                    psi=float(yaw),
+                    v=max(0.0, float(vel)),
+                    v_cmd=max(0.0, float(self.target_speed)),
+                )
+                
+                try:
+                    # Update min/max constraints to match current dynamic MPC parameters
+                    self.cbf_config.min_accel = float(self.mpc_config.min_accel)
+                    self.cbf_config.max_accel = float(self.mpc_config.max_accel)
+                    self.cbf_config.min_delta = float(self.mpc_config.min_steer)
+                    self.cbf_config.max_delta = float(self.mpc_config.max_steer)
+                    
+                    safe_accel, safe_steer = self.cbf_filter.solve(
+                        car_state,
+                        closest_obstacles,
+                        accel,
+                        steer
+                    )
+                    accel, steer = safe_accel, safe_steer
+                except Exception as exc:
+                    self.get_logger().error(f"CBF solver error: {exc}")
+
         self.last_accel = accel
         self.last_steer = steer
 
