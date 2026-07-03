@@ -244,6 +244,7 @@ class GazeboMpcControllerNode(Node):
         self.x_offset_layout = None
         self.y_offset_layout = None
         self.yaw_offset_layout = None
+        self.enable_cbf = True
 
         # Try to load existing tuning values from file
         self.load_tuning_from_file()
@@ -253,7 +254,6 @@ class GazeboMpcControllerNode(Node):
         self.controller.update_track(self.track_points)
 
         # CBF Safety Filter Setup
-        self.enable_cbf = True
         self.cbf_config = EllipseCBFQPConfig(
             a_ell=2.5 * SCALE_FACTOR,
             b_ell=1.5 * SCALE_FACTOR,
