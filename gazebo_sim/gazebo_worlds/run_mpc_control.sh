@@ -45,6 +45,7 @@ ros2 run ros_gz_bridge parameter_bridge \
   /clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock \
   /model/prius/cmd_vel@geometry_msgs/msg/Twist]ignition.msgs.Twist \
   /model/prius/odometry@nav_msgs/msg/Odometry[ignition.msgs.Odometry \
+  /world/custom_road_world/set_pose@ros_gz_interfaces/srv/SetEntityPose \
   > /tmp/ros_gz_bridge.log 2>&1 &
 
 BRIDGE_PID=$!
