@@ -238,6 +238,13 @@ class GazeboMpcControllerNode(Node):
         self.mpc_config.w_steer = 10.0
         self.mpc_config.w_accel = 0.5
 
+        # Scale factors to map real-world meters to layout units (where 1 layout unit = 1 Gazebo meter)
+        self.scale_x = 0.029787
+        self.scale_y = 0.033621
+        self.x_offset_layout = None
+        self.y_offset_layout = None
+        self.yaw_offset_layout = None
+
         # Try to load existing tuning values from file
         self.load_tuning_from_file()
 
@@ -345,6 +352,10 @@ class GazeboMpcControllerNode(Node):
             cv2.createTrackbar('CBF a_ell x10', self.window_name, int(self.cbf_config.a_ell * 10), 100, noop)
             cv2.createTrackbar('CBF b_ell x10', self.window_name, int(self.cbf_config.b_ell * 10), 100, noop)
             cv2.createTrackbar('CBF Gamma1', self.window_name, int(self.cbf_config.gamma1), 50, noop)
+            
+            if self.use_aruco:
+                cv2.createTrackbar('Scale X x10000', self.window_name, int(self.scale_x * 10000), 1000, noop)
+                cv2.createTrackbar('Scale Y x10000', self.window_name, int(self.scale_y * 10000), 1000, noop)
             
             self.get_logger().info("OpenCV Tuning Panel and Lateral Error Plot initialized.")
 
@@ -471,6 +482,21 @@ class GazeboMpcControllerNode(Node):
         self.cbf_config.b_ell = max(0.1, cv2.getTrackbarPos('CBF b_ell x10', self.window_name) / 10.0)
         self.cbf_config.gamma1 = float(max(1, cv2.getTrackbarPos('CBF Gamma1', self.window_name)))
 
+        # Read scaling parameters
+        if self.use_aruco:
+            scale_x_pos = cv2.getTrackbarPos('Scale X x10000', self.window_name)
+            scale_y_pos = cv2.getTrackbarPos('Scale Y x10000', self.window_name)
+            if scale_x_pos > 0:
+                new_scale_x = scale_x_pos / 10000.0
+                if abs(new_scale_x - self.scale_x) > 1e-6:
+                    self.scale_x = new_scale_x
+                    self.x_offset_layout = None
+            if scale_y_pos > 0:
+                new_scale_y = scale_y_pos / 10000.0
+                if abs(new_scale_y - self.scale_y) > 1e-6:
+                    self.scale_y = new_scale_y
+                    self.y_offset_layout = None
+
         if changed:
             self.get_logger().info("Re-optimizing solver with new tuning panel parameters...")
             self.mpc_config.horizon_T = t_val
@@ -585,6 +611,11 @@ class GazeboMpcControllerNode(Node):
         key = cv2.waitKey(1) & 0xFF
         if key == ord('s') or key == ord('S'):
             self.save_tuning_to_file()
+        elif key == ord('c') or key == ord('C'):
+            self.x_offset_layout = None
+            self.y_offset_layout = None
+            self.yaw_offset_layout = None
+            self.get_logger().info("Manual ArUco Offset Re-calibration triggered!")
 
     def timer_callback(self):
         # Update weights and target speed from window
@@ -606,10 +637,30 @@ class GazeboMpcControllerNode(Node):
                     target_in_origin = data.get('target_in_origin')
                     if target_in_origin is not None:
                         # Raw ArUco coordinates in meters
-                        px = float(target_in_origin['translation_m'][0])
-                        py = float(target_in_origin['translation_m'][1])
+                        x_real = float(target_in_origin['translation_m'][0])
+                        y_real = float(target_in_origin['translation_m'][1])
                         yaw_deg = float(target_in_origin['rpy_deg'][2])
-                        yaw = math.radians(yaw_deg)
+                        
+                        # Scale to layout units (1 layout unit = 1 Gazebo meter)
+                        x_layout = x_real / self.scale_x
+                        y_layout = -y_real / self.scale_y  # Mirror Y to match layout orientation
+                        yaw_layout_deg = -yaw_deg          # Mirror yaw to match mirrored Y
+                        
+                        # Initialize offsets dynamically on the first frame to align starting waypoint
+                        if self.x_offset_layout is None or self.y_offset_layout is None:
+                            self.x_offset_layout = self.x_offset - x_layout
+                            self.y_offset_layout = self.y_offset - y_layout
+                            self.yaw_offset_layout = self.yaw_offset - math.radians(yaw_layout_deg)
+                            self.get_logger().info(
+                                f"Dynamic ArUco Alignment Offset Initialized: "
+                                f"x_off={self.x_offset_layout:.3f}, y_off={self.y_offset_layout:.3f}, "
+                                f"yaw_off={math.degrees(self.yaw_offset_layout):.1f}°"
+                            )
+                        
+                        # Transform to Gazebo world meters
+                        px = x_layout + self.x_offset_layout
+                        py = y_layout + self.y_offset_layout
+                        yaw = math.radians(yaw_layout_deg) + self.yaw_offset_layout
                         yaw = math.atan2(math.sin(yaw), math.cos(yaw))
                         use_gazebo_odom = False
                         
