@@ -4,7 +4,7 @@ import math
 df = pd.read_csv('trajectory.csv')
 
 # Speed in meters per second
-speed_m_s = 5.0
+speed_m_s = 0.05
 
 with open('waypoints_output.txt', 'w') as f:
     for index, row in df.iterrows():
@@ -13,7 +13,7 @@ with open('waypoints_output.txt', 'w') as f:
         
         x = row['x']
         y = row['y']
-        z = 0.01  # Slight elevation to avoid clipping
+        z = 0.0001  # Slight elevation to avoid clipping
         
         # Convert yaw from degrees to radians
         yaw_rad = math.radians(row['yaw_deg'])
