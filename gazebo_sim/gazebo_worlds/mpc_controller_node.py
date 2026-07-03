@@ -220,16 +220,17 @@ class GazeboMpcControllerNode(Node):
 
         # Initial MPC configuration defaults
         self.dt = 1.0 / self.control_rate
+        SCALE_FACTOR = 0.01
         self.mpc_config = MPCConfig(
-            wheelbase=2.86,
+            wheelbase=2.86 * SCALE_FACTOR,
             delta_t=self.dt,
             horizon_T=12,
             max_steer=0.6,
             min_steer=-0.6,
-            max_accel=2.0,
-            min_accel=-5.0,
-            v_min=0.0,
-            v_max=12.0
+            max_accel=2.0 * SCALE_FACTOR,
+            min_accel=-5.0 * SCALE_FACTOR,
+            v_min=0.0 * SCALE_FACTOR,
+            v_max=12.0 * SCALE_FACTOR
         )
         self.mpc_config.w_xy = 2.0
         self.mpc_config.w_yaw = 500.0
@@ -247,9 +248,9 @@ class GazeboMpcControllerNode(Node):
         # CBF Safety Filter Setup
         self.enable_cbf = True
         self.cbf_config = EllipseCBFQPConfig(
-            a_ell=2.5,
-            b_ell=1.5,
-            wheelbase=2.86,
+            a_ell=2.5 * SCALE_FACTOR,
+            b_ell=1.5 * SCALE_FACTOR,
+            wheelbase=2.86 * SCALE_FACTOR,
             gamma1=10.0,
             gamma2=1.0,
             min_accel=self.mpc_config.min_accel,
@@ -716,8 +717,8 @@ class GazeboMpcControllerNode(Node):
         # 5b. Publish RCMessage for real-world car / HIL
         REAL_RC_SCALE_THROTTLE = 100
         REAL_RC_SCALE_STEER = 470
-        max_steer_rad = 0.68
-        max_accel_mps2 = 3.0
+        max_steer_rad = float(self.mpc_config.max_steer)
+        max_accel_mps2 = float(self.mpc_config.max_accel)
 
         rc_msg = RCMessage()
         

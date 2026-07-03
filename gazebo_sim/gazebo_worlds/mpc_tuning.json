@@ -1,5 +1,5 @@
 {
-  "target_speed": 2.6,
+  "target_speed": 0.05,
   "horizon_T": 17,
   "w_xy": 7.0,
   "w_yaw": 480.0,

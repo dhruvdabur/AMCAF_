@@ -19,8 +19,8 @@ actor_names = [
     "traffic_car_yellow"
 ]
 
-speed_m_s = 2.0
-z_actor = 0.420
+speed_m_s = 0.02
+z_actor = 0.00420
 
 # Number of waypoints
 N_wp = len(waypoints)

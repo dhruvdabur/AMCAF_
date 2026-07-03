@@ -997,7 +997,6 @@ class ArucoPoseMerger:
         target_in_origin = poses_in_origin.get(self.target_id)
         if target_in_origin is not None:
             target_in_origin = target_in_origin.copy()
-            target_in_origin[:3, 3] *= 100.0
         layout_from_origin = self._layout_from_origin(poses_in_origin)
         poses_in_layout: dict[int, np.ndarray] = {}
         if layout_from_origin is not None:
@@ -1008,7 +1007,6 @@ class ArucoPoseMerger:
         target_in_layout = poses_in_layout.get(self.target_id)
         if target_in_layout is not None:
             target_in_layout = target_in_layout.copy()
-            target_in_layout[:3, 3] *= 100.0
 
             x, y = float(target_in_layout[0, 3]), float(target_in_layout[1, 3])
             _, _, yaw_deg = rpy_degrees_from_rotation(target_in_layout[:3, :3])
@@ -1554,8 +1552,8 @@ def draw_merged_debug_view(
             result.target_in_layout[:3, :3]
         )
         highlight_line = (
-            f"id{target_id}: x={translation[0]:+.3f} y={translation[1]:+.3f} "
-            f"z={translation[2]:+.3f} yaw={yaw_deg:+.1f} deg"
+            f"id{target_id}: x={translation[0]*100.0:+.1f} y={translation[1]*100.0:+.1f} "
+            f"z={translation[2]*100.0:+.1f} cm | yaw={yaw_deg:+.1f} deg"
         )
     elif result.target_in_origin is not None:
         translation = result.target_in_origin[:3, 3]
@@ -1563,8 +1561,8 @@ def draw_merged_debug_view(
             result.target_in_origin[:3, :3]
         )
         highlight_line = (
-            f"id{target_id}: x={translation[0]:+.3f} y={translation[1]:+.3f} "
-            f"z={translation[2]:+.3f} yaw={yaw_deg:+.1f} deg"
+            f"id{target_id}: x={translation[0]*100.0:+.1f} y={translation[1]*100.0:+.1f} "
+            f"z={translation[2]*100.0:+.1f} cm | yaw={yaw_deg:+.1f} deg"
         )
     status_lines.append(highlight_line)
 
