@@ -1519,16 +1519,16 @@ def draw_merged_debug_view(
     canvas_height = stack_height + status_height + gap * 2
     canvas = np.full((canvas_height, canvas_width, 3), 24, dtype=np.uint8)
 
-    # camera1 on TOP, camera2 on BOTTOM
-    y_cam1 = gap
-    canvas[y_cam1 : y_cam1 + view_cam1.shape[0], gap : gap + view_cam1.shape[1]] = view_cam1
-    y_cam2 = y_cam1 + view_cam1.shape[0] + gap
+    # camera2 on TOP, camera1 on BOTTOM
+    y_cam2 = gap
     canvas[y_cam2 : y_cam2 + view_cam2.shape[0], gap : gap + view_cam2.shape[1]] = view_cam2
+    y_cam1 = y_cam2 + view_cam2.shape[0] + gap
+    canvas[y_cam1 : y_cam1 + view_cam1.shape[0], gap : gap + view_cam1.shape[1]] = view_cam1
 
     cv2.line(
         canvas,
-        (gap, y_cam2 - gap // 2),
-        (gap + common_width, y_cam2 - gap // 2),
+        (gap, y_cam1 - gap // 2),
+        (gap + common_width, y_cam1 - gap // 2),
         (70, 70, 70),
         2,
         cv2.LINE_AA,
