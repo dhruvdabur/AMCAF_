@@ -642,9 +642,9 @@ class GazeboMpcControllerNode(Node):
                         yaw_deg = float(target_in_origin['rpy_deg'][2])
                         
                         # Scale to layout units (1 layout unit = 1 Gazebo meter)
-                        x_layout = x_real / self.scale_x
-                        y_layout = -y_real / self.scale_y  # Mirror Y to match layout orientation
-                        yaw_layout_deg = -yaw_deg          # Mirror yaw to match mirrored Y
+                        x_layout = -x_real / self.scale_x
+                        y_layout = -y_real / self.scale_y
+                        yaw_layout_deg = -yaw_deg
                         
                         # Initialize offsets dynamically on the first frame to align starting waypoint
                         if self.x_offset_layout is None or self.y_offset_layout is None:
