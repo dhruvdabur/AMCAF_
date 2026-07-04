@@ -198,7 +198,7 @@
       <script>
         <loop>true</loop>
         <auto_start>true</auto_start>
-                                        <trajectory id="0" type="traffic_loop" tension="0.8">
+                                                <trajectory id="0" type="traffic_loop" tension="0.8">
           <waypoint>
             <time>0.000</time>
             <pose>-0.174 -0.410 0.42 0 0 -0.006</pose>
@@ -797,7 +797,7 @@
       <script>
         <loop>true</loop>
         <auto_start>true</auto_start>
-                                        <trajectory id="0" type="traffic_loop" tension="0.8">
+                                                <trajectory id="0" type="traffic_loop" tension="0.8">
           <waypoint>
             <time>0.000</time>
             <pose>0.324 -0.407 0.42 0 0 0.540</pose>
@@ -1396,7 +1396,7 @@
       <script>
         <loop>true</loop>
         <auto_start>true</auto_start>
-                                        <trajectory id="0" type="traffic_loop" tension="0.8">
+                                                <trajectory id="0" type="traffic_loop" tension="0.8">
           <waypoint>
             <time>0.000</time>
             <pose>0.395 0.070 0.42 0 0 1.560</pose>
@@ -1995,7 +1995,7 @@
       <script>
         <loop>true</loop>
         <auto_start>true</auto_start>
-                                        <trajectory id="0" type="traffic_loop" tension="0.8">
+                                                <trajectory id="0" type="traffic_loop" tension="0.8">
           <waypoint>
             <time>0.000</time>
             <pose>0.005 0.232 0.42 0 0 2.940</pose>
@@ -2594,7 +2594,7 @@
       <script>
         <loop>true</loop>
         <auto_start>true</auto_start>
-                                        <trajectory id="0" type="traffic_loop" tension="0.8">
+                                                <trajectory id="0" type="traffic_loop" tension="0.8">
           <waypoint>
             <time>0.000</time>
             <pose>-0.321 -0.031 0.42 0 0 -1.754</pose>

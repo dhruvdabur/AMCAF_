@@ -583,6 +583,18 @@ def rpy_degrees_from_rotation(rotation: np.ndarray) -> tuple[float, float, float
     return math.degrees(roll), math.degrees(pitch), math.degrees(yaw)
 
 
+
+def flip_y_transform(transform: np.ndarray) -> np.ndarray:
+    """Flip the Y-axis (negate Y translation and apply reflection rotation J*R*J)."""
+    T = transform.copy()
+    T[1, 3] = -T[1, 3]  # Flip Y translation
+    T[0, 1] = -T[0, 1]  # Flip cross Y-axis rotation entries
+    T[1, 0] = -T[1, 0]
+    T[1, 2] = -T[1, 2]
+    T[2, 1] = -T[2, 1]
+    return T
+
+
 def pose_payload(transform: np.ndarray) -> dict[str, Any]:
     """Convert a transform into JSON-friendly pose fields."""
 
@@ -1023,9 +1035,14 @@ class ArucoPoseMerger:
             for marker_id in self.anchor_ids:
                 if marker_id not in poses_in_camera1:
                     continue
-                target_relative_to_anchors[marker_id] = (
+                target_relative_to_anchors[marker_id] = flip_y_transform(
                     invert_transform(poses_in_camera1[marker_id]) @ target_in_camera1
                 )
+
+        if target_in_origin is not None:
+            target_in_origin = flip_y_transform(target_in_origin)
+        if target_in_layout is not None:
+            target_in_layout = flip_y_transform(target_in_layout)
 
         return MergeResult(
             timestamp_s=time.time(),
