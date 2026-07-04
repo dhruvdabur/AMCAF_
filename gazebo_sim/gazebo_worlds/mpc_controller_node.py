@@ -642,7 +642,7 @@ class GazeboMpcControllerNode(Node):
                         yaw_deg = float(target_in_origin['rpy_deg'][2])
                         
                         # Scale to layout units (1 layout unit = 1 Gazebo meter)
-                        x_layout = -x_real / self.scale_x
+                        x_layout = x_real / self.scale_x
                         y_layout = -y_real / self.scale_y
                         yaw_layout_deg = -yaw_deg
                         
