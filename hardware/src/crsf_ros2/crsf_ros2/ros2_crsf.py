@@ -15,7 +15,13 @@ from .submodules.crsf import (
     handleCrsfPacket,
 )
 
+import os
 SERIAL_PORT = '/dev/ttyUSB0'
+if not os.path.exists(SERIAL_PORT):
+    for p in ('/dev/ttyUSB1', '/dev/ttyUSB2', '/dev/ttyACM0', '/dev/ttyACM1'):
+        if os.path.exists(p):
+            SERIAL_PORT = p
+            break
 # BAUDRATE = 400000
 BAUDRATE = 5200000
 
