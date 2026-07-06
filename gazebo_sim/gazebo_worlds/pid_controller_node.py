@@ -297,9 +297,9 @@ class GazeboPidControllerNode(Node):
         use_gazebo_odom = True
         if self.pika_pose is not None:
             try:
-                # Raw Pika coordinates in meters (multiplied by 10 and inverted)
-                x_raw = -float(self.pika_pose.pose.position.x) * 10.0
-                y_raw = -float(self.pika_pose.pose.position.y) * 10.0
+                # Raw Pika coordinates in meters (multiplied by 10)
+                x_raw = float(self.pika_pose.pose.position.x) * 10.0
+                y_raw = float(self.pika_pose.pose.position.y) * 10.0
                 
                 # Apply 2nd-order Butterworth low-pass filter
                 x_pika = self.x_filter.filter(x_raw)
