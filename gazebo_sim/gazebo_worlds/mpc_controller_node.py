@@ -238,9 +238,6 @@ class GazeboMpcControllerNode(Node):
         self.mpc_config.w_steer = 10.0
         self.mpc_config.w_accel = 0.5
 
-        # Scale factors to map real-world meters to layout units (where 1 layout unit = 1 Gazebo meter)
-        self.scale_x = 0.029787
-        self.scale_y = 0.033621
         self.x_offset_layout = None
         self.y_offset_layout = None
         self.yaw_offset_layout = None
@@ -353,9 +350,7 @@ class GazeboMpcControllerNode(Node):
             cv2.createTrackbar('CBF b_ell x10', self.window_name, int(self.cbf_config.b_ell * 10), 100, noop)
             cv2.createTrackbar('CBF Gamma1', self.window_name, int(self.cbf_config.gamma1), 50, noop)
             
-            if self.use_aruco:
-                cv2.createTrackbar('Scale X x10000', self.window_name, int(self.scale_x * 10000), 1000, noop)
-                cv2.createTrackbar('Scale Y x10000', self.window_name, int(self.scale_y * 10000), 1000, noop)
+
             
             self.get_logger().info("OpenCV Tuning Panel and Lateral Error Plot initialized.")
 
@@ -413,13 +408,11 @@ class GazeboMpcControllerNode(Node):
             self.mpc_config.w_steer = payload.get('w_steer', self.mpc_config.w_steer)
             self.mpc_config.w_vel = payload.get('w_vel', self.mpc_config.w_vel)
             self.enable_cbf = payload.get('enable_cbf', self.enable_cbf)
-            self.scale_x = payload.get('scale_x', self.scale_x)
-            self.scale_y = payload.get('scale_y', self.scale_y)
             if hasattr(self, 'cbf_config'):
                 self.cbf_config.a_ell = payload.get('cbf_a_ell', self.cbf_config.a_ell)
                 self.cbf_config.b_ell = payload.get('cbf_b_ell', self.cbf_config.b_ell)
                 self.cbf_config.gamma1 = payload.get('cbf_gamma1', self.cbf_config.gamma1)
-            self.get_logger().info(f"Loaded tuning parameters successfully from {self.tuning_file} (scale_x={self.scale_x:.6f}, scale_y={self.scale_y:.6f})")
+            self.get_logger().info(f"Loaded tuning parameters successfully from {self.tuning_file}")
         except Exception as e:
             self.get_logger().error(f"Error reading tuning file: {e}")
 
@@ -435,9 +428,7 @@ class GazeboMpcControllerNode(Node):
             'enable_cbf': bool(self.enable_cbf),
             'cbf_a_ell': float(self.cbf_config.a_ell),
             'cbf_b_ell': float(self.cbf_config.b_ell),
-            'cbf_gamma1': float(self.cbf_config.gamma1),
-            'scale_x': float(self.scale_x),
-            'scale_y': float(self.scale_y)
+            'cbf_gamma1': float(self.cbf_config.gamma1)
         }
         
         try:
@@ -482,20 +473,7 @@ class GazeboMpcControllerNode(Node):
         self.cbf_config.b_ell = max(0.1, cv2.getTrackbarPos('CBF b_ell x10', self.window_name) / 10.0)
         self.cbf_config.gamma1 = float(max(1, cv2.getTrackbarPos('CBF Gamma1', self.window_name)))
 
-        # Read scaling parameters
-        if self.use_aruco:
-            scale_x_pos = cv2.getTrackbarPos('Scale X x10000', self.window_name)
-            scale_y_pos = cv2.getTrackbarPos('Scale Y x10000', self.window_name)
-            if scale_x_pos > 0:
-                new_scale_x = scale_x_pos / 10000.0
-                if abs(new_scale_x - self.scale_x) > 1e-6:
-                    self.scale_x = new_scale_x
-                    self.x_offset_layout = None
-            if scale_y_pos > 0:
-                new_scale_y = scale_y_pos / 10000.0
-                if abs(new_scale_y - self.scale_y) > 1e-6:
-                    self.scale_y = new_scale_y
-                    self.y_offset_layout = None
+
 
         if changed:
             self.get_logger().info("Re-optimizing solver with new tuning panel parameters...")
@@ -641,10 +619,10 @@ class GazeboMpcControllerNode(Node):
                         y_real = float(target_in_origin['translation_m'][1])
                         yaw_deg = float(target_in_origin['rpy_deg'][2])
                         
-                        # Scale to layout units (1 layout unit = 1 Gazebo meter)
-                        x_layout = -x_real / self.scale_x
-                        y_layout = y_real / self.scale_y
-                        yaw_layout_deg = -yaw_deg
+                        # Direct coordinate mapping (scaling removed)
+                        x_layout = x_real
+                        y_layout = y_real
+                        yaw_layout_deg = yaw_deg
                         
                         # Initialize offsets dynamically on the first frame to align starting waypoint
                         if self.x_offset_layout is None or self.y_offset_layout is None:
