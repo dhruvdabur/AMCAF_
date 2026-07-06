@@ -18,6 +18,8 @@ from geometry_msgs.msg import Twist, PoseStamped, Pose
 from nav_msgs.msg import Odometry
 from ros_gz_interfaces.srv import SetEntityPose
 from ros_gz_interfaces.msg import Entity
+from rc_msgs.msg import RCMessage
+from rc_msgs.srv import CommandBool
 
 sys.path.append("/home/monukoru/Documents/AMCAF_-code/hardware/hil/controllers")
 from pid import PIDController
@@ -189,6 +191,26 @@ class GazeboPidControllerNode(Node):
             10
         )
 
+        self.rc_pub = self.create_publisher(
+            RCMessage,
+            "/drone/rc_command",
+            10
+        )
+
+        # Call arming service for HIL real car
+        self.arming_client = self.create_client(
+            CommandBool,
+            "/drone/cmd/arming"
+        )
+        self.get_logger().info("Checking for arming service /drone/cmd/arming...")
+        if self.arming_client.wait_for_service(timeout_sec=1.0):
+            req = CommandBool.Request()
+            req.value = True
+            self.get_logger().info("Arming RC Car...")
+            self.arming_client.call_async(req)
+        else:
+            self.get_logger().info("Arming service /drone/cmd/arming not available. Skipping arming.")
+
         # Tuning GUI Setup
         if self.enable_tuning:
             self.window_name = "PID Tuning Panel"
@@ -346,6 +368,29 @@ class GazeboPidControllerNode(Node):
             except Exception as e:
                 self.get_logger().warning(f"Error processing Pika pose: {e}. Falling back to Gazebo Odom.", throttle_duration_sec=2.0)
 
+        # Estimate real car velocity from px, py
+        if not use_gazebo_odom:
+            if not hasattr(self, 'last_px') or self.last_px is None:
+                self.last_px = px
+                self.last_py = py
+                self.vel_estimated = 0.0
+            else:
+                dx = px - self.last_px
+                dy = py - self.last_py
+                raw_vel = math.hypot(dx, dy) / self.dt
+                
+                # Determine direction of motion relative to heading
+                heading_dir = math.atan2(dy, dx)
+                angle_diff = math.atan2(math.sin(heading_dir - yaw), math.cos(heading_dir - yaw))
+                if abs(angle_diff) > math.pi / 2.0:
+                    raw_vel = -raw_vel
+                
+                # Low-pass filter for estimated velocity
+                self.vel_estimated = 0.85 * self.vel_estimated + 0.15 * raw_vel
+                
+                self.last_px = px
+                self.last_py = py
+
         if use_gazebo_odom:
             # Transform base Gazebo odometry to World Map frame
             px = self.current_odom.pose.pose.position.x + self.x_offset
@@ -361,12 +406,14 @@ class GazeboPidControllerNode(Node):
             yaw = yaw_odom + self.yaw_offset
             yaw = math.atan2(math.sin(yaw), math.cos(yaw))
 
-        # Current speed calculation (preserving direction)
-        vx = self.current_odom.twist.twist.linear.x
-        vy = self.current_odom.twist.twist.linear.y
-        vel = math.hypot(vx, vy)
-        if vx < 0:
-            vel = -vel
+            # Current speed calculation (preserving direction)
+            vx = self.current_odom.twist.twist.linear.x
+            vy = self.current_odom.twist.twist.linear.y
+            vel = math.hypot(vx, vy)
+            if vx < 0:
+                vel = -vel
+        else:
+            vel = self.vel_estimated
 
         # 2 & 3. Nearest waypoint + look-ahead target waypoint
         target_x, target_y = self.find_target_waypoint(px, py)
@@ -408,6 +455,35 @@ class GazeboPidControllerNode(Node):
         cmd_msg.linear.x = float(self.vel_cmd)
         cmd_msg.angular.z = float(steer)
         self.publisher.publish(cmd_msg)
+
+        # 10b. Publish RCMessage for real-world car / HIL
+        REAL_RC_SCALE_THROTTLE = 100
+        REAL_RC_SCALE_STEER = 470
+        max_steer_rad = 0.6
+        max_accel_mps2 = 2.0
+
+        rc_msg = RCMessage()
+        
+        # Steering -> ROLL
+        steer_normalized = steer / max_steer_rad
+        rc_msg.rc_roll = int(1500 + REAL_RC_SCALE_STEER * steer_normalized)
+        rc_msg.rc_roll = max(1000, min(2000, rc_msg.rc_roll))
+        
+        # Throttle -> PITCH
+        throttle_normalized = max(0.0, accel) / max_accel_mps2
+        rc_msg.rc_pitch = int(1580 + REAL_RC_SCALE_THROTTLE * throttle_normalized)
+        rc_msg.rc_pitch = max(1580, min(1590, rc_msg.rc_pitch))
+        
+        rc_msg.rc_throttle = 1500
+        rc_msg.rc_yaw = 1500
+        
+        # Unused channels
+        rc_msg.aux1 = 2000
+        rc_msg.aux2 = 1000
+        rc_msg.aux3 = 1000
+        rc_msg.aux4 = 1000
+        
+        self.rc_pub.publish(rc_msg)
 
         # Live display update
         if self.enable_tuning:
@@ -519,10 +595,23 @@ def main(args=None):
     finally:
         if node.enable_tuning:
             cv2.destroyAllWindows()
-        stop_msg = Twist()
-        node.publisher.publish(stop_msg)
-        node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            stop_msg = Twist()
+            node.publisher.publish(stop_msg)
+            
+            rc_stop_msg = RCMessage()
+            rc_stop_msg.rc_roll = 1500
+            rc_stop_msg.rc_pitch = 1580
+            rc_stop_msg.rc_throttle = 1500
+            rc_stop_msg.rc_yaw = 1500
+            rc_stop_msg.aux1 = 2000
+            rc_stop_msg.aux2 = 1000
+            rc_stop_msg.aux3 = 1000
+            rc_stop_msg.aux4 = 1000
+            node.rc_pub.publish(rc_stop_msg)
+
+            node.destroy_node()
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

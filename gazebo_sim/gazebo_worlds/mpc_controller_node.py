@@ -704,6 +704,29 @@ class GazeboMpcControllerNode(Node):
             except Exception as e:
                 self.get_logger().warning(f"Error processing Pika pose: {e}. Falling back to Gazebo Odom.", throttle_duration_sec=2.0)
 
+        # Estimate real car velocity from px, py
+        if not use_gazebo_odom:
+            if not hasattr(self, 'last_px') or self.last_px is None:
+                self.last_px = px
+                self.last_py = py
+                self.vel_estimated = 0.0
+            else:
+                dx = px - self.last_px
+                dy = py - self.last_py
+                raw_vel = math.hypot(dx, dy) / self.dt
+                
+                # Determine direction of motion relative to heading
+                heading_dir = math.atan2(dy, dx)
+                angle_diff = math.atan2(math.sin(heading_dir - yaw), math.cos(heading_dir - yaw))
+                if abs(angle_diff) > math.pi / 2.0:
+                    raw_vel = -raw_vel
+                
+                # Low-pass filter for estimated velocity
+                self.vel_estimated = 0.85 * self.vel_estimated + 0.15 * raw_vel
+                
+                self.last_px = px
+                self.last_py = py
+
         if use_gazebo_odom:
             # Transform base Gazebo odometry to World Map frame
             px = self.current_odom.pose.pose.position.x + self.x_offset
@@ -719,12 +742,14 @@ class GazeboMpcControllerNode(Node):
             yaw = yaw_odom + self.yaw_offset
             yaw = math.atan2(math.sin(yaw), math.cos(yaw))
 
-        # Current speed calculation (preserving direction)
-        vx = self.current_odom.twist.twist.linear.x
-        vy = self.current_odom.twist.twist.linear.y
-        vel = math.hypot(vx, vy)
-        if vx < 0:
-            vel = -vel
+            # Current speed calculation (preserving direction)
+            vx = self.current_odom.twist.twist.linear.x
+            vy = self.current_odom.twist.twist.linear.y
+            vel = math.hypot(vx, vy)
+            if vx < 0:
+                vel = -vel
+        else:
+            vel = self.vel_estimated
 
         # 2. Run MPC optimization
         accel, steer = self.controller.step(px, py, yaw, vel, self.target_speed)
