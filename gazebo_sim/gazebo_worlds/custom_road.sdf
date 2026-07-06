@@ -75,7 +75,7 @@
 
     <!-- Dynamic traffic and debug visual overlays disabled for better runtime performance. -->
 
-            <model name="elliptical_road">
+                <model name="elliptical_road">
       <static>true</static>
 
     <link name="seg_0">
@@ -11266,7 +11266,7 @@
 
     <include>
       <name>prius</name>
-      <uri>model://prius</uri>
+      <uri>../custom_worlds/models/prius</uri>
       <pose>-10.957 8.401 0.35 0 0 2.435</pose>
     </include>
   </world>

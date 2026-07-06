@@ -107,7 +107,7 @@ x_start = first_wp['x']
 y_start = first_wp['y']
 yaw_start_rad = math.radians(first_wp['yaw_deg'])
 
-prius_pose_re = r'(<include>\s*<name>prius</name>\s*<uri>model://prius</uri>\s*<pose>).*?(</pose>\s*</include>)'
+prius_pose_re = r'(<include>\s*<name>prius</name>\s*<uri>.*?</uri>\s*<pose>).*?(</pose>\s*</include>)'
 prius_pose_replacement = rf'\g<1>{x_start:.3f} {y_start:.3f} 0.35 0 0 {yaw_start_rad:.3f}\g<2>'
 
 sdf_content, count = re.subn(prius_pose_re, prius_pose_replacement, sdf_content, flags=re.DOTALL)
