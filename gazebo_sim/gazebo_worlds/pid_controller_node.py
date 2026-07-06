@@ -80,6 +80,10 @@ def normalize_angle(angle):
     return angle
 
 
+from pathlib import Path
+GAZEBO_WORLDS_DIR = Path(__file__).resolve().parent
+
+
 class GazeboPidControllerNode(Node):
     """ROS 2 Node wrapping two PIDController instances with a live OpenCV tuning panel."""
 
@@ -87,7 +91,7 @@ class GazeboPidControllerNode(Node):
         super().__init__('gazebo_pid_controller')
 
         # Node parameters
-        self.declare_parameter('trajectory_file', '/home/monukoru/Digital_master_AMCAF-master/gazebo_worlds/trajectory.csv')
+        self.declare_parameter('trajectory_file', str(GAZEBO_WORLDS_DIR / 'trajectory.csv'))
         self.declare_parameter('target_speed', 5.0)  # m/s
         self.declare_parameter('control_rate', 20.0)  # Hz
         self.declare_parameter('odom_topic', '/model/prius/odometry')
