@@ -3104,16 +3104,17 @@
     </actor>
 
     <model name="traffic_box_blue">
-      <static>true</static>
+      <static>false</static>
       <pose>0 0 0 0 0 0</pose>
       <link name="link">
-        <collision name="collision">
-          <geometry>
-            <box>
-              <size>0.024 0.0105 0.005</size>
-            </box>
-          </geometry>
-        </collision>
+        <gravity>false</gravity>
+        <inertial>
+          <mass>1.0</mass>
+          <inertia>
+            <ixx>0.0001</ixx><iyy>0.0001</iyy><izz>0.0001</izz>
+            <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+          </inertia>
+        </inertial>
         <visual name="visual">
           <geometry>
             <box>
@@ -3129,16 +3130,17 @@
     </model>
 
     <model name="traffic_box_red">
-      <static>true</static>
+      <static>false</static>
       <pose>0 0 0 0 0 0</pose>
       <link name="link">
-        <collision name="collision">
-          <geometry>
-            <box>
-              <size>0.024 0.0105 0.005</size>
-            </box>
-          </geometry>
-        </collision>
+        <gravity>false</gravity>
+        <inertial>
+          <mass>1.0</mass>
+          <inertia>
+            <ixx>0.0001</ixx><iyy>0.0001</iyy><izz>0.0001</izz>
+            <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+          </inertia>
+        </inertial>
         <visual name="visual">
           <geometry>
             <box>
