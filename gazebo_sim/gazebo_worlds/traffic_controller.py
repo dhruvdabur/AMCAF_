@@ -3,7 +3,7 @@
 traffic_controller.py
 ─────────────────────
 Moves traffic_box_blue and traffic_box_red along trajectory.csv
-using ROS 2 SetEntityPose service client.
+using ROS 2 Pose publishers and SetEntityPose service client.
 """
 
 import sys
@@ -13,6 +13,7 @@ import rclpy
 from rclpy.node import Node
 from ros_gz_interfaces.srv import SetEntityPose
 from ros_gz_interfaces.msg import Entity
+from geometry_msgs.msg import Pose
 
 # ── constants ────────────────────────────────────────────────────────
 WORLD_NAME      = "custom_road_world"
@@ -59,6 +60,10 @@ class TrafficController(Node):
         # Service client for set_pose
         self.set_pose_client = self.create_client(SetEntityPose, f"/world/{WORLD_NAME}/set_pose")
         
+        # Topic publishers for model poses
+        self.blue_pose_pub = self.create_publisher(Pose, "/model/traffic_box_blue/pose", 10)
+        self.red_pose_pub = self.create_publisher(Pose, "/model/traffic_box_red/pose", 10)
+        
         # Grid distance counters
         self.blue_s = self.track_distances[self.blue_idx]
         self.red_s = self.track_distances[self.red_idx]
@@ -92,6 +97,21 @@ class TrafficController(Node):
         
         self.set_pose_client.call_async(req)
 
+    def publish_pose_topic(self, pub, x, y, z, yaw):
+        msg = Pose()
+        msg.position.x = float(x)
+        msg.position.y = float(y)
+        msg.position.z = float(z)
+        
+        cy = math.cos(yaw * 0.5)
+        sy = math.sin(yaw * 0.5)
+        msg.orientation.w = cy
+        msg.orientation.x = 0.0
+        msg.orientation.y = 0.0
+        msg.orientation.z = sy
+        
+        pub.publish(msg)
+
     def get_pose_at_s(self, s):
         # Find index
         import numpy as np
@@ -115,6 +135,7 @@ class TrafficController(Node):
         # Blue pose
         bx, by, byaw = self.get_pose_at_s(self.blue_s)
         self.teleport_model("traffic_box_blue", bx, by, BOX_HEIGHT, byaw)
+        self.publish_pose_topic(self.blue_pose_pub, bx, by, BOX_HEIGHT, byaw)
         
         # Red pose (with lane offset of 0.02)
         rx, ry, ryaw = self.get_pose_at_s(self.red_s)
@@ -122,6 +143,7 @@ class TrafficController(Node):
         rx_offset = rx + RED_LANE_OFFSET * math.cos(ryaw + math.pi / 2.0)
         ry_offset = ry + RED_LANE_OFFSET * math.sin(ryaw + math.pi / 2.0)
         self.teleport_model("traffic_box_red", rx_offset, ry_offset, BOX_HEIGHT, ryaw)
+        self.publish_pose_topic(self.red_pose_pub, rx_offset, ry_offset, BOX_HEIGHT, ryaw)
 
 
 def main(args=None):

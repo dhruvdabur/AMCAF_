@@ -13,7 +13,7 @@ import cv2
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import ExternalShutdownException
-from geometry_msgs.msg import Twist, PoseStamped
+from geometry_msgs.msg import Twist, PoseStamped, Pose
 from nav_msgs.msg import Odometry
 
 from rc_msgs.msg import RCMessage
@@ -376,6 +376,10 @@ class GazeboMpcControllerNode(Node):
             SetEntityPose,
             "/world/custom_road_world/set_pose"
         )
+        
+        # Publishers for traffic box poses
+        self.blue_pose_pub = self.create_publisher(Pose, "/model/traffic_box_blue/pose", 10)
+        self.red_pose_pub = self.create_publisher(Pose, "/model/traffic_box_red/pose", 10)
 
         # Tuning GUI Setup
         if self.enable_tuning:
@@ -874,6 +878,21 @@ class GazeboMpcControllerNode(Node):
         """Teleport the Gazebo Prius model."""
         self.teleport_model_gazebo("prius", px, py, yaw, z=0.0035)
 
+    def publish_pose_topic(self, pub, x, y, z, yaw):
+        msg = Pose()
+        msg.position.x = float(x)
+        msg.position.y = float(y)
+        msg.position.z = float(z)
+        
+        cy = math.cos(yaw * 0.5)
+        sy = math.sin(yaw * 0.5)
+        msg.orientation.w = cy
+        msg.orientation.x = 0.0
+        msg.orientation.y = 0.0
+        msg.orientation.z = sy
+        
+        pub.publish(msg)
+
     def teleport_traffic_boxes(self):
         """Teleport traffic boxes along the track in a loop."""
         if not hasattr(self, 'traffic_t_start'):
@@ -900,7 +919,7 @@ class GazeboMpcControllerNode(Node):
         # Traffic box 2 (Red) is shifted by half the track length
         s2 = (speed * dt_elapsed + self.total_track_length / 2.0) % self.total_track_length
         
-        for name, s in [("traffic_box_blue", s1), ("traffic_box_red", s2)]:
+        for name, s, pub in [("traffic_box_blue", s1, self.blue_pose_pub), ("traffic_box_red", s2, self.red_pose_pub)]:
             # Find point along track corresponding to distance s
             idx = np.searchsorted(self.track_distances, s)
             if idx >= len(self.track_points):
@@ -912,8 +931,10 @@ class GazeboMpcControllerNode(Node):
             next_wp = self.track_points[next_idx]
             yaw = math.atan2(next_wp[1] - wp[1], next_wp[0] - wp[0])
             
-            # Teleport
+            # Teleport via service
             self.teleport_model_gazebo(name, wp[0], wp[1], yaw, z=0.0035)
+            # Publish via topic
+            self.publish_pose_topic(pub, wp[0], wp[1], 0.0035, yaw)
 
 def main(args=None):
     rclpy.init(args=args)
