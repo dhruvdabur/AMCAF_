@@ -61,54 +61,89 @@
 <!-- Smooth visual road overlay: hides the faceted/cut borders from the original box segments. -->
     <!-- smooth_road_overlay disabled -->
 
-    <!-- Lightweight dynamic traffic: visual actors loop on the two lanes. --><model name="traffic_box_blue">
-      <static>true</static>
-      <pose>0 0 0 0 0 0</pose>
+    <!-- TRAFFIC BOX BLUE: follows trajectory.csv, shrinks over time -->
+    <!-- Movement is driven by traffic_controller.py (run alongside Gazebo) -->
+    <!-- which publishes to /world/custom_road_world/set_pose             -->
+    <model name="traffic_box_blue">
+      <static>false</static>
+      <pose>3.234 2.669 0.75 0 0 -2.903</pose>  <!-- 50% along trajectory -->
       <link name="link">
+        <inertial>
+          <mass>1500</mass>
+          <inertia>
+            <ixx>1000</ixx><iyy>3000</iyy><izz>3000</izz>
+            <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+          </inertia>
+        </inertial>
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.024 0.0105 0.005</size>
+              <!-- Initial size: 4.5m x 2.0m x 1.5m (car-sized) -->
+              <!-- traffic_controller.py will shrink this via scale over time -->
+              <size>3.0 1.4 1.2</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.024 0.0105 0.005</size>
+              <size>3.0 1.4 1.2</size>
             </box>
           </geometry>
           <material>
             <ambient>0.0 0.0 0.8 1</ambient>
             <diffuse>0.0 0.0 0.8 1</diffuse>
+            <specular>0.1 0.1 0.5 1</specular>
           </material>
         </visual>
       </link>
+      <!-- Pose publisher so external tools can read its pose -->
+      <plugin
+        filename="ignition-gazebo-pose-publisher-system"
+        name="ignition::gazebo::systems::PosePublisher">
+        <publish_link_pose>false</publish_link_pose>
+        <publish_nested_model_pose>false</publish_nested_model_pose>
+      </plugin>
     </model>
 
+    <!-- TRAFFIC BOX RED: follows trajectory.csv, shrinks over time -->
     <model name="traffic_box_red">
-      <static>true</static>
-      <pose>0 0 0 0 0 0</pose>
+      <static>false</static>
+      <pose>-5.133 17.179 0.75 0 0 1.001</pose>  <!-- 75% along trajectory, lane offset -->
       <link name="link">
+        <inertial>
+          <mass>1500</mass>
+          <inertia>
+            <ixx>1000</ixx><iyy>3000</iyy><izz>3000</izz>
+            <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+          </inertia>
+        </inertial>
         <collision name="collision">
           <geometry>
             <box>
-              <size>0.024 0.0105 0.005</size>
+              <size>3.0 1.4 1.2</size>
             </box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
             <box>
-              <size>0.024 0.0105 0.005</size>
+              <size>3.0 1.4 1.2</size>
             </box>
           </geometry>
           <material>
             <ambient>0.8 0.0 0.0 1</ambient>
             <diffuse>0.8 0.0 0.0 1</diffuse>
+            <specular>0.5 0.1 0.1 1</specular>
           </material>
         </visual>
       </link>
+      <plugin
+        filename="ignition-gazebo-pose-publisher-system"
+        name="ignition::gazebo::systems::PosePublisher">
+        <publish_link_pose>false</publish_link_pose>
+        <publish_nested_model_pose>false</publish_nested_model_pose>
+      </plugin>
     </model>
 
         <model name="elliptical_road">
