@@ -692,9 +692,9 @@ class GazeboMpcControllerNode(Node):
                         f"yaw_start={math.degrees(self.yaw_pika_start):.1f}°"
                     )
                 
-                # Transform to Gazebo world meters (negating the delta to fix axis inversion)
-                px = self.x_offset - (x_pika - self.x_pika_start)
-                py = self.y_offset - (y_pika - self.y_pika_start)
+                # Transform to Gazebo world meters (positive mapping)
+                px = self.x_offset + (x_pika - self.x_pika_start)
+                py = self.y_offset + (y_pika - self.y_pika_start)
                 yaw = self.yaw_offset + (yaw_pika - self.yaw_pika_start)
                 yaw = math.atan2(math.sin(yaw), math.cos(yaw))
                 use_gazebo_odom = False
