@@ -457,22 +457,24 @@ class GazeboPidControllerNode(Node):
         self.publisher.publish(cmd_msg)
 
         # 10b. Publish RCMessage for real-world car / HIL
-        REAL_RC_SCALE_THROTTLE = 100
-        REAL_RC_SCALE_STEER = 470
+        REAL_RC_SCALE_STEER = 200
         max_steer_rad = 0.6
         max_accel_mps2 = 2.0
 
         rc_msg = RCMessage()
         
-        # Steering -> ROLL
+        # Steering -> ROLL (always between 1300 and 1700, 1500 middle)
         steer_normalized = steer / max_steer_rad
         rc_msg.rc_roll = int(1500 + REAL_RC_SCALE_STEER * steer_normalized)
-        rc_msg.rc_roll = max(1000, min(2000, rc_msg.rc_roll))
+        rc_msg.rc_roll = max(1300, min(1700, rc_msg.rc_roll))
         
-        # Throttle -> PITCH
-        throttle_normalized = max(0.0, accel) / max_accel_mps2
-        rc_msg.rc_pitch = int(1580 + REAL_RC_SCALE_THROTTLE * throttle_normalized)
-        rc_msg.rc_pitch = max(1580, min(1590, rc_msg.rc_pitch))
+        # Throttle -> PITCH (always between 1588 and 1590 when driving, else 1500)
+        if self.vel_cmd > 0.01:
+            throttle_normalized = max(0.0, accel) / max_accel_mps2
+            rc_msg.rc_pitch = int(1588 + (1590 - 1588) * throttle_normalized)
+            rc_msg.rc_pitch = max(1588, min(1590, rc_msg.rc_pitch))
+        else:
+            rc_msg.rc_pitch = 1500  # Stop / Neutral
         
         rc_msg.rc_throttle = 1500
         rc_msg.rc_yaw = 1500
@@ -601,7 +603,7 @@ def main(args=None):
             
             rc_stop_msg = RCMessage()
             rc_stop_msg.rc_roll = 1500
-            rc_stop_msg.rc_pitch = 1580
+            rc_stop_msg.rc_pitch = 1500
             rc_stop_msg.rc_throttle = 1500
             rc_stop_msg.rc_yaw = 1500
             rc_stop_msg.aux1 = 2000
