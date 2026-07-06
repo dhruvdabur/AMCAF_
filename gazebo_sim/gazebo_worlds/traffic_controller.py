@@ -114,11 +114,11 @@ def parse_waypoints(rows):
         n = len(r)
         if n >= 9:
             # 9-col: use first vehicle columns for the reference path
-            out.append((r[0], r[1], r[2], r[3], r[4]))
+            out.append((r[0], r[1] * 0.01, r[2] * 0.01, r[3], r[4]))
         elif n >= 5:
-            out.append((r[0], r[1], r[2], r[3], r[4]))
+            out.append((r[0], r[1] * 0.01, r[2] * 0.01, r[3], r[4]))
         elif n >= 4:
-            out.append((r[0], r[1], r[2], BOX_HEIGHT, r[3]))
+            out.append((r[0], r[1] * 0.01, r[2] * 0.01, BOX_HEIGHT, r[3]))
     return out
 
 def lateral_point(x, y, z, yaw, dist):
