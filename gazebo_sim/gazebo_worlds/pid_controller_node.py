@@ -6,6 +6,7 @@ Drop-in replacement for the MPC controller node. Only the controller changes
 OpenCV tuning panel follow the same pattern as the original MPC node.
 """
 
+import os
 import sys
 import math
 import numpy as np
@@ -13,13 +14,57 @@ import pandas as pd
 import cv2
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PoseStamped
 from nav_msgs.msg import Odometry
-import sys
+from ros_gz_interfaces.srv import SetEntityPose
+from ros_gz_interfaces.msg import Entity
 
 sys.path.append("/home/monukoru/Documents/AMCAF_-code/hardware/hil/controllers")
-
 from pid import PIDController
+
+
+class ButterworthFilter:
+    """Real-time 2nd-order low-pass Butterworth filter."""
+
+    def __init__(self, cutoff_freq, fs):
+        self.cutoff_freq = cutoff_freq
+        self.fs = fs
+        
+        # Compute filter coefficients via bilinear transform
+        import math
+        K = math.tan(math.pi * cutoff_freq / fs)
+        sqrt2 = math.sqrt(2.0)
+        denom = 1.0 + sqrt2 * K + K**2
+        self.b0 = K**2 / denom
+        self.b1 = 2.0 * self.b0
+        self.b2 = self.b0
+        self.a1 = 2.0 * (K**2 - 1.0) / denom
+        self.a2 = (1.0 - sqrt2 * K + K**2) / denom
+        
+        # Buffer for input and output history
+        self.x = [0.0, 0.0, 0.0]
+        self.y = [0.0, 0.0, 0.0]
+        self.initialized = False
+
+    def filter(self, val):
+        if not self.initialized:
+            self.x = [val, val, val]
+            self.y = [val, val, val]
+            self.initialized = True
+            return val
+        
+        # Shift history
+        self.x[2] = self.x[1]
+        self.x[1] = self.x[0]
+        self.x[0] = val
+        
+        self.y[2] = self.y[1]
+        self.y[1] = self.y[0]
+        
+        # Difference equation
+        self.y[0] = (self.b0 * self.x[0] + self.b1 * self.x[1] + self.b2 * self.x[2]
+                     - self.a1 * self.y[1] - self.a2 * self.y[2])
+        return self.y[0]
 
 
 def noop(val):
@@ -64,6 +109,13 @@ class GazeboPidControllerNode(Node):
             df = pd.read_csv(self.trajectory_file)
             self.track_points = df[['x', 'y']].to_numpy()
             self.get_logger().info(f"Loaded {len(self.track_points)} waypoints successfully.")
+            # Calculate track start frame offsets
+            self.x_offset = float(self.track_points[0][0])
+            self.y_offset = float(self.track_points[0][1])
+            dx = self.track_points[1][0] - self.track_points[0][0]
+            dy = self.track_points[1][1] - self.track_points[0][1]
+            self.yaw_offset = math.atan2(dy, dx)
+            self.get_logger().info(f"World Frame Transform Offset loaded: x_off={self.x_offset:.3f}, y_off={self.y_offset:.3f}, yaw_off={math.degrees(self.yaw_offset):.3f}°")
         except Exception as e:
             self.get_logger().error(f"Failed to load trajectory file: {e}")
             sys.exit(1)
@@ -91,6 +143,24 @@ class GazeboPidControllerNode(Node):
         self.steer_pid = PIDController(
             self.steer_kp, self.steer_ki, self.steer_kd, self.steer_i_limit
         )
+
+        self.x_offset_layout = None
+        self.y_offset_layout = None
+        self.yaw_offset_layout = None
+
+        # Pika Pose Feedback Setup
+        self.pika_pose = None
+        self.pika_subscription = self.create_subscription(
+            PoseStamped,
+            '/pika/pose',
+            self.pika_pose_callback,
+            10
+        )
+        self.x_filter = ButterworthFilter(cutoff_freq=2.0, fs=self.control_rate)
+        self.y_filter = ButterworthFilter(cutoff_freq=2.0, fs=self.control_rate)
+
+        # Gazebo Set Entity Pose Client
+        self.set_pose_client = self.create_client(SetEntityPose, '/world/custom_road_world/set_pose')
 
         # State variables
         self.current_odom = None
@@ -137,6 +207,9 @@ class GazeboPidControllerNode(Node):
 
     def odom_callback(self, msg):
         self.current_odom = msg
+
+    def pika_pose_callback(self, msg):
+        self.pika_pose = msg
 
     def read_tuning_panel(self):
         """Read values from trackbars and push any gain changes straight into the PIDs."""
@@ -216,15 +289,61 @@ class GazeboPidControllerNode(Node):
 
         now = self.get_clock().now().nanoseconds / 1e9
 
-        # 1. Extract current state (exactly like the MPC node)
-        px = self.current_odom.pose.pose.position.x
-        py = self.current_odom.pose.pose.position.y
+        # 1. Extract current state
+        use_gazebo_odom = True
+        if self.pika_pose is not None:
+            try:
+                # Raw Pika coordinates in meters (multiplied by 10 and inverted)
+                x_raw = -float(self.pika_pose.pose.position.x) * 10.0
+                y_raw = -float(self.pika_pose.pose.position.y) * 10.0
+                
+                # Apply 2nd-order Butterworth low-pass filter
+                x_pika = self.x_filter.filter(x_raw)
+                y_pika = self.y_filter.filter(y_raw)
+                
+                # Quaternion to Euler Yaw
+                q = self.pika_pose.pose.orientation
+                siny_cosp = 2 * (q.w * q.z + q.x * q.y)
+                cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
+                yaw_pika = math.atan2(siny_cosp, cosy_cosp)
+                
+                # Initialize offsets dynamically on the first frame to align starting waypoint
+                if self.x_offset_layout is None or self.y_offset_layout is None:
+                    self.x_offset_layout = self.x_offset - x_pika
+                    self.y_offset_layout = self.y_offset - y_pika
+                    self.yaw_offset_layout = self.yaw_offset - yaw_pika
+                    self.get_logger().info(
+                        f"Dynamic Pika Alignment Offset Initialized: "
+                        f"x_off={self.x_offset_layout:.3f}, y_off={self.y_offset_layout:.3f}, "
+                        f"yaw_off={math.degrees(self.yaw_offset_layout):.1f}°"
+                    )
+                
+                # Transform to Gazebo world meters
+                px = x_pika + self.x_offset_layout
+                py = y_pika + self.y_offset_layout
+                yaw = yaw_pika + self.yaw_offset_layout
+                yaw = math.atan2(math.sin(yaw), math.cos(yaw))
+                use_gazebo_odom = False
+                
+                # Teleport the Prius model in Gazebo to match the real car
+                self.teleport_prius_gazebo(px, py, yaw)
+            except Exception as e:
+                self.get_logger().warning(f"Error processing Pika pose: {e}. Falling back to Gazebo Odom.", throttle_duration_sec=2.0)
 
-        # Quaternion to Euler Yaw
-        q = self.current_odom.pose.pose.orientation
-        siny_cosp = 2 * (q.w * q.z + q.x * q.y)
-        cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
-        yaw = math.atan2(siny_cosp, cosy_cosp)
+        if use_gazebo_odom:
+            # Transform base Gazebo odometry to World Map frame
+            px = self.current_odom.pose.pose.position.x + self.x_offset
+            py = self.current_odom.pose.pose.position.y + self.y_offset
+
+            # Quaternion to Euler Yaw
+            q = self.current_odom.pose.pose.orientation
+            siny_cosp = 2 * (q.w * q.z + q.x * q.y)
+            cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
+            yaw_odom = math.atan2(siny_cosp, cosy_cosp)
+            
+            # Shift yaw relative to initial world pose and wrap to [-pi, pi]
+            yaw = yaw_odom + self.yaw_offset
+            yaw = math.atan2(math.sin(yaw), math.cos(yaw))
 
         # Current speed calculation (preserving direction)
         vx = self.current_odom.twist.twist.linear.x
@@ -283,6 +402,34 @@ class GazeboPidControllerNode(Node):
             f"Steer: {math.degrees(steer):.1f}°",
             throttle_duration_sec=0.5
         )
+
+    def teleport_prius_gazebo(self, px, py, yaw):
+        """Teleport the Gazebo Prius model to the tracking pose."""
+        try:
+            if not self.set_pose_client.service_is_ready():
+                self.get_logger().warning("Gazebo set_pose service not ready...", throttle_duration_sec=5.0)
+                return
+
+            req = SetEntityPose.Request()
+            req.entity.name = "prius"
+            req.entity.type = Entity.MODEL
+            
+            # Position
+            req.pose.position.x = float(px)
+            req.pose.position.y = float(py)
+            req.pose.position.z = 0.35  # Keep it slightly above the ground plane
+            
+            # Orientation
+            cy = math.cos(yaw * 0.5)
+            sy = math.sin(yaw * 0.5)
+            req.pose.orientation.w = cy
+            req.pose.orientation.x = 0.0
+            req.pose.orientation.y = 0.0
+            req.pose.orientation.z = sy
+            
+            self.set_pose_client.call_async(req)
+        except Exception as e:
+            self.get_logger().error(f"Failed to call set_pose service: {e}", throttle_duration_sec=3.0)
 
 
 def main(args=None):
