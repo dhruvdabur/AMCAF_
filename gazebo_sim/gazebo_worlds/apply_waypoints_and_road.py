@@ -79,9 +79,14 @@ for i in range(N):
 
 road_links_xml += "\n    </model>"
 
-# Read custom_road.sdf content
-with open('custom_road.sdf', 'r') as f:
+# Read custom_road_backup.sdf content
+with open('custom_road_backup.sdf', 'r') as f:
     sdf_content = f.read()
+
+# Remove the green, white, and yellow actors
+actor_remove_pattern = r'\s*<actor name="(traffic_car_green|traffic_car_white|traffic_car_yellow)">.*?</actor>\s*'
+sdf_content, count = re.subn(actor_remove_pattern, '', sdf_content, flags=re.DOTALL)
+print(f"Removed unused traffic actors: {count} occurrence(s)")
 
 # 2. Replace elliptical_road model
 # Search from <model name="elliptical_road"> to the matching </model>
@@ -107,23 +112,20 @@ x_start = first_wp['x']
 y_start = first_wp['y']
 yaw_start_rad = math.radians(first_wp['yaw_deg'])
 
-prius_pose_re = r'(<include>\s*<name>prius</name>\s*<uri>.*?</uri>\s*<pose>).*?(</pose>\s*</include>)'
-prius_pose_replacement = rf'\g<1>{x_start:.3f} {y_start:.3f} 0.35 0 0 {yaw_start_rad:.3f}\g<2>'
+prius_pose_re = r'(<include>\s*<name>prius</name>\s*<uri>.*?</uri>\s*<pose>).*?(</pose>(?:\s*<scale>.*?</scale>)?\s*</include>)'
+prius_pose_replacement = rf'\g<1>{x_start:.5f} {y_start:.5f} 0.0035 0 0 {yaw_start_rad:.5f}\g<2>'
 
 sdf_content, count = re.subn(prius_pose_re, prius_pose_replacement, sdf_content, flags=re.DOTALL)
 print(f"Updated Prius spawn pose to first waypoint: {count} occurrence(s)")
 
-# 4. Generate trajectories for all 5 actors
+# 4. Generate trajectories for all 2 actors
 actor_names = [
     "traffic_car_blue",
-    "traffic_car_red",
-    "traffic_car_green",
-    "traffic_car_white",
-    "traffic_car_yellow"
+    "traffic_car_red"
 ]
 
-speed_m_s = 5.0
-z_actor = 0.420
+speed_m_s = 0.05
+z_actor = 0.0042
 
 # Number of waypoints
 N_wp = len(waypoints)
