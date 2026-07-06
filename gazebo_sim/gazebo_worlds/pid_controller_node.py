@@ -469,7 +469,7 @@ class GazeboPidControllerNode(Node):
         rc_msg.rc_roll = max(1300, min(1700, rc_msg.rc_roll))
         
         # Throttle -> PITCH (always between 1588 and 1590 when driving, else 1500)
-        if self.vel_cmd > 0.01:
+        if self.target_speed > 0.01:
             throttle_normalized = max(0.0, accel) / max_accel_mps2
             rc_msg.rc_pitch = int(1588 + (1590 - 1588) * throttle_normalized)
             rc_msg.rc_pitch = max(1588, min(1590, rc_msg.rc_pitch))
