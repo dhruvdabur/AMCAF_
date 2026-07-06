@@ -323,9 +323,9 @@ class ArucoTrackFollower(StraightArucoTrackFollower):
             ]
         if scenario == 'three_sparse':
             return [
-                spec(0.20, offset_left, ego_progress_speed * 0.10, wrap_progress=True, length_px=90.0, width_px=54.0),
-                spec(0.50, offset_center, ego_progress_speed * 0.08, wrap_progress=True, length_px=90.0, width_px=54.0),
-                spec(0.80, offset_right, ego_progress_speed * 0.10, wrap_progress=True, length_px=90.0, width_px=54.0),
+                spec(0.20, road_half_width * 0.46, ego_progress_speed * 0.06, wrap_progress=True, length_px=110.0, width_px=76.0),
+                spec(0.48, -road_half_width * 0.46, ego_progress_speed * 0.05, wrap_progress=True, length_px=110.0, width_px=76.0),
+                spec(0.76, road_half_width * 0.46, ego_progress_speed * 0.06, wrap_progress=True, length_px=110.0, width_px=76.0),
             ]
         if scenario == 'head_on':
             return [

@@ -36,6 +36,7 @@ GAP_SWITCH_HYSTERESIS_PX = 25.0
 GAP_TARGET_SMOOTHING_ALPHA = 0.18
 FTG_MAX_RANGE_PX = 500.0
 FTG_BUBBLE_RADIUS_PX = 0.0
+FTG_FOV_DEG = 120.0
 STEERING_KP_PX = 15
 STEERING_KI_PX = 0.0
 STEERING_KD_PX = 0.25
@@ -136,7 +137,7 @@ def parse_args(args=None):
     parser.add_argument(
         '--lidar-heading-offset-rad',
         type=float,
-        default=0.0,
+        default=3.141592653589793,
         help='Rotate the virtual lidar/FTG sensing frame relative to marker heading.',
     )
     parser.add_argument(
@@ -312,6 +313,12 @@ def parse_args(args=None):
         type=float,
         default=FTG_BUBBLE_RADIUS_PX,
         help='Override Follow-the-Gap safety bubble radius; 0 uses tuned default.',
+    )
+    parser.add_argument(
+        '--ftg-fov-deg',
+        type=float,
+        default=FTG_FOV_DEG,
+        help='Total Follow-the-Gap virtual LiDAR field of view in degrees.',
     )
     parser.add_argument(
         '--ftg-stuck-speed-pps',

@@ -36,6 +36,9 @@ QP_SOLVER = QP_DEFAULTS.solver
 QP_SLACK_WEIGHT = QP_DEFAULTS.slack_weight
 GAP_SWITCH_HYSTERESIS_PX = 25.0
 GAP_TARGET_SMOOTHING_ALPHA = 0.18
+FTG_MAX_RANGE_PX = 500.0
+FTG_BUBBLE_RADIUS_PX = 0.0
+FTG_FOV_DEG = 120.0
 STEERING_KP_PX = 15
 STEERING_KI_PX = 0.0
 STEERING_KD_PX = 0.25
@@ -136,7 +139,7 @@ def parse_args(args=None):
     parser.add_argument(
         '--lidar-heading-offset-rad',
         type=float,
-        default=0.0,
+        default=3.141592653589793,
         help='Rotate the virtual lidar/FTG sensing frame relative to marker heading.',
     )
     parser.add_argument(
@@ -288,6 +291,24 @@ def parse_args(args=None):
         type=float,
         default=GAP_TARGET_SMOOTHING_ALPHA,
         help='Low-pass coefficient for lateral free-space setpoint.',
+    )
+    parser.add_argument(
+        '--ftg-max-range-px',
+        type=float,
+        default=FTG_MAX_RANGE_PX,
+        help='Forward scan range used by Follow-the-Gap debug and target selection.',
+    )
+    parser.add_argument(
+        '--ftg-bubble-radius-px',
+        type=float,
+        default=FTG_BUBBLE_RADIUS_PX,
+        help='Override Follow-the-Gap safety bubble radius; 0 uses tuned default.',
+    )
+    parser.add_argument(
+        '--ftg-fov-deg',
+        type=float,
+        default=FTG_FOV_DEG,
+        help='Total Follow-the-Gap virtual LiDAR field of view in degrees.',
     )
     parser.add_argument(
         '--track-speed-filter-alpha',
@@ -571,6 +592,12 @@ def validate_config(config):
         raise SystemExit('gap-switch-hysteresis-px must be non-negative')
     if not 0.0 < config.gap_target_smoothing_alpha <= 1.0:
         raise SystemExit('gap-target-smoothing-alpha must be in (0, 1]')
+    if not 0.0 < config.ftg_fov_deg <= 360.0:
+        raise SystemExit('ftg-fov-deg must be in (0, 360]')
+    if config.ftg_max_range_px <= 0.0:
+        raise SystemExit('ftg-max-range-px must be positive')
+    if config.ftg_bubble_radius_px < 0.0:
+        raise SystemExit('ftg-bubble-radius-px must be non-negative')
     if not 0.0 < config.road_length_x <= 1.0:
         raise SystemExit('road-length-x must be between 0 and 1')
     if config.virtual_width < 160:
@@ -650,7 +677,8 @@ def print_config(config):
         'gap target: '
         f'mode={config.gap_planner_mode} '
         f'hysteresis={config.gap_switch_hysteresis_px:.1f}px '
-        f'smoothing_alpha={config.gap_target_smoothing_alpha:.2f}'
+        f'smoothing_alpha={config.gap_target_smoothing_alpha:.2f} '
+        f'ftg_fov={config.ftg_fov_deg:.1f}deg'
     )
     print(
         f'aruco: marker_size={config.aruco_marker_size_cm:.1f}cm '

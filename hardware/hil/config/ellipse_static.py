@@ -131,7 +131,7 @@ def parse_args(args=None):
     parser.add_argument(
         '--lidar-heading-offset-rad',
         type=float,
-        default=0.0,
+        default=3.141592653589793,
         help='Rotate the virtual lidar/FTG sensing frame relative to marker heading.',
     )
     parser.add_argument(

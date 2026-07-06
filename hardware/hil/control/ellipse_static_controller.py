@@ -396,6 +396,9 @@ class EllipseStaticController:
                     'ftg_stuck_max_steering_bias_pwm',
                     0.0,
                 ),
+                'ftg_fov_deg': getattr(self.config, 'ftg_fov_deg', 240.0),
+                'ftg_max_range_px': getattr(self.config, 'ftg_max_range_px', 500.0),
+                'ftg_bubble_radius_px': getattr(self.config, 'ftg_bubble_radius_px', 0.0),
                 'velocity_kp_pwm': self.config.velocity_kp_pwm,
                 'velocity_ki_pwm': self.config.velocity_ki_pwm,
                 'velocity_kd_pwm': self.config.velocity_kd_pwm,
@@ -440,6 +443,9 @@ class EllipseStaticController:
                     'ftg_stuck_max_steering_bias_pwm',
                     0.0,
                 ),
+                'ftg_fov_deg': getattr(self.config, 'ftg_fov_deg', 240.0),
+                'ftg_max_range_px': getattr(self.config, 'ftg_max_range_px', 500.0),
+                'ftg_bubble_radius_px': getattr(self.config, 'ftg_bubble_radius_px', 0.0),
                 'velocity_kp_pwm': self.config.velocity_kp_pwm,
                 'velocity_ki_pwm': self.config.velocity_ki_pwm,
                 'velocity_kd_pwm': self.config.velocity_kd_pwm,
@@ -1539,9 +1545,18 @@ class EllipseStaticController:
             'ftg_stuck_forward_pwm',
             'ftg_stuck_steering_gain_pwm',
             'ftg_stuck_max_steering_bias_pwm',
+            'ftg_fov_deg',
+            'ftg_max_range_px',
+            'ftg_bubble_radius_px',
         ):
             if key in values and hasattr(self.config, key):
                 setattr(self.config, key, values[key])
+        self.virtual_lidar.front_view_rad = math.radians(
+            max(0.0, min(360.0, float(getattr(self.config, 'ftg_fov_deg', 240.0))))
+        )
+        self.virtual_lidar.max_range_px = float(
+            getattr(self.config, 'ftg_max_range_px', self.virtual_lidar.max_range_px)
+        )
         self.config.velocity_kp_pwm = values.get(
             'velocity_kp_pwm',
             self.config.velocity_kp_pwm,

@@ -7,22 +7,22 @@ import re
 import numpy as np
 
 
-DEFAULT_BUBBLE_RADIUS = 34.75
-DEFAULT_MAX_RANGE_CAP = 353.571
-DEFAULT_DEEP_CLUSTER_RATIO = 0.952381
+DEFAULT_BUBBLE_RADIUS = 87.8333
+DEFAULT_MAX_RANGE_CAP = 552.381
+DEFAULT_DEEP_CLUSTER_RATIO = 0.839286
 DEFAULT_OBSTACLE_EPSILON = 1.0
-FORWARD_VIEW_RAD = math.radians(180)
+FORWARD_VIEW_RAD = math.radians(120.714)
 
 # Disparity Extension parameters
-DEFAULT_DISPARITY_THRESHOLD = 42.0143
+DEFAULT_DISPARITY_THRESHOLD = 32.1143
 DEFAULT_DISPARITY_WIDTH = 49.3333
 
 # Cost function weights
-DEFAULT_DEPTH_SCALE = 103.905
-DEFAULT_HEADING_WEIGHT = 3.57143
+DEFAULT_DEPTH_SCALE = 189.524
+DEFAULT_HEADING_WEIGHT = 2.92857
 
 # Steering output smoothing
-DEFAULT_SMOOTHING_ALPHA = 0.952857
+DEFAULT_SMOOTHING_ALPHA = 0.9835
 
 
 _prev_angle = 0.0
@@ -84,6 +84,7 @@ def calculate_follow_the_gap_point(
     resolution,
     bubble_radius,
     max_range_cap=DEFAULT_MAX_RANGE_CAP,
+    fov_rad=FORWARD_VIEW_RAD,
 ):
     """Return an image-space target point from sparse forward LiDAR returns."""
     if max_range_cap is not None:
@@ -92,6 +93,7 @@ def calculate_follow_the_gap_point(
         lidar_points,
         max_range,
         resolution,
+        fov_rad=fov_rad,
     )
     target_angle, target_dist = calculate_follow_the_gap_target(
         ranges,
@@ -117,11 +119,17 @@ def calculate_follow_the_gap_debug(
     resolution,
     bubble_radius,
     max_range_cap=DEFAULT_MAX_RANGE_CAP,
+    fov_rad=FORWARD_VIEW_RAD,
 ):
     """Return Follow-the-Gap target and nearest-obstacle debug geometry."""
     if max_range_cap is not None:
         max_range = min(float(max_range), float(max_range_cap))
-    ranges, angles = build_forward_scan(lidar_points, max_range, resolution)
+    ranges, angles = build_forward_scan(
+        lidar_points,
+        max_range,
+        resolution,
+        fov_rad=fov_rad,
+    )
     extended_ranges = extend_disparities(ranges, angles, vehicle_width=bubble_radius)
     safe_ranges, bubble_center = apply_safety_bubble(
         extended_ranges,
@@ -191,11 +199,12 @@ def calculate_follow_the_gap_debug(
     }
 
 
-def build_forward_scan(lidar_points, max_range, resolution):
+def build_forward_scan(lidar_points, max_range, resolution, fov_rad=FORWARD_VIEW_RAD):
     """Build forward-facing ranges and angles from sparse hits."""
     resolution = float(resolution)
-    min_angle = -0.5 * FORWARD_VIEW_RAD
-    max_angle = 0.5 * FORWARD_VIEW_RAD
+    view_rad = max(0.0, min(2.0 * math.pi, float(fov_rad)))
+    min_angle = -0.5 * view_rad
+    max_angle = 0.5 * view_rad
     bin_count = int(math.floor((max_angle - min_angle) / resolution)) + 1
     angles = np.array(
         [min_angle + index * resolution for index in range(bin_count)],
@@ -782,6 +791,8 @@ def select_advanced_free_space_target(controller, path_index):
         getattr(controller.virtual_lidar, 'max_range_px', 500.0),
     )
     resolution = getattr(controller.virtual_lidar, 'resolution_rad', 0.052359877)
+    fov_deg = float(getattr(config, 'ftg_fov_deg', math.degrees(FORWARD_VIEW_RAD)))
+    fov_rad = math.radians(max(0.0, min(360.0, fov_deg)))
     bubble_radius = float(getattr(config, 'ftg_bubble_radius_px', 0.0))
     if bubble_radius <= 0.0:
         bubble_radius = follow_the_gap_bubble_radius(config)
@@ -793,6 +804,7 @@ def select_advanced_free_space_target(controller, path_index):
         obstacles = obstacle_source()
 
     # Refresh lidar scan with current combined obstacles
+    controller.virtual_lidar.front_view_rad = fov_rad
     controller.virtual_lidar.scan(origin, heading, obstacles)
     lidar_points = controller.virtual_lidar.latest_points
     
@@ -804,6 +816,7 @@ def select_advanced_free_space_target(controller, path_index):
         max_range=max_range,
         resolution=resolution,
         bubble_radius=bubble_radius,
+        fov_rad=fov_rad,
     )
     ftg_solve_time = (time.perf_counter() - t0) * 1000.0
     ftg_debug['solve_time_ms'] = ftg_solve_time

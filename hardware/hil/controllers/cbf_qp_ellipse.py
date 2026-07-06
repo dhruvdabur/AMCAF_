@@ -130,7 +130,7 @@ class EllipseCBFQPSafetyFilter:
             p_dot = -v
             q_dot = 0.0
 
-            h = (p**2 / A2) + (q**2 / B2) - 2.8
+            h = (p**2 / A2) + (q**2 / B2) - 2.0
             h_dot = 2.0 * p * p_dot / A2 + 2.0 * q * q_dot / B2
             h_ddot_base = 2.0 * (p_dot**2 / A2 + q_dot**2 / B2)
             lhs_a_coeff = -2.0 * p / A2
