@@ -13,7 +13,7 @@ import cv2
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import ExternalShutdownException
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PoseStamped
 from nav_msgs.msg import Odometry
 
 from rc_msgs.msg import RCMessage
@@ -265,11 +265,14 @@ class GazeboMpcControllerNode(Node):
         self.cbf_filter = EllipseCBFQPSafetyFilter(self.cbf_config)
         self.latest_scan = None
 
-        # ArUco Pose Feedback Setup
-        self.use_aruco = os.environ.get('USE_ARUCO', '').lower() in ('true', '1', 'yes', 'on')
-        self.aruco_pose_file = '/tmp/aruco_pose.json'
-        if self.use_aruco:
-            self.get_logger().info("ArUco pose feedback enabled. Reading from /tmp/aruco_pose.json")
+        # Pika Pose Feedback Setup
+        self.pika_pose = None
+        self.pika_subscription = self.create_subscription(
+            PoseStamped,
+            '/pika/pose',
+            self.pika_pose_callback,
+            10
+        )
 
         # State variables
         self.current_odom = None
@@ -360,6 +363,9 @@ class GazeboMpcControllerNode(Node):
 
     def odom_callback(self, msg):
         self.current_odom = msg
+
+    def pika_pose_callback(self, msg):
+        self.pika_pose = msg
 
     def lidar_callback(self, msg):
         self.latest_scan = msg
@@ -593,7 +599,7 @@ class GazeboMpcControllerNode(Node):
             self.x_offset_layout = None
             self.y_offset_layout = None
             self.yaw_offset_layout = None
-            self.get_logger().info("Manual ArUco Offset Re-calibration triggered!")
+            self.get_logger().info("Manual Pika Offset Re-calibration triggered!")
 
     def timer_callback(self):
         # Update weights and target speed from window
@@ -606,46 +612,40 @@ class GazeboMpcControllerNode(Node):
 
         # 1. Extract current state
         use_gazebo_odom = True
-        if self.use_aruco:
+        if self.pika_pose is not None:
             try:
-                import json
-                if os.path.exists(self.aruco_pose_file):
-                    with open(self.aruco_pose_file, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    target_in_origin = data.get('target_in_origin')
-                    if target_in_origin is not None:
-                        # Raw ArUco coordinates in meters
-                        x_real = float(target_in_origin['translation_m'][0])
-                        y_real = float(target_in_origin['translation_m'][1])
-                        yaw_deg = float(target_in_origin['rpy_deg'][2])
-                        
-                        # Direct coordinate mapping (scaling removed)
-                        x_layout = x_real
-                        y_layout = y_real
-                        yaw_layout_deg = yaw_deg
-                        
-                        # Initialize offsets dynamically on the first frame to align starting waypoint
-                        if self.x_offset_layout is None or self.y_offset_layout is None:
-                            self.x_offset_layout = self.x_offset - x_layout
-                            self.y_offset_layout = self.y_offset - y_layout
-                            self.yaw_offset_layout = self.yaw_offset - math.radians(yaw_layout_deg)
-                            self.get_logger().info(
-                                f"Dynamic ArUco Alignment Offset Initialized: "
-                                f"x_off={self.x_offset_layout:.3f}, y_off={self.y_offset_layout:.3f}, "
-                                f"yaw_off={math.degrees(self.yaw_offset_layout):.1f}°"
-                            )
-                        
-                        # Transform to Gazebo world meters
-                        px = x_layout + self.x_offset_layout
-                        py = y_layout + self.y_offset_layout
-                        yaw = math.radians(yaw_layout_deg) + self.yaw_offset_layout
-                        yaw = math.atan2(math.sin(yaw), math.cos(yaw))
-                        use_gazebo_odom = False
-                        
-                        # Teleport the Prius model in Gazebo to match the real car
-                        self.teleport_prius_gazebo(px, py, yaw)
+                # Raw Pika coordinates in meters
+                x_pika = float(self.pika_pose.pose.position.x)
+                y_pika = float(self.pika_pose.pose.position.y)
+                
+                # Quaternion to Euler Yaw
+                q = self.pika_pose.pose.orientation
+                siny_cosp = 2 * (q.w * q.z + q.x * q.y)
+                cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
+                yaw_pika = math.atan2(siny_cosp, cosy_cosp)
+                
+                # Initialize offsets dynamically on the first frame to align starting waypoint
+                if self.x_offset_layout is None or self.y_offset_layout is None:
+                    self.x_offset_layout = self.x_offset - x_pika
+                    self.y_offset_layout = self.y_offset - y_pika
+                    self.yaw_offset_layout = self.yaw_offset - yaw_pika
+                    self.get_logger().info(
+                        f"Dynamic Pika Alignment Offset Initialized: "
+                        f"x_off={self.x_offset_layout:.3f}, y_off={self.y_offset_layout:.3f}, "
+                        f"yaw_off={math.degrees(self.yaw_offset_layout):.1f}°"
+                    )
+                
+                # Transform to Gazebo world meters
+                px = x_pika + self.x_offset_layout
+                py = y_pika + self.y_offset_layout
+                yaw = yaw_pika + self.yaw_offset_layout
+                yaw = math.atan2(math.sin(yaw), math.cos(yaw))
+                use_gazebo_odom = False
+                
+                # Teleport the Prius model in Gazebo to match the real car
+                self.teleport_prius_gazebo(px, py, yaw)
             except Exception as e:
-                self.get_logger().warning(f"Error reading ArUco pose: {e}. Falling back to Gazebo Odom.", throttle_duration_sec=2.0)
+                self.get_logger().warning(f"Error processing Pika pose: {e}. Falling back to Gazebo Odom.", throttle_duration_sec=2.0)
 
         if use_gazebo_odom:
             # Transform base Gazebo odometry to World Map frame
@@ -740,7 +740,7 @@ class GazeboMpcControllerNode(Node):
         cmd_msg = Twist()
         cmd_msg.linear.x = float(self.vel_cmd)
         cmd_msg.angular.z = float(steer)
-        #self.publisher.publish(cmd_msg)
+        self.publisher.publish(cmd_msg)
 
         # ackermann_msg = AckermannCommand()                               ##### That is just a dummy import generated by the AI 
         # ackermann_msg.steering_angle_rad = float(steer)

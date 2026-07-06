@@ -71,22 +71,6 @@ echo "Launching MPC Controller Node..."
 # Export PYTHONPATH so the node can find the hardware.hil.controllers packages
 export PYTHONPATH="$REPO_ROOT:$PYTHONPATH"
 
-# Conditionally launch aruco_merge.py if requested
-if [ "${USE_ARUCO}" = "true" ] || [ "${USE_ARUCO}" = "1" ]; then
-    echo "ArUco pose feedback enabled. Launching aruco_merge.py..."
-    export USE_ARUCO="true"
-    
-    # If no custom ARUCO_ARGS provided, fallback to defaults
-    if [ -z "${ARUCO_ARGS:-}" ]; then
-        ARUCO_ARGS="--cam1 /dev/video0 --cam2 /dev/video4 --intrinsics1 /home/monukoru/aruco_merge/camera_calibration/cam1.yaml --intrinsics2 /home/monukoru/aruco_merge/camera_calibration/cam2.yaml"
-    fi
-    
-    echo "Running: python3 /home/monukoru/aruco_merge/monocular_merge/aruco_merge.py --json --output-json /tmp/aruco_pose.json --lock-anchors $ARUCO_ARGS"
-    python3 /home/monukoru/aruco_merge/monocular_merge/aruco_merge.py --json --output-json /tmp/aruco_pose.json --lock-anchors $ARUCO_ARGS > /tmp/aruco_merge.log 2>&1 &
-    ARUCO_MERGE_PID=$!
-    sleep 1
-fi
-
 # Launch the node
 python3 "$SCRIPT_DIR/mpc_controller_node.py"
 
