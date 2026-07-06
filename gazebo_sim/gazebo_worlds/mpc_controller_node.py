@@ -282,9 +282,6 @@ class GazeboMpcControllerNode(Node):
         self.mpc_config.w_steer = 10.0
         self.mpc_config.w_accel = 0.5
 
-        self.x_offset_layout = None
-        self.y_offset_layout = None
-        self.yaw_offset_layout = None
         self.enable_cbf = True
 
         # Try to load existing tuning values from file
@@ -317,8 +314,11 @@ class GazeboMpcControllerNode(Node):
             self.pika_pose_callback,
             10
         )
-        self.x_filter = ButterworthFilter(cutoff_freq=2.0, fs=self.control_rate)
-        self.y_filter = ButterworthFilter(cutoff_freq=2.0, fs=self.control_rate)
+        self.x_filter = ButterworthFilter(cutoff_freq=0.5, fs=self.control_rate)
+        self.y_filter = ButterworthFilter(cutoff_freq=0.5, fs=self.control_rate)
+        self.x_pika_start = None
+        self.y_pika_start = None
+        self.yaw_pika_start = None
 
         # State variables
         self.current_odom = None
@@ -642,9 +642,9 @@ class GazeboMpcControllerNode(Node):
         if key == ord('s') or key == ord('S'):
             self.save_tuning_to_file()
         elif key == ord('c') or key == ord('C'):
-            self.x_offset_layout = None
-            self.y_offset_layout = None
-            self.yaw_offset_layout = None
+            self.x_pika_start = None
+            self.y_pika_start = None
+            self.yaw_pika_start = None
             self.get_logger().info("Manual Pika Offset Re-calibration triggered!")
 
     def timer_callback(self):
@@ -675,20 +675,20 @@ class GazeboMpcControllerNode(Node):
                 yaw_pika = math.atan2(siny_cosp, cosy_cosp)
                 
                 # Initialize offsets dynamically on the first frame to align starting waypoint
-                if self.x_offset_layout is None or self.y_offset_layout is None:
-                    self.x_offset_layout = self.x_offset - x_pika
-                    self.y_offset_layout = self.y_offset - y_pika
-                    self.yaw_offset_layout = self.yaw_offset - yaw_pika
+                if self.x_pika_start is None or self.y_pika_start is None:
+                    self.x_pika_start = x_pika
+                    self.y_pika_start = y_pika
+                    self.yaw_pika_start = yaw_pika
                     self.get_logger().info(
-                        f"Dynamic Pika Alignment Offset Initialized: "
-                        f"x_off={self.x_offset_layout:.3f}, y_off={self.y_offset_layout:.3f}, "
-                        f"yaw_off={math.degrees(self.yaw_offset_layout):.1f}°"
+                        f"Dynamic Pika Alignment Initialized: "
+                        f"x_start={self.x_pika_start:.3f}, y_start={self.y_pika_start:.3f}, "
+                        f"yaw_start={math.degrees(self.yaw_pika_start):.1f}°"
                     )
                 
-                # Transform to Gazebo world meters
-                px = x_pika + self.x_offset_layout
-                py = y_pika + self.y_offset_layout
-                yaw = yaw_pika + self.yaw_offset_layout
+                # Transform to Gazebo world meters (negating the delta to fix axis inversion)
+                px = self.x_offset - (x_pika - self.x_pika_start)
+                py = self.y_offset - (y_pika - self.y_pika_start)
+                yaw = self.yaw_offset - (yaw_pika - self.yaw_pika_start)
                 yaw = math.atan2(math.sin(yaw), math.cos(yaw))
                 use_gazebo_odom = False
                 
