@@ -160,8 +160,8 @@ class GazeboPidControllerNode(Node):
             self.pika_pose_callback,
             10
         )
-        self.x_filter = ButterworthFilter(cutoff_freq=0.5, fs=self.control_rate)
-        self.y_filter = ButterworthFilter(cutoff_freq=0.5, fs=self.control_rate)
+        self.x_filter = ButterworthFilter(cutoff_freq=1.0, fs=self.control_rate)
+        self.y_filter = ButterworthFilter(cutoff_freq=1.0, fs=self.control_rate)
 
         # Gazebo Set Entity Pose Client
         self.set_pose_client = self.create_client(SetEntityPose, '/world/custom_road_world/set_pose')
@@ -330,7 +330,7 @@ class GazeboPidControllerNode(Node):
                 # Transform to Gazebo world meters (negating the delta to fix axis inversion)
                 px = self.x_offset - (x_pika - self.x_pika_start)
                 py = self.y_offset - (y_pika - self.y_pika_start)
-                yaw = self.yaw_offset - (yaw_pika - self.yaw_pika_start)
+                yaw = self.yaw_offset + (yaw_pika - self.yaw_pika_start)
                 yaw = math.atan2(math.sin(yaw), math.cos(yaw))
                 use_gazebo_odom = False
                 
