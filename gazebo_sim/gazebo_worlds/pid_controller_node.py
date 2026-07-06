@@ -292,6 +292,9 @@ class GazeboPidControllerNode(Node):
         if self.enable_tuning:
             self.read_tuning_panel()
 
+        # Teleport traffic boxes along the track in a loop
+        self.teleport_traffic_boxes()
+
         if self.current_odom is None:
             self.get_logger().warning("Waiting for odometry messages...", throttle_duration_sec=3.0)
             return
@@ -412,21 +415,20 @@ class GazeboPidControllerNode(Node):
             throttle_duration_sec=0.5
         )
 
-    def teleport_prius_gazebo(self, px, py, yaw):
-        """Teleport the Gazebo Prius model to the tracking pose."""
+    def teleport_model_gazebo(self, name, px, py, yaw, z=0.0035):
+        """Teleport any Gazebo model to a target pose."""
         try:
             if not self.set_pose_client.service_is_ready():
-                self.get_logger().warning("Gazebo set_pose service not ready...", throttle_duration_sec=5.0)
                 return
 
             req = SetEntityPose.Request()
-            req.entity.name = "prius"
+            req.entity.name = name
             req.entity.type = Entity.MODEL
             
             # Position
             req.pose.position.x = float(px)
             req.pose.position.y = float(py)
-            req.pose.position.z = 0.35  # Keep it slightly above the ground plane
+            req.pose.position.z = float(z)
             
             # Orientation
             cy = math.cos(yaw * 0.5)
@@ -437,8 +439,53 @@ class GazeboPidControllerNode(Node):
             req.pose.orientation.z = sy
             
             self.set_pose_client.call_async(req)
-        except Exception as e:
-            self.get_logger().error(f"Failed to call set_pose service: {e}", throttle_duration_sec=3.0)
+        except Exception:
+            pass
+
+    def teleport_prius_gazebo(self, px, py, yaw):
+        """Teleport the Gazebo Prius model."""
+        self.teleport_model_gazebo("prius", px, py, yaw, z=0.0035)
+
+    def teleport_traffic_boxes(self):
+        """Teleport traffic boxes along the track in a loop."""
+        if not hasattr(self, 'traffic_t_start'):
+            self.traffic_t_start = self.get_clock().now().nanoseconds / 1e9
+        
+        now = self.get_clock().now().nanoseconds / 1e9
+        dt_elapsed = now - self.traffic_t_start
+        
+        # Speed: 0.05 m/s (equivalent to 5 m/s scaled)
+        speed = 0.05
+        
+        # Calculate cumulative distance along track points
+        if not hasattr(self, 'track_distances'):
+            dists = [0.0]
+            for i in range(1, len(self.track_points)):
+                d = math.hypot(self.track_points[i][0] - self.track_points[i-1][0],
+                               self.track_points[i][1] - self.track_points[i-1][1])
+                dists.append(dists[-1] + d)
+            self.track_distances = dists
+            self.total_track_length = dists[-1]
+            
+        # Traffic box 1 (Blue)
+        s1 = (speed * dt_elapsed) % self.total_track_length
+        # Traffic box 2 (Red) is shifted by half the track length
+        s2 = (speed * dt_elapsed + self.total_track_length / 2.0) % self.total_track_length
+        
+        for name, s in [("traffic_box_blue", s1), ("traffic_box_red", s2)]:
+            # Find point along track corresponding to distance s
+            idx = np.searchsorted(self.track_distances, s)
+            if idx >= len(self.track_points):
+                idx = len(self.track_points) - 1
+            wp = self.track_points[idx]
+            
+            # Calculate heading yaw
+            next_idx = (idx + 1) % len(self.track_points)
+            next_wp = self.track_points[next_idx]
+            yaw = math.atan2(next_wp[1] - wp[1], next_wp[0] - wp[0])
+            
+            # Teleport
+            self.teleport_model_gazebo(name, wp[0], wp[1], yaw, z=0.0035)
 
 
 def main(args=None):
