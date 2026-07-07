@@ -795,7 +795,7 @@ class GazeboMpcControllerNode(Node):
         
         # Steering -> ROLL (always between 1300 and 1700, 1500 middle)
         STEER_GAIN = 1.8
-        steer_normalized =  STEER_GAIN
+        steer_normalized = (steer / max_steer_rad) * STEER_GAIN
         rc_msg.rc_roll = int(1500 + REAL_RC_SCALE_STEER * steer_normalized)
         rc_msg.rc_roll = max(1300, min(1700, rc_msg.rc_roll))
         
