@@ -5,13 +5,16 @@ import os
 import sys
 import csv
 
+from pathlib import Path
+
 # Add observability folder to Python path to load autodiag_engine
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../hardware/hil/observability')))
 
 import autodiag_engine
 
-CSV_PATH = '/home/dhruv/amcaf/hardware/hil/metrics/time_series_log.csv'
-REPORT_PATH = '/home/dhruv/amcaf/hardware/hil/metrics/diagnosis_report.md'
+REPO_ROOT = Path(__file__).resolve().parents[4]
+CSV_PATH = str(REPO_ROOT / 'hardware' / 'hil' / 'metrics' / 'time_series_log.csv')
+REPORT_PATH = str(REPO_ROOT / 'hardware' / 'hil' / 'metrics' / 'diagnosis_report.md')
 
 def load_telemetry():
     if not os.path.exists(CSV_PATH):

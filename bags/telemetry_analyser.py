@@ -188,7 +188,7 @@ def analyze_bag_csv(pivoted_csv_path, output_md_path):
 
 def main():
     if len(sys.argv) < 2:
-        bag_dir = Path("/home/dhruv/amcaf/bags/head_on_qp_20260617_183359")
+        bag_dir = Path(__file__).resolve().parent / 'head_on_qp_20260617_183359'
     else:
         bag_dir = Path(sys.argv[1]).resolve()
         
@@ -198,7 +198,7 @@ def main():
         script_dir = Path(__file__).parent
         decode_script = script_dir / "decode_bag.py"
         if not decode_script.exists():
-            decode_script = Path("/home/dhruv/amcaf/bags/decode_bag.py")
+            decode_script = Path(__file__).resolve().parent / 'decode_bag.py'
         ret = os.system(f"/usr/bin/python3 '{decode_script}' '{bag_dir}'")
         if ret != 0:
             print("Error running decode_bag.py")

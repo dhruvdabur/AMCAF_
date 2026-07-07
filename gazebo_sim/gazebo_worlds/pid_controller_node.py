@@ -21,8 +21,10 @@ from ros_gz_interfaces.msg import Entity
 from rc_msgs.msg import RCMessage
 from rc_msgs.srv import CommandBool
 
-sys.path.append("/home/monukoru/Documents/AMCAF_-code/hardware/hil/controllers")
-from pid import PIDController
+from pathlib import Path
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.append(str(REPO_ROOT))
+from hardware.hil.controllers.pid import PIDController
 
 
 class ButterworthFilter:

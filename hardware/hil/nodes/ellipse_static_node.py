@@ -42,7 +42,7 @@ class ArucoTrackFollower(Node):
         tuning_file = str(getattr(config, 'tuning_file', 'tuning.json') or 'tuning.json')
         is_stable = 'stable' in tuning_file.lower()
         log_name = 'telemetry_stable.csv' if is_stable else 'telemetry_unstable.csv'
-        log_path = os.path.join('/home/dhruv/amcaf/hardware/hil/metrics', log_name)
+        log_path = os.path.join(str(Path(__file__).resolve().parents[2]), 'metrics', log_name)
         try:
             if os.path.exists(log_path):
                 os.remove(log_path)
@@ -679,7 +679,7 @@ class ArucoTrackFollower(Node):
         tuning_file = str(getattr(self.config, 'tuning_file', 'tuning.json') or 'tuning.json')
         is_stable = 'stable' in tuning_file.lower()
         log_name = 'telemetry_stable.csv' if is_stable else 'telemetry_unstable.csv'
-        log_path = os.path.join('/home/dhruv/amcaf/hardware/hil/metrics', log_name)
+        log_path = os.path.join(str(Path(__file__).resolve().parents[2]), 'metrics', log_name)
         try:
             if not os.path.exists(log_path):
                 with open(log_path, 'w') as f:

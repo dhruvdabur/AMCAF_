@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Plot comparison graphs of unstable vs stable controller runs."""
 
+from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
 # Load telemetry
-df = pd.read_csv('/home/dhruv/amcaf/hardware/hil/metrics/time_series_log.csv')
+df = pd.read_csv(str(Path(__file__).resolve().parent / 'time_series_log.csv'))
 
 # Split into unstable and stable based on steering_kp value
 unstable_df = df[df['steering_kp'] > 2.0].copy()
@@ -43,7 +44,7 @@ ax2.legend(loc='upper right', frameon=True, facecolor='white', edgecolor='none')
 
 plt.tight_layout()
 
-# Save plot to artifacts folder
-output_path = '/home/dhruv/.gemini/antigravity-cli/brain/c98afdd5-c0c6-4628-b2fe-ac6a8d66cbd6/vibration_comparison.png'
+# Save plot to metrics folder
+output_path = str(Path(__file__).resolve().parent / 'vibration_comparison.png')
 plt.savefig(output_path, dpi=150, bbox_inches='tight')
 print(f"Comparison plot saved successfully to: {output_path}")

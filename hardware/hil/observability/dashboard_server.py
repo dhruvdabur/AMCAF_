@@ -7,10 +7,12 @@ import math
 import csv
 from dataclasses import asdict
 from http.server import SimpleHTTPRequestHandler, HTTPServer
+from pathlib import Path
 import autodiag_engine
 
 PORT = 8050
-CSV_PATH = '/home/dhruv/amcaf/hardware/hil/metrics/time_series_log.csv'
+METRICS_DIR = Path(__file__).resolve().parent.parent / 'metrics'
+CSV_PATH = str(METRICS_DIR / 'time_series_log.csv')
 
 class ObservabilityAPIHandler(SimpleHTTPRequestHandler):
     """Custom request handler that exposes JSON endpoints and serves static web UI files."""
@@ -28,8 +30,8 @@ class ObservabilityAPIHandler(SimpleHTTPRequestHandler):
 
     def send_telemetry(self):
         """Read both stable and unstable telemetry CSVs and return them."""
-        unstable_path = '/home/dhruv/amcaf/hardware/hil/metrics/telemetry_unstable.csv'
-        stable_path = '/home/dhruv/amcaf/hardware/hil/metrics/telemetry_stable.csv'
+        unstable_path = str(METRICS_DIR / 'telemetry_unstable.csv')
+        stable_path = str(METRICS_DIR / 'telemetry_stable.csv')
         
         response = {
             "unstable": self.parse_csv_data(unstable_path),
@@ -59,8 +61,8 @@ class ObservabilityAPIHandler(SimpleHTTPRequestHandler):
         return data
 
     def get_latest_csv_path(self):
-        unstable_path = '/home/dhruv/amcaf/hardware/hil/metrics/telemetry_unstable.csv'
-        stable_path = '/home/dhruv/amcaf/hardware/hil/metrics/telemetry_stable.csv'
+        unstable_path = str(METRICS_DIR / 'telemetry_unstable.csv')
+        stable_path = str(METRICS_DIR / 'telemetry_stable.csv')
         
         t_unstable = os.path.getmtime(unstable_path) if os.path.exists(unstable_path) else 0.0
         t_stable = os.path.getmtime(stable_path) if os.path.exists(stable_path) else 0.0

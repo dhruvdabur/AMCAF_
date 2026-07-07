@@ -93,5 +93,5 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         path = sys.argv[1]
     else:
-        path = '/home/dhruv/amcaf/bags/head_on_qp_20260617_183359/pivoted_messages.csv'
+        path = str(Path(__file__).resolve().parent / 'head_on_qp_20260617_183359' / 'pivoted_messages.csv')
     generate_analysis_graphs(path)
