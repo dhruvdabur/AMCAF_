@@ -323,92 +323,58 @@ class GazeboPidControllerNode(Node):
         now = self.get_clock().now().nanoseconds / 1e9
 
         # 1. Extract current state
-        use_gazebo_odom = True
-        if self.pika_pose is not None:
-            try:
-                # Raw Pika coordinates in meters (multiplied by 10)
-                x_raw = float(self.pika_pose.pose.position.x) * 10.0
-                y_raw = float(self.pika_pose.pose.position.y) * 10.0
-                
-                # Apply 2nd-order Butterworth low-pass filter
-                x_pika = self.x_filter.filter(x_raw)
-                y_pika = self.y_filter.filter(y_raw)
-                
-                # Quaternion to Euler Yaw
-                q = self.pika_pose.pose.orientation
-                siny_cosp = 2 * (q.w * q.z + q.x * q.y)
-                cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
-                yaw_pika = math.atan2(siny_cosp, cosy_cosp)
-                
-                # Initialize offsets dynamically on the first frame to align starting waypoint
-                if self.x_pika_start is None or self.y_pika_start is None:
-                    self.x_pika_start = x_pika
-                    self.y_pika_start = y_pika
-                    self.yaw_pika_start = yaw_pika
-                    self.get_logger().info(
-                        f"Dynamic Pika Alignment Initialized: "
-                        f"x_start={self.x_pika_start:.3f}, y_start={self.y_pika_start:.3f}, "
-                        f"yaw_start={math.degrees(self.yaw_pika_start):.1f}°"
-                    )
-                
-                # Transform to Gazebo world meters (positive mapping)
-                px = self.x_offset + (x_pika - self.x_pika_start)
-                py = self.y_offset + (y_pika - self.y_pika_start)
-                yaw = self.yaw_offset + (yaw_pika - self.yaw_pika_start)
-                yaw = math.atan2(math.sin(yaw), math.cos(yaw))
-                use_gazebo_odom = False
-                
-                # Teleport the Prius model in Gazebo to match the real car
-                self.teleport_prius_gazebo(px, py, yaw)
-            except Exception as e:
-                self.get_logger().warning(f"Error processing Pika pose: {e}. Falling back to Gazebo Odom.", throttle_duration_sec=2.0)
+        if self.pika_pose is None:
+            self.get_logger().warning("Waiting for `/pika/pose` messages...", throttle_duration_sec=3.0)
+            return
 
-        # Estimate real car velocity from px, py
-        if not use_gazebo_odom:
-            if not hasattr(self, 'last_px') or self.last_px is None:
-                self.last_px = px
-                self.last_py = py
-                self.vel_estimated = 0.0
-            else:
-                dx = px - self.last_px
-                dy = py - self.last_py
-                raw_vel = math.hypot(dx, dy) / self.dt
-                
-                # Determine direction of motion relative to heading
-                heading_dir = math.atan2(dy, dx)
-                angle_diff = math.atan2(math.sin(heading_dir - yaw), math.cos(heading_dir - yaw))
-                if abs(angle_diff) > math.pi / 2.0:
-                    raw_vel = -raw_vel
-                
-                # Low-pass filter for estimated velocity
-                self.vel_estimated = 0.85 * self.vel_estimated + 0.15 * raw_vel
-                
-                self.last_px = px
-                self.last_py = py
-
-        if use_gazebo_odom:
-            # Transform base Gazebo odometry to World Map frame
-            px = self.current_odom.pose.pose.position.x + self.x_offset
-            py = self.current_odom.pose.pose.position.y + self.y_offset
-
+        try:
+            # Raw Pika coordinates in meters (multiplied by 10)
+            x_raw = float(self.pika_pose.pose.position.x) * 10.0
+            y_raw = float(self.pika_pose.pose.position.y) * 10.0
+            
+            # Apply 2nd-order Butterworth low-pass filter
+            x_pika = self.x_filter.filter(x_raw)
+            y_pika = self.y_filter.filter(y_raw)
+            
             # Quaternion to Euler Yaw
-            q = self.current_odom.pose.pose.orientation
+            q = self.pika_pose.pose.orientation
             siny_cosp = 2 * (q.w * q.z + q.x * q.y)
             cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
-            yaw_odom = math.atan2(siny_cosp, cosy_cosp)
+            yaw_pika = math.atan2(siny_cosp, cosy_cosp)
             
-            # Shift yaw relative to initial world pose and wrap to [-pi, pi]
-            yaw = yaw_odom + self.yaw_offset
-            yaw = math.atan2(math.sin(yaw), math.cos(yaw))
+            px = x_pika
+            py = y_pika
+            yaw = yaw_pika
+            
+            # Teleport the Prius model in Gazebo to match the real car
+            self.teleport_prius_gazebo(px, py, yaw)
+        except Exception as e:
+            self.get_logger().warning(f"Error processing Pika pose: {e}", throttle_duration_sec=2.0)
+            return
 
-            # Current speed calculation (preserving direction)
-            vx = self.current_odom.twist.twist.linear.x
-            vy = self.current_odom.twist.twist.linear.y
-            vel = math.hypot(vx, vy)
-            if vx < 0:
-                vel = -vel
+        # Estimate real car velocity from px, py
+        if not hasattr(self, 'last_px') or self.last_px is None:
+            self.last_px = px
+            self.last_py = py
+            self.vel_estimated = 0.0
         else:
-            vel = self.vel_estimated
+            dx = px - self.last_px
+            dy = py - self.last_py
+            raw_vel = math.hypot(dx, dy) / self.dt
+            
+            # Determine direction of motion relative to heading
+            heading_dir = math.atan2(dy, dx)
+            angle_diff = math.atan2(math.sin(heading_dir - yaw), math.cos(heading_dir - yaw))
+            if abs(angle_diff) > math.pi / 2.0:
+                raw_vel = -raw_vel
+            
+            # Low-pass filter for estimated velocity
+            self.vel_estimated = 0.85 * self.vel_estimated + 0.15 * raw_vel
+            
+            self.last_px = px
+            self.last_py = py
+
+        vel = self.vel_estimated
 
         # 2 & 3. Nearest waypoint + look-ahead target waypoint
         target_x, target_y = self.find_target_waypoint(px, py)
