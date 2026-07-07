@@ -168,9 +168,6 @@ class GazeboPidControllerNode(Node):
         # Gazebo Set Entity Pose Client
         self.set_pose_client = self.create_client(SetEntityPose, '/world/custom_road_world/set_pose')
 
-        # Publishers for traffic box poses
-        self.blue_pose_pub = self.create_publisher(Pose, "/model/traffic_box_blue/pose", 10)
-        self.red_pose_pub = self.create_publisher(Pose, "/model/traffic_box_red/pose", 10)
 
         # State variables
         self.current_odom = None
@@ -318,8 +315,6 @@ class GazeboPidControllerNode(Node):
         if self.enable_tuning:
             self.read_tuning_panel()
 
-        # Teleport traffic boxes along the track in a loop
-        self.teleport_traffic_boxes()
 
         if self.current_odom is None:
             self.get_logger().warning("Waiting for odometry messages...", throttle_duration_sec=3.0)
@@ -549,48 +544,6 @@ class GazeboPidControllerNode(Node):
         
         pub.publish(msg)
 
-    def teleport_traffic_boxes(self):
-        """Teleport traffic boxes along the track in a loop."""
-        if not hasattr(self, 'traffic_t_start'):
-            self.traffic_t_start = self.get_clock().now().nanoseconds / 1e9
-        
-        now = self.get_clock().now().nanoseconds / 1e9
-        dt_elapsed = now - self.traffic_t_start
-        
-        # Speed: 0.05 m/s (equivalent to 5 m/s scaled)
-        speed = 0.05
-        
-        # Calculate cumulative distance along track points
-        if not hasattr(self, 'track_distances'):
-            dists = [0.0]
-            for i in range(1, len(self.track_points)):
-                d = math.hypot(self.track_points[i][0] - self.track_points[i-1][0],
-                               self.track_points[i][1] - self.track_points[i-1][1])
-                dists.append(dists[-1] + d)
-            self.track_distances = dists
-            self.total_track_length = dists[-1]
-            
-        # Traffic box 1 (Blue)
-        s1 = (speed * dt_elapsed) % self.total_track_length
-        # Traffic box 2 (Red) is shifted by half the track length
-        s2 = (speed * dt_elapsed + self.total_track_length / 2.0) % self.total_track_length
-        
-        for name, s, pub in [("traffic_box_blue", s1, self.blue_pose_pub), ("traffic_box_red", s2, self.red_pose_pub)]:
-            # Find point along track corresponding to distance s
-            idx = np.searchsorted(self.track_distances, s)
-            if idx >= len(self.track_points):
-                idx = len(self.track_points) - 1
-            wp = self.track_points[idx]
-            
-            # Calculate heading yaw
-            next_idx = (idx + 1) % len(self.track_points)
-            next_wp = self.track_points[next_idx]
-            yaw = math.atan2(next_wp[1] - wp[1], next_wp[0] - wp[0])
-            
-            # Teleport via service
-            self.teleport_model_gazebo(name, wp[0], wp[1], yaw, z=0.0035)
-            # Publish via topic
-            self.publish_pose_topic(pub, wp[0], wp[1], 0.0035, yaw)
 
 
 def main(args=None):
