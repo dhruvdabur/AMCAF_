@@ -6,74 +6,60 @@ There are two simulation stacks here:
 - `gazebo_worlds/` and `custom_worlds/`: the current Ignition/Gazebo workflow for the custom road, Prius model, ROS 2 bridge, and MPC controller.
 - `car_demo/`: the older OSRF Prius demo built around ROS 1, Gazebo Classic, and Docker.
 
-## Layout
+## How to Launch the HIL Closed-Loop Control System
 
-| Path | Purpose |
-| --- | --- |
-| `gazebo_worlds/custom_road.sdf` | Main custom road world with road geometry and the Prius include. |
-| `gazebo_worlds/trajectory.csv` | Centerline waypoints used by the generated road, traffic actors, and controller nodes. |
-| `gazebo_worlds/mpc_controller_node.py` | ROS 2 MPC controller node with OpenCV tuning controls. |
-| `gazebo_worlds/pid_controller_node.py` | ROS 2 PID controller node with OpenCV tuning controls. |
-| `gazebo_worlds/run_mpc_control.sh` | Starts the ROS 2 to Gazebo bridge and the MPC controller node. |
-| `gazebo_worlds/run_pid_control.sh` | Starts the ROS 2 to Gazebo bridge and the PID controller node. |
-| `gazebo_worlds/teleop_real_car.py` | Keyboard teleop publisher for the physical vehicle's RC command channel. |
-| `gazebo_worlds/launch_all.sh` | Starts the custom world, bridge, and MPC controller together. |
-| `gazebo_worlds/launch_custom.sh` | Starts `custom_road.sdf` in Ignition/Gazebo. |
-| `custom_worlds/models/prius/` | Prius SDF model used by the current custom worlds. |
-| `custom_worlds/models/ackermann_car/` | Simple Ignition Ackermann model with the built-in Ackermann steering system. |
-| `custom_worlds/make_ellipse_world.py` | Generates the simpler segmented `ellipse_road.sdf`. |
-| `custom_worlds/teleop_ackermann_ign.py` | Keyboard teleop publisher for a Gazebo model command topic. |
-| `ackermann_description/urdf/ackermann_car.urdf` | URDF version of the simple Ackermann vehicle. |
-| `car_demo/` | Legacy ROS 1/Gazebo Classic Prius demo. |
+To launch the real-world closed-loop Hardware-in-the-Loop (HIL) experiment, run each component in separate terminals:
 
-## Current MPC Workflow
-
-From the repository root:
-
+### Step 1: Launch Pika Sense Localization (Mocap/Camera tracking)
+Launch the Pika Sense node to track and publish the real car's pose on `/pika/pose`:
 ```bash
-cd gazebo_sim/gazebo_worlds
-./launch_all.sh
+ros2 run pika_sense_ros sdk_bridge_node --ros-args -p serial_port:=/dev/ttyUSB0
 ```
 
-This script:
+### Step 2: Launch Monocular Camera Merger (Alternative Localization)
+If using camera-based ArUco marker merging, launch the monocular merge script to fuse views from two cameras (e.g., `/dev/video0` and `/dev/video4`) and estimate coordinates relative to the origin marker:
+```bash
+python3 -m monocular_merge.aruco_merge \
+  --cam0 /dev/video0 \
+  --cam1 /dev/video4 \
+  --intrinsics0 camera_calibration/camera_intrinsics.yaml \
+  --intrinsics1 camera_calibration/camera_intrinsics.yaml \
+  --marker-size-m 0.20 \
+  --dictionary DICT_4X4_50 \
+  --fourcc MJPG \
+  --frame-width 640 \
+  --frame-height 360 \
+  --preview
+```
 
-1. Starts Ignition/Gazebo with `custom_road.sdf`.
-2. Starts `ros_gz_bridge` for:
-   - `/model/prius/cmd_vel`
-   - `/model/prius/odometry`
-3. Starts `mpc_controller_node.py`.
+### Step 3: Launch CRSF Bridge Serial Driver
+Start the CRSF bridge node to parse incoming `/drone/rc_command` inputs and send PWM actuation commands to the physical ELRS transmitter (dynamically falls back to connected USB serial ports):
+```bash
+ros2 run crsf_ros2 crsf_ros
+```
 
-The MPC node reads `trajectory.csv`, subscribes to Prius odometry, computes acceleration and steering with the shared HIL MPC controller, integrates acceleration into a velocity command, and publishes `geometry_msgs/msg/Twist` commands.
-
-## Running Pieces Manually
-
-Start only the custom road world:
-
+### Step 4: Start the Gazebo Digital Twin Simulation
+Launch the virtual custom road world in Gazebo/Ignition:
 ```bash
 cd gazebo_sim/gazebo_worlds
 ./launch_custom.sh
 ```
 
-Start only the ROS 2 bridge and MPC node:
+### Step 5: Start the Path-Tracking Controller Node
+Choose one of the tracking controller nodes to compute steering and throttle outputs and run closed-loop control:
+* **MPC Controller Node**:
+  ```bash
+  cd gazebo_sim/gazebo_worlds
+  ./run_mpc_control.sh
+  ```
+* **PID Controller Node**:
+  ```bash
+  cd gazebo_sim/gazebo_worlds
+  ./run_pid_control.sh
+  ```
 
-```bash
-cd gazebo_sim/gazebo_worlds
-./run_mpc_control.sh
-```
-
-Generate the simple ellipse world:
-
-```bash
-cd gazebo_sim/custom_worlds
-python3 make_ellipse_world.py
-```
-
-Run keyboard teleop:
-
-```bash
-cd gazebo_sim/custom_worlds
-python3 teleop_ackermann_ign.py
-```
+> [!NOTE]
+> Both `mpc_controller_node.py` and `pid_controller_node.py` import their core path-tracking controller logic from the shared HIL control path (`hardware/hil/controllers/` or `from hardware.hil.controllers`).
 
 ## Topics And Models
 
