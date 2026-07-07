@@ -464,10 +464,15 @@ class GazeboPidControllerNode(Node):
         rc_msg = RCMessage()
         
         # Steering -> ROLL (always between 1300 and 1700, 1500 middle)
-        STEER_GAIN = 1.8
+        STEER_GAIN = 5.0
         steer_normalized = (steer / max_steer_rad) * STEER_GAIN
         rc_msg.rc_roll = int(1500 + REAL_RC_SCALE_STEER * steer_normalized)
         rc_msg.rc_roll = max(1300, min(1700, rc_msg.rc_roll))
+        self.get_logger().info(
+            f"Steer Debug: steer={steer:.4f} rad, normalized={steer_normalized:.4f}, "
+            f"roll_delta={REAL_RC_SCALE_STEER * steer_normalized:.1f}, rc_roll={rc_msg.rc_roll}",
+            throttle_duration_sec=0.5
+        )
         
         # Throttle -> PITCH (always between 1588 and 1590 when driving, else 1500)
         if self.target_speed > 0.01:

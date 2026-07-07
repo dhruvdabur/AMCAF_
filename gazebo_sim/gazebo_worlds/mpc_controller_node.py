@@ -826,7 +826,7 @@ class GazeboMpcControllerNode(Node):
 
 
         # 5b. Publish RCMessage for real-world car / HIL
-        REAL_RC_SCALE_STEER = 500
+        REAL_RC_SCALE_STEER = 100
         max_steer_rad = float(self.mpc_config.max_steer)
         max_accel_mps2 = float(self.mpc_config.max_accel)
 
@@ -834,15 +834,15 @@ class GazeboMpcControllerNode(Node):
         
         # Steering -> ROLL (always between 1300 and 1700, 1500 middle)
         STEER_GAIN = 1.8
-        steer_normalized = (steer / max_steer_rad) * STEER_GAIN
+        steer_normalized =  STEER_GAIN
         rc_msg.rc_roll = int(1500 + REAL_RC_SCALE_STEER * steer_normalized)
         rc_msg.rc_roll = max(1300, min(1700, rc_msg.rc_roll))
         
         # Throttle -> PITCH (always between 1588 and 1590 when driving, else 1500)
         if self.target_speed > 0.01:
             throttle_normalized = max(0.0, accel) / max_accel_mps2
-            rc_msg.rc_pitch = int(1586 + (1590 - 1588) * throttle_normalized)
-            rc_msg.rc_pitch = max(1586, min(1590, rc_msg.rc_pitch))
+            rc_msg.rc_pitch = int(1582 + (1590 - 1588) * throttle_normalized)
+            rc_msg.rc_pitch = max(1582, min(1590, rc_msg.rc_pitch))
         else:
             rc_msg.rc_pitch = 1500  # Stop / Neutral
         
