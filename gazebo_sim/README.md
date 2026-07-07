@@ -10,10 +10,13 @@ There are two simulation stacks here:
 
 | Path | Purpose |
 | --- | --- |
-| `gazebo_worlds/custom_road.sdf` | Main custom road world with road geometry, visual traffic actors, and the Prius include. |
-| `gazebo_worlds/trajectory.csv` | Centerline waypoints used by the generated road, traffic actors, and MPC controller. |
+| `gazebo_worlds/custom_road.sdf` | Main custom road world with road geometry and the Prius include. |
+| `gazebo_worlds/trajectory.csv` | Centerline waypoints used by the generated road, traffic actors, and controller nodes. |
 | `gazebo_worlds/mpc_controller_node.py` | ROS 2 MPC controller node with OpenCV tuning controls. |
+| `gazebo_worlds/pid_controller_node.py` | ROS 2 PID controller node with OpenCV tuning controls. |
 | `gazebo_worlds/run_mpc_control.sh` | Starts the ROS 2 to Gazebo bridge and the MPC controller node. |
+| `gazebo_worlds/run_pid_control.sh` | Starts the ROS 2 to Gazebo bridge and the PID controller node. |
+| `gazebo_worlds/teleop_real_car.py` | Keyboard teleop publisher for the physical vehicle's RC command channel. |
 | `gazebo_worlds/launch_all.sh` | Starts the custom world, bridge, and MPC controller together. |
 | `gazebo_worlds/launch_custom.sh` | Starts `custom_road.sdf` in Ignition/Gazebo. |
 | `custom_worlds/models/prius/` | Prius SDF model used by the current custom worlds. |
@@ -127,6 +130,44 @@ This computes tracking metrics (RMSE, Max Error) and saves a three-panel perform
 2. **Sensor Rendering Disabled**: LEGACY cameras, sonars, and Lidars are commented out of the Prius [`model.sdf`](file:///home/dhruv/amcaf/gazebo_sim/custom_worlds/models/prius/model.sdf), eliminating massive GPU/CPU rendering overhead.
 3. **Seamless Ground Plane**: Road segment collision boxes are disabled (visual-only), and the infinite ground plane collider is raised to $z = 0.02$ to match the road surface. This prevents tire-seam micro-collisions and vehicle jittering.
 4. **ROS Sim Time**: The MPC node is synchronized with Gazebo's `/clock` (`use_sim_time=True`), preventing command lag and control loop synchronization jitter.
+
+## Hardware-in-the-Loop (HIL) & Real Car Control
+
+The control scripts can operate in a Hardware-in-the-Loop (HIL) closed-loop mode to actuate the physical car based on real-time tracking:
+
+### 1. Control Loop Structure
+* **Vehicle Localization**: Subscribes to `/pika/pose` (geometry_msgs/msg/PoseStamped) coming from the Pika Sense tracking system.
+* **Velocity Estimation**: Estimates the real car's speed by computing the finite difference of the filtered positions over time ($dt = 0.05$s) using a low-pass filter to smooth out sensor noise.
+* **Vehicle-Frame Trajectory Transformation**: To avoid world coordinate drift and origin offsets, reference trajectory waypoints from `trajectory.csv` are transformed into the vehicle's local/body frame at every control iteration. The MPC solver resolves tracking errors relative to this moving local frame (starting from $x_{0\_local} = [0, 0, 0, v]^T$).
+* **RC Actuation**: The computed steering and throttle values are mapped and published as `rc_roll` (steering, scaled between 1300–1700) and `rc_pitch` (throttle, scaled between 1582–1590 when driving) on the `/drone/rc_command` topic (RCMessage).
+* **Digital Twin Synchronization**: The simulation Prius is teleported to match the real car's tracking coordinates in Gazebo, enabling the simulator's front 2D LiDAR (`/lidar2D/scan`) to act as a virtual sensor to detect obstacles relative to the road.
+
+### 2. How to Launch
+To run the closed-loop HIL controllers with the physical vehicle:
+
+1. **Launch the CRSF Serial Driver Node**:
+   This node connects to the ELRS transmitter via serial and publishes `/drone/rc_command` messages to the car. It automatically detects if the transmitter is connected on `/dev/ttyUSB0` or falls back dynamically to `/dev/ttyUSB1`, `/dev/ttyUSB2`, `/dev/ttyACM0`, or `/dev/ttyACM1`.
+   ```bash
+   ros2 run crsf_ros2 crsf_ros
+   ```
+
+2. **Launch the Controller Node**:
+   * For the **MPC Controller**:
+     ```bash
+     cd gazebo_sim/gazebo_worlds
+     ./run_mpc_control.sh
+     ```
+   * For the **PID Controller**:
+     ```bash
+     cd gazebo_sim/gazebo_worlds
+     ./run_pid_control.sh
+     ```
+
+3. **Restrained Teleop & Safety Diagnostics**:
+   To manually override or test actuator range limits:
+   ```bash
+   python3 gazebo_sim/gazebo_worlds/teleop_real_car.py --confirm-propulsion-safe
+   ```
 
 ## Dependencies
 

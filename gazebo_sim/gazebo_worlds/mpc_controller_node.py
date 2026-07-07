@@ -763,7 +763,7 @@ class GazeboMpcControllerNode(Node):
         dx = px - ref_x
         dy = py - ref_y
 
-        # Normal vector pointing left in World Map frame
+        # Normal vector pointing left in World frame
         nx = -math.sin(ref_yaw)
         ny = math.cos(ref_yaw)
         

@@ -63,6 +63,15 @@ or Python tools. They are not the main source files.
 │   ├── camera_intrinsics.yaml
 │   ├── camera_testing.yaml
 │   └── ros_camera_info.yaml
+├── gazebo_sim/
+│   ├── README.md
+│   └── gazebo_worlds/
+│       ├── custom_road.sdf
+│       ├── trajectory.csv
+│       ├── mpc_controller_node.py
+│       ├── pid_controller_node.py
+│       ├── run_mpc_control.sh
+│       └── run_pid_control.sh
 └── hardware/
     ├── README.md
     ├── metrics/
@@ -126,6 +135,8 @@ or Python tools. They are not the main source files.
 | Path | Purpose |
 | --- | --- |
 | `camera_calibration/` | USB camera preview, ROS `/image_raw` publishing, chessboard calibration, intrinsic tuning, and extrinsic tuning tools. |
+| `gazebo_sim/` | Gazebo simulator assets, world definitions, digital twin bridge scripts, and path-tracking controller nodes. |
+| `gazebo_sim/gazebo_worlds/` | Custom road simulation world, reference path waypoints, and the ROS 2 MPC and PID controller nodes with OpenCV tuning. |
 | `hardware/` | ROS 2 workspace for physical vehicle control and hardware-facing experiments. |
 | `hardware/src/rc_msgs/` | RC command message and arming service interfaces. |
 | `hardware/src/crsf_msgs/` | CRSF telemetry message interfaces. |
@@ -629,6 +640,7 @@ Prefer this order for physical runs:
 More specific docs live in:
 
 ```text
+gazebo_sim/README.md
 camera_calibration/README.md
 hardware/README.md
 hardware/src/README.md
@@ -636,3 +648,34 @@ hardware/src/crsf_ros2/README.md
 hardware/src/crsf_ros2/crsf_ros2/hil/README.md
 hardware/src/crsf_ros2/crsf_ros2/hil/controllers/README.md
 ```
+
+## Gazebo Digital Twin & HIL Real Car Control
+
+The system supports running closed-loop control on the physical vehicle while simulating obstacles in Gazebo (HIL digital twin mode):
+
+### 1. Launching simulation twin
+To start the Gazebo simulation world:
+```bash
+cd gazebo_sim/gazebo_worlds
+./launch_custom.sh
+```
+
+### 2. Launching controllers (with Pika Sense tracking feedback)
+To run the MPC or PID controller nodes (which read `/pika/pose` to estimate real car velocity, align reference waypoints to the vehicle's local frame, and output `rc_roll` and `rc_pitch` commands to `/drone/rc_command`):
+
+* **MPC Controller**:
+  ```bash
+  cd gazebo_sim/gazebo_worlds
+  ./run_mpc_control.sh
+  ```
+
+* **PID Controller**:
+  ```bash
+  cd gazebo_sim/gazebo_worlds
+  ./run_pid_control.sh
+  ```
+
+* **Real Car Teleoperation**:
+  ```bash
+  python3 gazebo_sim/gazebo_worlds/teleop_real_car.py --confirm-propulsion-safe
+  ```
