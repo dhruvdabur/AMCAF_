@@ -10,6 +10,7 @@ from .DCLF_DCBF import DCLF_DCBFSafetyFilter
 from .DCLF_DCBF import DCLF_DCBFPointObstacle
 from .mpc_cbf import MPCConfig
 from .mpc_cbf import MPCController
+from .mpc_cbf import transform_reference_to_vehicle_frame
 from .modes import CONTROLLER_MODES
 from .modes import PID
 from .modes import PID_CBF
@@ -35,6 +36,7 @@ __all__ = [
     'DCLF_DCBFPointObstacle',
     'MPCConfig',
     'MPCController',
+    'transform_reference_to_vehicle_frame',
     'LidarCluster',
     'PID',
     'PID_CBF',

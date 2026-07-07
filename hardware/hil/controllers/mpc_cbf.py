@@ -33,6 +33,47 @@ class MPCConfig:
     ipopt_print_level: int = 0
 
 
+
+def transform_reference_to_vehicle_frame(car_x: float, car_y: float, car_yaw: float, ref_trajectory: np.ndarray) -> np.ndarray:
+    """Transform reference trajectory from world frame to vehicle/body frame.
+    
+    ref_trajectory: numpy array of shape (4, N) where:
+                    row 0: ref_x (world)
+                    row 1: ref_y (world)
+                    row 2: ref_yaw (world)
+                    row 3: ref_vel
+    returns: numpy array of shape (4, N) transformed to local vehicle frame:
+             row 0: ref_x_local (relative to vehicle: x = 0, y = 0, yaw = 0)
+             row 1: ref_y_local
+             row 2: ref_yaw_local (relative yaw normalized to [-pi, pi])
+             row 3: ref_vel (unchanged)
+    """
+    N = ref_trajectory.shape[1]
+    local_trajectory = np.zeros_like(ref_trajectory)
+    
+    cos_yaw = math.cos(car_yaw)
+    sin_yaw = math.sin(car_yaw)
+    
+    for k in range(N):
+        dx = ref_trajectory[0, k] - car_x
+        dy = ref_trajectory[1, k] - car_y
+        
+        # Transform translation
+        local_trajectory[0, k] = cos_yaw * dx + sin_yaw * dy
+        local_trajectory[1, k] = -sin_yaw * dx + cos_yaw * dy
+        
+        # Transform rotation (heading)
+        dyaw = ref_trajectory[2, k] - car_yaw
+        # Normalize to [-pi, pi]
+        dyaw = math.atan2(math.sin(dyaw), math.cos(dyaw))
+        local_trajectory[2, k] = dyaw
+        
+        # Velocity remains unchanged
+        local_trajectory[3, k] = ref_trajectory[3, k]
+        
+    return local_trajectory
+
+
 class MPCController:
     """Path-following Model Predictive Controller (MPC) using a kinematic bicycle model.
 
@@ -264,11 +305,13 @@ class MPCController:
             # Fallback to zero steering and soft deceleration if dependencies are missing
             return self.config.min_accel * 0.1, 0.0
 
-        x0 = np.array([[px], [py], [yaw], [vel]])
-        self._current_ref = self._get_reference_trajectory(px, py, vel, target_speed)
+        ref_world = self._get_reference_trajectory(px, py, vel, target_speed)
+        self._current_ref = transform_reference_to_vehicle_frame(px, py, yaw, ref_world)
+
+        x0_local = np.array([[0.0], [0.0], [0.0], [vel]])
 
         if not self._initialized:
-            self._mpc.x0 = x0
+            self._mpc.x0 = x0_local
             self._mpc.set_initial_guess()
             self._initialized = True
 
@@ -276,7 +319,7 @@ class MPCController:
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                u0 = self._mpc.make_step(x0)
+                u0 = self._mpc.make_step(x0_local)
             self.solver_success = True
             steer = float(np.clip(np.asarray(u0).flat[0], self.config.min_steer, self.config.max_steer))
             accel = float(np.clip(np.asarray(u0).flat[1], self.config.min_accel, self.config.max_accel))
