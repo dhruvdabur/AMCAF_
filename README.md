@@ -23,11 +23,11 @@ The default marker side length is `0.20 m`.
 
 Conceptual two-camera setup:
 
-![Monocular merge setup](assets/monocular_merge_setup.png)
+![Monocular merge setup](monocular_merge/assets/monocular_merge_setup.png)
 
 Live stacked camera view with detected ArUco axes:
 
-![Live two-camera ArUco view](assets/live_two_camera_view.webp)
+![Live two-camera ArUco view](monocular_merge/assets/live_two_camera_view.webp)
 
 ## Run
 
