@@ -1,4 +1,0 @@
-interface:
-  display_name: "AMCaf Code Tutor"
-  short_description: "Teach-first AMCaf code and math guide"
-  default_prompt: "Use $amcaf-code-tutor to explain this AMCaf controller issue, cite repo code, bring in web references, and ask before editing."

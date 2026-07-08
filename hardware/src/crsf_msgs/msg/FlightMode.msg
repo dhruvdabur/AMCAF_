@@ -1,1 +1,0 @@
-string flight_mode
