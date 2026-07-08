@@ -19,6 +19,16 @@ their detections into one coordinate frame, then reports the target marker pose.
 
 The default marker side length is `0.20 m`.
 
+## Visual Overview
+
+Conceptual two-camera setup:
+
+![Monocular merge setup](assets/monocular_merge_setup.png)
+
+Live stacked camera view with detected ArUco axes:
+
+![Live two-camera ArUco view](assets/live_two_camera_view.webp)
+
 ## Run
 
 From the repository root:
